@@ -1,0 +1,169 @@
+openapi: 3.1.0
+info:
+  title: Gacha Revenue Observatory API
+  version: 1.0.0
+  description: |
+    Estimated gross-bookings data. Values are third-party model estimates,
+    not publisher-reported revenue. All money endpoints include methodology metadata.
+servers:
+  - url: https://api.example.com/v1
+  - url: http://localhost:8080/v1
+tags:
+  - name: Catalog
+  - name: Revenue
+  - name: Versions
+  - name: Methodology
+  - name: Admin
+paths:
+  /games:
+    get:
+      tags: [Catalog]
+      operationId: listGames
+      summary: List supported games
+      responses:
+        '200':
+          description: Supported games
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, meta]
+                properties:
+                  data:
+                    type: array
+                    items: {$ref: '#/components/schemas/Game'}
+                  meta: {$ref: '#/components/schemas/EstimateMeta'}
+  /revenue:
+    get:
+      tags: [Revenue]
+      operationId: listRevenue
+      summary: Query comparable revenue estimates
+      parameters:
+        - in: query
+          name: game_id
+          schema: {type: string}
+        - in: query
+          name: grain
+          schema:
+            type: string
+            enum: [month, year, version, banner]
+            default: month
+        - in: query
+          name: from
+          schema: {type: string, format: date}
+        - in: query
+          name: to
+          schema: {type: string, format: date}
+      responses:
+        '200':
+          description: Estimate time series with P25–P75 interval
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, meta]
+                properties:
+                  data:
+                    type: array
+                    items: {$ref: '#/components/schemas/RevenuePoint'}
+                  meta: {$ref: '#/components/schemas/EstimateMeta'}
+  /versions:
+    get:
+      tags: [Versions]
+      operationId: listVersions
+      summary: List version, banner, rank, and app-line performance
+      parameters:
+        - in: query
+          name: game_id
+          schema: {type: string}
+      responses:
+        '200':
+          description: Version intelligence
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, meta]
+                properties:
+                  data:
+                    type: array
+                    items: {$ref: '#/components/schemas/VersionIntelligence'}
+                  meta: {$ref: '#/components/schemas/EstimateMeta'}
+  /methodology:
+    get:
+      tags: [Methodology]
+      operationId: getMethodology
+      summary: Get the active public methodology
+      responses:
+        '200':
+          description: Active model summary
+  /admin/ingestions:
+    post:
+      tags: [Admin]
+      operationId: createIngestion
+      summary: Queue an authorized-source ingestion
+      security: [{cognito: [editor]}]
+      responses:
+        '202': {description: Ingestion queued}
+        '401': {description: Missing or invalid JWT}
+        '403': {description: Editor or admin role required}
+components:
+  securitySchemes:
+    cognito:
+      type: openIdConnect
+      openIdConnectUrl: https://cognito-idp.{region}.amazonaws.com/{userPoolId}/.well-known/openid-configuration
+  schemas:
+    Game:
+      type: object
+      required: [id, name_zh, name_en, publisher, platforms, confidence]
+      properties:
+        id: {type: string}
+        name_zh: {type: string}
+        name_en: {type: string}
+        publisher: {type: string}
+        platforms:
+          type: array
+          items: {type: string}
+        confidence:
+          type: string
+          enum: [A, B+, B, C, N/A]
+    RevenuePoint:
+      type: object
+      required: [game_id, grain, period, estimate, p25, p75, confidence]
+      properties:
+        game_id: {type: string}
+        grain: {type: string, enum: [month, year, version, banner]}
+        period: {type: string}
+        estimate: {type: number, description: CNY 100 million}
+        p25: {type: number}
+        p75: {type: number}
+        confidence: {type: string}
+    VersionIntelligence:
+      type: object
+      required: [id, game_id, version, characters, ios_grossing_rank_range, cn_app_line_hours]
+      properties:
+        id: {type: string}
+        game_id: {type: string}
+        version: {type: string}
+        characters: {type: string}
+        estimate: {type: [number, 'null']}
+        ios_grossing_rank_range:
+          type: object
+          additionalProperties:
+            type: array
+            prefixItems: [{type: integer}, {type: integer}]
+            minItems: 2
+            maxItems: 2
+        cn_app_line_hours:
+          type: object
+          additionalProperties: {type: number}
+    EstimateMeta:
+      type: object
+      required: [currency, unit, basis, data_status, methodology_version]
+      properties:
+        currency: {const: CNY}
+        unit: {const: 100_million}
+        basis: {const: estimated_gross_bookings}
+        data_status: {type: string}
+        methodology_version: {type: string}
+

@@ -1,0 +1,109 @@
+services:
+  web:
+    image: node:22-alpine
+    working_dir: /app
+    command: npm run dev
+    ports:
+      - "3000:3000"
+    volumes:
+      - .:/app
+      - web_node_modules:/app/node_modules
+    environment:
+      NEXT_PUBLIC_API_BASE_URL: http://localhost:8080/v1
+    depends_on:
+      api:
+        condition: service_healthy
+
+  api:
+    build:
+      context: ./backend
+      target: api
+    ports:
+      - "8080:8080"
+    environment:
+      APP_ENV: development
+      HTTP_ADDRESS: :8080
+      DATABASE_URL: postgres://gacha:gacha@postgres:5432/gacha?sslmode=disable
+      REDIS_URL: redis://redis:6379/0
+      AUTH_REQUIRED: "false"
+      RAW_DATA_BUCKET: gacha-revenue-raw-local
+      INGESTION_QUEUE_URL: http://localstack:4566/000000000000/gacha-ingestion
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "-", "http://localhost:8080/healthz"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  worker:
+    build:
+      context: ./backend
+      target: worker
+    environment:
+      APP_ENV: development
+      DATABASE_URL: postgres://gacha:gacha@postgres:5432/gacha?sslmode=disable
+      REDIS_URL: redis://redis:6379/0
+      RAW_DATA_BUCKET: gacha-revenue-raw-local
+      INGESTION_QUEUE_URL: http://localstack:4566/000000000000/gacha-ingestion
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      localstack:
+        condition: service_healthy
+
+  postgres:
+    image: postgres:17-alpine
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_DB: gacha
+      POSTGRES_USER: gacha
+      POSTGRES_PASSWORD: gacha
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./backend/migrations/000001_initial_schema.up.sql:/docker-entrypoint-initdb.d/001-schema.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U gacha -d gacha"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    command: redis-server --save 60 1 --loglevel warning
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  localstack:
+    image: localstack/localstack:4.6
+    ports:
+      - "4566:4566"
+    environment:
+      SERVICES: s3,sqs
+      AWS_DEFAULT_REGION: us-east-1
+    volumes:
+      - localstack_data:/var/lib/localstack
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:4566/_localstack/health"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+volumes:
+  web_node_modules:
+  postgres_data:
+  redis_data:
+  localstack_data:
