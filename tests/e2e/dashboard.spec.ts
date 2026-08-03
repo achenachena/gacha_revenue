@@ -2,17 +2,21 @@ import { expect, test } from "@playwright/test";
 
 test("switches revenue grain and locale", async ({ page }) => {
   await page.goto("/zh-CN");
-  await expect(page.getByRole("heading", { name: "授权数据接入状态" })).toBeVisible();
-  await expect(page.getByText("等待授权数据源").first()).toBeVisible();
+  await expect(page.locator("main")).toHaveAttribute("data-hydrated", "true");
+  await expect(page.getByRole("heading", { name: "2026 年 7 月流水估算" })).toBeVisible();
+  await expect(page.getByText("¥10.29 亿")).toBeVisible();
+  await expect(page.getByText("¥2.36 亿").first()).toBeVisible();
   await page.getByRole("button", { name: "按年" }).click();
-  await expect(page.getByText("等待授权数据源").last()).toBeVisible();
-  await page.getByRole("link", { name: "EN" }).click();
+  await expect(page.getByText("2022", { exact: true })).toBeVisible();
+  await expect(page.getByText("2026 YTD").first()).toBeVisible();
+  await page.getByRole("link", { name: "EN", exact: true }).click();
   await expect(page).toHaveURL(/\/en$/);
-  await expect(page.getByRole("heading", { name: "Authorized data connection status" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "July 2026 revenue estimates" })).toBeVisible();
 });
 
 test("compares games and opens version intelligence", async ({ page }) => {
   await page.goto("/zh-CN");
+  await expect(page.locator("main")).toHaveAttribute("data-hydrated", "true");
   await page.getByLabel("选择游戏").selectOption("hsr");
   await page.getByLabel("选择版本 / 卡池角色").selectOption("hsr-32-anaxa");
   await expect(page.getByText("UP · 那刻夏")).toBeVisible();

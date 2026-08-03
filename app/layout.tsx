@@ -23,21 +23,21 @@ export async function generateMetadata(): Promise<Metadata> {
   return {
     metadataBase: origin,
     title: "二游流水观察｜Gacha Revenue Tracker",
-    description: "A bilingual gacha revenue and iOS ranking dashboard that displays sourced observations only.",
+    description: "A bilingual gacha revenue dashboard with modelled revenue estimates and verified iOS rank observations.",
     icons: {
       icon: "/favicon.svg",
       shortcut: "/favicon.svg",
     },
     openGraph: {
       title: "二游流水观察｜Gacha Revenue Tracker",
-      description: "六款二游的流水、具体卡池角色、iOS 畅销榜与应用线数据；仅显示已核验观测。",
+      description: "六款二游的模型流水估算、具体卡池角色、iOS 畅销榜与核验应用线数据。",
       type: "website",
       images: [{ url: socialImage, width: 1672, height: 941, alt: "二游流水观察数据仪表盘" }],
     },
     twitter: {
       card: "summary_large_image",
       title: "二游流水观察｜Gacha Revenue Tracker",
-      description: "六款二游的流水、具体卡池角色、iOS 畅销榜与应用线数据；仅显示已核验观测。",
+      description: "六款二游的模型流水估算、具体卡池角色、iOS 畅销榜与核验应用线数据。",
       images: [socialImage],
     },
   };

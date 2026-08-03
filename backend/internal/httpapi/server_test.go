@@ -43,18 +43,26 @@ func TestEditorEndpointRejectsViewer(t *testing.T) {
 	}
 }
 
-func TestRevenueDoesNotReturnSyntheticFixtures(t *testing.T) {
+func TestRevenueReturnsLabelledModelSnapshot(t *testing.T) {
 	request := httptest.NewRequest(http.MethodGet, "/v1/revenue?grain=month", nil)
 	recorder := httptest.NewRecorder()
 	New(config.Config{}, slog.New(slog.NewTextHandler(io.Discard, nil))).ServeHTTP(recorder, request)
 	var payload struct {
 		Data []revenuePoint `json:"data"`
+		Meta map[string]any `json:"meta"`
 	}
 	if err := json.NewDecoder(bytes.NewReader(recorder.Body.Bytes())).Decode(&payload); err != nil {
 		t.Fatal(err)
 	}
-	if len(payload.Data) != 0 {
-		t.Fatalf("expected no synthetic revenue fixtures, got %d", len(payload.Data))
+	if len(payload.Data) != 34 {
+		t.Fatalf("expected 34 monthly model points, got %d", len(payload.Data))
+	}
+	if payload.Meta["data_status"] != "model_snapshot_with_verified_rank_observations" {
+		t.Fatalf("unexpected data status: %v", payload.Meta["data_status"])
+	}
+	last := payload.Data[len(payload.Data)-1]
+	if last.GameID != "endfield" || last.Period != "2026-07-01" || last.Estimate != 1.64 || last.Low <= 0 || last.High <= last.Estimate {
+		t.Fatalf("unexpected final model point: %+v", last)
 	}
 }
 

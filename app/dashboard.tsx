@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import {
   appLines,
   games,
@@ -17,24 +17,27 @@ import {
 
 type Period = "month" | "year" | "version";
 
+const subscribeToHydration = () => () => {};
+
 const copy = {
   "zh-CN": {
     nav: ["总览", "趋势", "对比", "版本与角色", "估算公式"],
     navIds: ["overview", "trend", "compare", "versions", "methodology"],
     brand: "二游流水观察",
     brandSub: "GACHA REVENUE ESTIMATES",
-    dataBadge: "仅显示已核验数据",
-    disclaimer: "错误演示数字已全部移除。未接入授权 Sensor Tower、AppMagic 与逐小时排名 feed 的字段统一显示“待接入”，不会用比例或插值补数。",
-    overviewTitle: "授权数据接入状态",
-    overviewUnit: "只展示具有来源、观察窗口和更新时间的数值",
-    monthTotal: "已核验流水",
-    ytdTotal: "已核验卡池观测",
-    observed: "自动更新",
-    update: "准确性优先",
-    currentMonth: "最新流水估算",
-    ytd: "年度估算",
-    notLive: "等待授权数据源",
-    confidence: "置信度",
+    dataBadge: "流水为模型估算 · 榜单为核验观测",
+    disclaimer: "流水为 2026 年 7 月全平台毛流水模型快照（P50），并给出 P25–P75 区间；榜单名次与超应用时长仍只展示有逐小时观测依据的数据。",
+    overviewTitle: "2026 年 7 月流水估算",
+    overviewUnit: "单位：亿元人民币 · 全平台消费者毛支出 · 平台抽成前",
+    monthTotal: "7 月 P50 合计",
+    ytdTotal: "2026 YTD 合计",
+    observed: "估算覆盖",
+    update: "MODEL SNAPSHOT",
+    currentMonth: "7 月 P50",
+    currentRange: "P25–P75",
+    ytd: "2026 YTD",
+    notLive: "暂无可估算收入",
+    confidence: "模型置信度",
     trendTitle: "单游戏流水趋势",
     trendSub: "点击上方游戏卡片切换游戏；纵轴统一从 0 开始",
     month: "按月",
@@ -48,7 +51,7 @@ const copy = {
     average: "期间均值",
     latest: "最新一期",
     compareTitle: "游戏间流水比较",
-    compareSub: "接入授权流水源后自动生成同口径比较",
+    compareSub: "按同一全平台毛流水模型比较；未开服游戏不参与",
     ytdEstimate: "YTD 估算",
     share: "入选游戏占比",
     selected: "已选择",
@@ -111,25 +114,26 @@ const copy = {
     sources: "数据源说明",
     sourceNote: "ST / AppMagic 是第三方估算，只适合同口径趋势和比较，不等同于发行商审计收入。",
     footer: "二游流水观察",
-    footerNote: "仅显示已核验数据",
+    footerNote: "流水为模型估算 · 榜单为核验观测",
   },
   en: {
     nav: ["Overview", "Trend", "Compare", "Versions & banners", "Formula"],
     navIds: ["overview", "trend", "compare", "versions", "methodology"],
     brand: "GACHA REVENUE TRACKER",
     brandSub: "二游流水观察",
-    dataBadge: "VERIFIED DATA ONLY",
-    disclaimer: "All synthetic demo values have been removed. Fields without licensed Sensor Tower, AppMagic, or hourly rank-feed inputs are marked as awaiting data and are never interpolated.",
-    overviewTitle: "Authorized data connection status",
-    overviewUnit: "Values appear only with source, observation window, and update time",
-    monthTotal: "Verified revenue",
-    ytdTotal: "Verified banner observations",
-    observed: "Auto refresh",
-    update: "Accuracy first",
-    currentMonth: "Latest revenue estimate",
-    ytd: "Annual estimate",
-    notLive: "Awaiting authorized data",
-    confidence: "Confidence",
+    dataBadge: "MODELLED REVENUE · VERIFIED RANK OBSERVATIONS",
+    disclaimer: "Revenue is a July 2026 all-platform gross-bookings model snapshot (P50) with P25–P75 ranges. Rankings and app-line hours appear only when backed by hourly observations.",
+    overviewTitle: "July 2026 revenue estimates",
+    overviewUnit: "CNY 100M · all-platform consumer gross spend · before platform fees",
+    monthTotal: "July P50 total",
+    ytdTotal: "2026 YTD total",
+    observed: "Model coverage",
+    update: "MODEL SNAPSHOT",
+    currentMonth: "July P50",
+    currentRange: "P25–P75",
+    ytd: "2026 YTD",
+    notLive: "No revenue estimate",
+    confidence: "Model confidence",
     trendTitle: "Single-game revenue trend",
     trendSub: "Select a game card above; the y-axis always starts at zero",
     month: "Monthly",
@@ -143,7 +147,7 @@ const copy = {
     average: "Period average",
     latest: "Latest",
     compareTitle: "Cross-game comparison",
-    compareSub: "Like-for-like comparisons appear after licensed revenue sources are connected",
+    compareSub: "Like-for-like comparison using the same all-platform gross-bookings model; unreleased titles are excluded",
     ytdEstimate: "YTD estimate",
     share: "Selected share",
     selected: "selected",
@@ -206,7 +210,7 @@ const copy = {
     sources: "Source note",
     sourceNote: "ST / AppMagic are third-party estimates for like-for-like trends and comparisons, not audited publisher revenue.",
     footer: "Gacha Revenue Tracker · 二游流水观察",
-    footerNote: "Verified observations only",
+    footerNote: "Modelled revenue · verified rank observations",
   },
 } as const;
 
@@ -374,6 +378,7 @@ function normalizeVersions(payload: VersionsResponse): VersionDetail[] {
 
 export default function Dashboard({ locale }: { locale: Locale }) {
   const t = copy[locale];
+  const hydrated = useSyncExternalStore(subscribeToHydration, () => true, () => false);
   const [selectedGame, setSelectedGame] = useState<GameId>("wuwa");
   const [period, setPeriod] = useState<Period>("month");
   const [compareIds, setCompareIds] = useState<GameId[]>(["genshin", "hsr", "zzz", "wuwa"]);
@@ -411,7 +416,9 @@ export default function Dashboard({ locale }: { locale: Locale }) {
   const visibleVersions = versionsData.filter((item) => item.gameId === versionGame);
   const comparisonGames = games.filter((game) => compareIds.includes(game.id) && game.ytd !== null);
   const compareTotal = comparisonGames.reduce((sum, game) => sum + (game.ytd ?? 0), 0);
-  const verifiedBannerCount = versionsData.filter((version) => version.appHours.some((item) => item.hours !== null)).length;
+  const monthlyTotal = games.reduce((sum, game) => sum + (game.currentMonth ?? 0), 0);
+  const ytdTotal = games.reduce((sum, game) => sum + (game.ytd ?? 0), 0);
+  const modelledGameCount = games.filter((game) => game.currentMonth !== null).length;
 
   const trend = useMemo(() => {
     if (period === "year") return { values: activeGame.yearly, labels: yearLabels, xAxis: t.yearAxis };
@@ -465,7 +472,7 @@ export default function Dashboard({ locale }: { locale: Locale }) {
   };
 
   return (
-    <main>
+    <main data-hydrated={hydrated ? "true" : "false"}>
       <header className="site-header">
         <a className="brand" href={`/${locale}`} aria-label={t.footer}>
           <span className="brand-symbol"><i /><i /><i /></span>
@@ -490,9 +497,9 @@ export default function Dashboard({ locale }: { locale: Locale }) {
           <p>{t.overviewUnit}</p>
         </div>
         <div className="overview-kpis">
-          <div><span>{t.monthTotal}</span><strong>—</strong></div>
-          <div><span>{t.ytdTotal}</span><strong>{verifiedBannerCount}</strong></div>
-          <div><span>{t.observed}</span><strong>{t.awaitingFeed}</strong></div>
+          <div><span>{t.monthTotal}</span><strong>{formatMoney(monthlyTotal, locale)}</strong></div>
+          <div><span>{t.ytdTotal}</span><strong>{formatMoney(ytdTotal, locale)}</strong></div>
+          <div><span>{t.observed}</span><strong>{modelledGameCount} / {games.length}</strong></div>
         </div>
       </section>
 
@@ -516,7 +523,10 @@ export default function Dashboard({ locale }: { locale: Locale }) {
                 <div className="not-live"><b>—</b><span>{t.notLive}</span></div>
               ) : (
                 <>
-                  <div className="card-money"><strong>{formatMoney(game.currentMonth, locale)}</strong><span>{t.currentMonth}</span></div>
+                  <div className="card-money">
+                    <strong>{formatMoney(game.currentMonth, locale)}</strong>
+                    <span>{t.currentMonth}{game.currentMonthRange ? ` · ${t.currentRange} ${formatMoney(game.currentMonthRange[0], locale)}–${formatMoney(game.currentMonthRange[1], locale)}` : ""}</span>
+                  </div>
                   <div className="card-foot">
                     <span>{t.ytd} <b>{formatMoney(game.ytd, locale)}</b></span>
                     <span className={game.change && game.change > 0 ? "positive" : "negative"}>{game.change && game.change > 0 ? "+" : ""}{game.change}%</span>

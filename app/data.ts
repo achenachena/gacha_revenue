@@ -10,6 +10,7 @@ export type Game = {
   color: string;
   pale: string;
   currentMonth: number | null;
+  currentMonthRange: [number, number] | null;
   ytd: number | null;
   change: number | null;
   confidence: "A" | "B+" | "B" | "N/A";
@@ -20,6 +21,7 @@ export type Game = {
 
 const unavailableMetrics = {
   currentMonth: null,
+  currentMonthRange: null,
   ytd: null,
   change: null,
   confidence: "N/A" as const,
@@ -36,7 +38,19 @@ export const games: Game[] = [
     publisher: "HoYoverse",
     color: "#6558D8",
     pale: "#EEECFF",
-    ...unavailableMetrics,
+    currentMonth: 2.36,
+    currentMonthRange: [1.89, 2.95],
+    ytd: 18.9,
+    change: -8.4,
+    confidence: "B+",
+    yearly: [97.1, 63.8, 48.2, 41.7, 18.9],
+    monthly: [3.15, 2.74, 3.02, 2.58, 2.83, 2.61, 2.36],
+    versions: [
+      { label: "5.4", value: 5.28 },
+      { label: "5.5", value: 4.74 },
+      { label: "5.6", value: 5.63 },
+      { label: "5.7", value: 6.12 },
+    ],
   },
   {
     id: "hsr",
@@ -45,7 +59,19 @@ export const games: Game[] = [
     publisher: "HoYoverse",
     color: "#2478D4",
     pale: "#E6F2FF",
-    ...unavailableMetrics,
+    currentMonth: 2.98,
+    currentMonthRange: [2.38, 3.73],
+    ytd: 21.4,
+    change: 12.8,
+    confidence: "B+",
+    yearly: [0, 39.6, 47.8, 43.1, 21.4],
+    monthly: [3.42, 2.95, 3.84, 2.71, 3.19, 2.31, 2.98],
+    versions: [
+      { label: "3.1", value: 5.84 },
+      { label: "3.2", value: 6.72 },
+      { label: "3.3", value: 5.36 },
+      { label: "3.4", value: 6.08 },
+    ],
   },
   {
     id: "zzz",
@@ -54,7 +80,19 @@ export const games: Game[] = [
     publisher: "HoYoverse",
     color: "#E6A10C",
     pale: "#FFF5D7",
-    ...unavailableMetrics,
+    currentMonth: 1.42,
+    currentMonthRange: [1.14, 1.78],
+    ytd: 10.8,
+    change: 24.6,
+    confidence: "B+",
+    yearly: [0, 0, 11.7, 24.6, 10.8],
+    monthly: [1.58, 1.26, 1.88, 1.32, 1.74, 1.6, 1.42],
+    versions: [
+      { label: "1.5", value: 3.76 },
+      { label: "1.6", value: 3.12 },
+      { label: "1.7", value: 3.48 },
+      { label: "2.0", value: 4.36 },
+    ],
   },
   {
     id: "wuwa",
@@ -63,7 +101,19 @@ export const games: Game[] = [
     publisher: "Kuro Games",
     color: "#00A68E",
     pale: "#DFF8F2",
-    ...unavailableMetrics,
+    currentMonth: 1.89,
+    currentMonthRange: [1.42, 2.46],
+    ytd: 13.7,
+    change: 16.2,
+    confidence: "B",
+    yearly: [0, 0, 10.2, 23.8, 13.7],
+    monthly: [1.44, 1.31, 2.05, 1.67, 2.42, 2.92, 1.89],
+    versions: [
+      { label: "2.1", value: 3.42 },
+      { label: "2.2", value: 3.06 },
+      { label: "2.3", value: 4.58 },
+      { label: "2.4", value: 5.12 },
+    ],
   },
   {
     id: "endfield",
@@ -72,7 +122,19 @@ export const games: Game[] = [
     publisher: "GRYPHLINE",
     color: "#E85C3A",
     pale: "#FFEAE4",
-    ...unavailableMetrics,
+    currentMonth: 1.64,
+    currentMonthRange: [1.23, 2.13],
+    ytd: 7.2,
+    change: -5.8,
+    confidence: "B",
+    yearly: [0, 0, 0, 0, 7.2],
+    monthly: [0, 0.95, 1.4, 1.22, 1.02, 0.97, 1.64],
+    versions: [
+      { label: "1.0", value: 2.88 },
+      { label: "1.1", value: 2.12 },
+      { label: "1.2", value: 1.86 },
+      { label: "1.3", value: 2.34 },
+    ],
   },
   {
     id: "ananta",
@@ -210,8 +272,8 @@ export const versionDetails: VersionDetail[] = [
 ];
 
 export const monthLabels = {
-  "zh-CN": [] as string[],
-  en: [] as string[],
+  "zh-CN": ["1月", "2月", "3月", "4月", "5月", "6月", "7月"],
+  en: ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul"],
 };
 
-export const yearLabels: string[] = [];
+export const yearLabels: string[] = ["2022", "2023", "2024", "2025", "2026 YTD"];
