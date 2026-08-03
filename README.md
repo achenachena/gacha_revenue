@@ -2,15 +2,17 @@
 
 面向二游市场研究的中英双语流水估算与对比产品。当前覆盖原神、崩坏：星穹铁道、绝区零、鸣潮、明日方舟：终末地与异环。
 
-> 仓库中的金额是用于产品验收的演示估算快照，不是发行商财报，也不是从未授权接口抓取的数据。生产环境需要接入已授权的 Sensor Tower、AppMagic、iOS 排名与汇率数据源后重算。
+> 仓库不再提供合成流水或榜单演示数字。没有授权源的字段返回 `null` 并显示“待接入”。本地 fallback 仅保留产品方明确校正的三条应用线观测，并标记为 `verified_manual`，授权 feed 回填后由数据库结果替代。
 
 ## 已实现
 
 - `/zh-CN` 与 `/en` URL 级本地化。
 - 年度、月度、版本三个颗粒度的单游戏趋势。
 - 2–6 款游戏多选比较与 YTD 份额。
-- 版本/角色估算、CN/JP/US/KR iOS 畅销榜峰值和区间。
+- 游戏与“版本 / 具体卡池角色”双下拉选择。
+- 版本/角色估算、CN/JP/US/KR iOS 畅销榜峰值和区间；缺失数据不会被当成 0。
 - 抖音、腾讯视频、QQ 音乐、剪映、网易云音乐、百度网盘、夸克网盘七条中国区 iOS 应用线的超越时长。
+- 每个游戏可按任一应用线查看所有已核验卡池的超越时长排名。
 - 明示第三方估算、毛流水口径、排除项、置信度与模型版本。
 - Go REST API、OpenAPI 3.1、Cognito RS256 JWT 验证与 viewer/editor/admin 权限。
 - PostgreSQL 版本化迁移、S3/SQS worker 入口、Redis/RDS/ECS/Cognito 等 Terraform 资源。
@@ -76,7 +78,7 @@ tests/load/             k6 API 压测
 ## 生产数据流
 
 ```text
-EventBridge → SQS → ingestion worker → S3 raw archive
+EventBridge（排名每小时、流水每日）→ SQS → ingestion worker → S3 raw archive
                            ↓
                     PostgreSQL observations
                            ↓
@@ -85,11 +87,49 @@ EventBridge → SQS → ingestion worker → S3 raw archive
                   estimates + Redis cache → Go API → Next.js
 ```
 
-摄取任务以供应商记录 ID 与内容校验和保证幂等；连续失败五次进入 DLQ。编辑操作写入 `audit_events`，所有模型输出保存输入清单与模型版本以便复算。
+排名 worker 只接受授权 feed 的标准 JSON，先按 SHA-256 将原始响应归档到 S3，再幂等写入 PostgreSQL。游戏与应用线必须在同一 UTC 小时都有观测，该小时才进入比较；缺一侧数据时是“未知”，不会被算成 0 小时。每次写入后并发刷新卡池峰值/最低值和应用线物化视图。连续失败五次进入 DLQ。
+
+授权排名 feed 的响应格式：
+
+```json
+{
+  "banners": [
+    {
+      "game_id": "wuwa",
+      "version": "3.1",
+      "phase_zh": "爱弥斯卡池",
+      "phase_en": "Aemeath banner",
+      "character_zh": "爱弥斯",
+      "character_en": "Aemeath",
+      "starts_at": "2026-02-05T02:00:00Z",
+      "ends_at": "2026-02-26T02:00:00Z"
+    }
+  ],
+  "records": [
+    {
+      "subject_type": "game",
+      "subject_id": "wuwa",
+      "market": "CN",
+      "observed_at": "2026-08-03T12:00:00Z",
+      "grossing_rank": 3,
+      "record_id": "provider-record-id"
+    }
+  ]
+}
+```
+
+生产环境需在 Secrets Manager 的 application JSON secret 中设置：
+
+- `DATABASE_URL`
+- `REDIS_URL`
+- `AUTHORIZED_RANK_FEED_URL`
+- `AUTHORIZED_RANK_FEED_TOKEN`
+
+前端设置 `NEXT_PUBLIC_API_BASE_URL` 后会自动读取 Go API 的最新版本/卡池观测；未设置时只展示明确标注的本地校正，不回退到模拟数字。
 
 ## 上线前清单
 
-- 将演示快照替换为授权源导入，不在前端包或日志中放供应商密钥。
+- 配置 Sensor Tower / AppMagic 与逐小时排名 feed 的授权凭据，不在前端包或日志中放供应商密钥。
 - 为中国 Android / PC / 主机系数完成至少 6 个月回测并记录置信区间。
 - 将 Terraform 中的示例 Cognito 回调域名换为正式域名，并在入口层接入 ALB / CloudFront / WAF。
 - 通过 Secrets Manager 注入数据库与供应商令牌；Parameter Store 只放非敏感配置。

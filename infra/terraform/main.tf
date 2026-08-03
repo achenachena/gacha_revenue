@@ -163,6 +163,19 @@ resource "aws_iam_role_policy_attachment" "ecs_execution" {
   policy_arn = "arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy"
 }
 
+resource "aws_iam_role_policy" "ecs_execution_secrets" {
+  name = "read-application-secrets"
+  role = aws_iam_role.ecs_execution.id
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Effect   = "Allow"
+      Action   = ["secretsmanager:GetSecretValue"]
+      Resource = aws_secretsmanager_secret.application.arn
+    }]
+  })
+}
+
 resource "aws_iam_role" "task" {
   name = "${local.name}-task"
   assume_role_policy = jsonencode({
@@ -191,7 +204,7 @@ resource "aws_secretsmanager_secret" "application" {
 resource "aws_ssm_parameter" "model_version" {
   name  = "/${local.name}/model-version"
   type  = "String"
-  value = "1.4.0"
+  value = "2.0.0"
 }
 
 resource "aws_ecs_task_definition" "api" {
@@ -214,7 +227,11 @@ resource "aws_ecs_task_definition" "api" {
       { name = "INGESTION_QUEUE_URL", value = aws_sqs_queue.ingestion.url },
       { name = "COGNITO_ISSUER", value = "https://cognito-idp.${var.aws_region}.amazonaws.com/${aws_cognito_user_pool.main.id}" },
       { name = "COGNITO_CLIENT_ID", value = aws_cognito_user_pool_client.web.id },
-      { name = "AUTH_REQUIRED", value = "true" }
+      { name = "AUTH_REQUIRED", value = "false" }
+    ]
+    secrets = [
+      { name = "DATABASE_URL", valueFrom = "${aws_secretsmanager_secret.application.arn}:DATABASE_URL::" },
+      { name = "REDIS_URL", valueFrom = "${aws_secretsmanager_secret.application.arn}:REDIS_URL::" }
     ]
     logConfiguration = { logDriver = "awslogs", options = { awslogs-group = aws_cloudwatch_log_group.api.name, awslogs-region = var.aws_region, awslogs-stream-prefix = "api" } }
   }])
@@ -236,6 +253,11 @@ resource "aws_ecs_task_definition" "worker" {
       { name = "APP_ENV", value = var.environment },
       { name = "RAW_DATA_BUCKET", value = aws_s3_bucket.raw.bucket },
       { name = "INGESTION_QUEUE_URL", value = aws_sqs_queue.ingestion.url }
+    ]
+    secrets = [
+      { name = "DATABASE_URL", valueFrom = "${aws_secretsmanager_secret.application.arn}:DATABASE_URL::" },
+      { name = "AUTHORIZED_RANK_FEED_URL", valueFrom = "${aws_secretsmanager_secret.application.arn}:AUTHORIZED_RANK_FEED_URL::" },
+      { name = "AUTHORIZED_RANK_FEED_TOKEN", valueFrom = "${aws_secretsmanager_secret.application.arn}:AUTHORIZED_RANK_FEED_TOKEN::" }
     ]
     logConfiguration = { logDriver = "awslogs", options = { awslogs-group = aws_cloudwatch_log_group.worker.name, awslogs-region = var.aws_region, awslogs-stream-prefix = "worker" } }
   }])
@@ -278,6 +300,11 @@ resource "aws_cloudwatch_event_rule" "daily_ingestion" {
   schedule_expression = "cron(15 2 * * ? *)"
 }
 
+resource "aws_cloudwatch_event_rule" "hourly_rank_ingestion" {
+  name                = "${local.name}-hourly-rank-ingestion"
+  schedule_expression = "cron(5 * * * ? *)"
+}
+
 resource "aws_sqs_queue_policy" "eventbridge" {
   queue_url = aws_sqs_queue.ingestion.id
   policy = jsonencode({
@@ -287,7 +314,7 @@ resource "aws_sqs_queue_policy" "eventbridge" {
       Principal = { Service = "events.amazonaws.com" }
       Action = "sqs:SendMessage"
       Resource = aws_sqs_queue.ingestion.arn
-      Condition = { ArnEquals = { "aws:SourceArn" = aws_cloudwatch_event_rule.daily_ingestion.arn } }
+      Condition = { ArnEquals = { "aws:SourceArn" = [aws_cloudwatch_event_rule.daily_ingestion.arn, aws_cloudwatch_event_rule.hourly_rank_ingestion.arn] } }
     }]
   })
 }
@@ -295,5 +322,11 @@ resource "aws_sqs_queue_policy" "eventbridge" {
 resource "aws_cloudwatch_event_target" "daily_ingestion" {
   rule = aws_cloudwatch_event_rule.daily_ingestion.name
   arn  = aws_sqs_queue.ingestion.arn
-  input = jsonencode({ type = "scheduled_full_refresh", model_version = "1.4.0" })
+  input = jsonencode({ type = "scheduled_full_refresh", model_version = "2.0.0" })
+}
+
+resource "aws_cloudwatch_event_target" "hourly_rank_ingestion" {
+  rule = aws_cloudwatch_event_rule.hourly_rank_ingestion.name
+  arn  = aws_sqs_queue.ingestion.arn
+  input = jsonencode({ type = "hourly_rank_refresh" })
 }

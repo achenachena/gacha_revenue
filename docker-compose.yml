@@ -49,6 +49,12 @@ services:
       REDIS_URL: redis://redis:6379/0
       RAW_DATA_BUCKET: gacha-revenue-raw-local
       INGESTION_QUEUE_URL: http://localstack:4566/000000000000/gacha-ingestion
+      AUTHORIZED_RANK_FEED_URL: ${AUTHORIZED_RANK_FEED_URL:-}
+      AUTHORIZED_RANK_FEED_TOKEN: ${AUTHORIZED_RANK_FEED_TOKEN:-}
+      AWS_REGION: us-east-1
+      AWS_ACCESS_KEY_ID: test
+      AWS_SECRET_ACCESS_KEY: test
+      AWS_ENDPOINT_URL: http://localstack:4566
     depends_on:
       postgres:
         condition: service_healthy
@@ -68,6 +74,7 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./backend/migrations/000001_initial_schema.up.sql:/docker-entrypoint-initdb.d/001-schema.sql:ro
+      - ./backend/migrations/000002_banner_rank_automation.up.sql:/docker-entrypoint-initdb.d/002-banner-ranks.sql:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U gacha -d gacha"]
       interval: 5s
@@ -96,6 +103,7 @@ services:
       AWS_DEFAULT_REGION: us-east-1
     volumes:
       - localstack_data:/var/lib/localstack
+      - ./scripts/init-localstack.sh:/etc/localstack/init/ready.d/init-gacha-revenue.sh:ro
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:4566/_localstack/health"]
       interval: 5s

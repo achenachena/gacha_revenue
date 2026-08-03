@@ -20,11 +20,18 @@ test("server-renders the Chinese revenue dashboard", async () => {
   assert.doesNotMatch(html, /把二游流水|流水观察局/);
   assert.match(html, /原神/);
   assert.match(html, /明日方舟：终末地/);
-  assert.match(html, /估算流水（亿元人民币）/);
+  assert.match(html, /仅显示已核验数据/);
+  assert.match(html, /选择版本 \/ 卡池角色/);
+  assert.match(html, /卡提希娅/);
+  assert.match(html, /爱弥斯/);
+  assert.match(html, /18 小时/);
+  assert.match(html, /15 小时/);
+  assert.match(html, /单游戏卡池超应用时间排名/);
   assert.match(html, /峰值名次/);
   assert.match(html, /最低名次/);
   assert.match(html, /抖音/);
   assert.match(html, /H\[g,v,a\]/);
+  assert.doesNotMatch(html, /¥6\.72 亿|20\.6 小时|2026 年 7 月流水估算/);
   assert.doesNotMatch(html, /codex-preview|react-loading-skeleton/i);
 });
 
@@ -34,6 +41,7 @@ test("server-renders the English URL locale", async () => {
   const html = await response.text();
   assert.match(html, /GACHA REVENUE TRACKER/);
   assert.match(html, /Genshin Impact/);
-  assert.match(html, /CN¥7\.20B/);
+  assert.match(html, /VERIFIED DATA ONLY/);
+  assert.match(html, /Per-game banner app-line ranking/);
   assert.match(html, /Revenue estimation formulas/);
 });

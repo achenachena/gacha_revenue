@@ -15,6 +15,8 @@ type Config struct {
 	CognitoIssuer   string
 	CognitoClientID string
 	AuthRequired    bool
+	RankFeedURL     string
+	RankFeedToken   string
 }
 
 func Load() Config {
@@ -28,6 +30,8 @@ func Load() Config {
 		CognitoIssuer:   os.Getenv("COGNITO_ISSUER"),
 		CognitoClientID: os.Getenv("COGNITO_CLIENT_ID"),
 		AuthRequired:    os.Getenv("AUTH_REQUIRED") == "true",
+		RankFeedURL:     os.Getenv("AUTHORIZED_RANK_FEED_URL"),
+		RankFeedToken:   os.Getenv("AUTHORIZED_RANK_FEED_TOKEN"),
 	}
 }
 

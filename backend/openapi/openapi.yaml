@@ -89,6 +89,36 @@ paths:
                     type: array
                     items: {$ref: '#/components/schemas/VersionIntelligence'}
                   meta: {$ref: '#/components/schemas/EstimateMeta'}
+  /app-line-rankings:
+    get:
+      tags: [Versions]
+      operationId: listAppLineRankings
+      summary: Rank one game's character banners by hours above a China iOS app line
+      parameters:
+        - in: query
+          name: game_id
+          required: true
+          schema: {type: string}
+        - in: query
+          name: app_line_id
+          required: true
+          schema:
+            type: string
+            enum: [douyin, tencent_video, qq_music, capcut_cn, netease_music, baidu_netdisk, quark]
+      responses:
+        '200':
+          description: Verified observations sorted by hours above, descending
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, meta]
+                properties:
+                  data:
+                    type: array
+                    items: {$ref: '#/components/schemas/AppLineRanking'}
+                  meta: {$ref: '#/components/schemas/EstimateMeta'}
+        '400': {description: Missing query parameters}
   /methodology:
     get:
       tags: [Methodology]
@@ -140,23 +170,57 @@ components:
         confidence: {type: string}
     VersionIntelligence:
       type: object
-      required: [id, game_id, version, characters, ios_grossing_rank_range, cn_app_line_hours]
+      required: [id, game_id, version, phase_zh, phase_en, characters_zh, characters_en, starts_at, ends_at, data_status, ios_grossing_rank_range, app_line_observations]
       properties:
         id: {type: string}
         game_id: {type: string}
         version: {type: string}
-        characters: {type: string}
+        phase_zh: {type: string}
+        phase_en: {type: string}
+        characters_zh: {type: string}
+        characters_en: {type: string}
+        starts_at: {type: string, format: date-time}
+        ends_at: {type: string, format: date-time}
         estimate: {type: [number, 'null']}
+        p25: {type: [number, 'null']}
+        p75: {type: [number, 'null']}
+        confidence: {type: string}
+        data_status:
+          type: string
+          enum: [licensed_feed, verified_manual, awaiting_feed]
         ios_grossing_rank_range:
           type: object
           additionalProperties:
             type: array
-            prefixItems: [{type: integer}, {type: integer}]
+            prefixItems: [{type: [integer, 'null']}, {type: [integer, 'null']}]
             minItems: 2
             maxItems: 2
-        cn_app_line_hours:
-          type: object
-          additionalProperties: {type: number}
+        app_line_observations:
+          type: array
+          items:
+            type: object
+            required: [app_id, name_zh, name_en, hours_above, data_status]
+            properties:
+              app_id: {type: string}
+              name_zh: {type: string}
+              name_en: {type: string}
+              hours_above: {type: [number, 'null']}
+              data_status: {type: string, enum: [licensed_feed, verified_manual, awaiting_feed]}
+              updated_at: {type: [string, 'null'], format: date-time}
+    AppLineRanking:
+      type: object
+      required: [rank, banner_id, version, phase, characters, starts_at, ends_at, hours_above, data_status, source]
+      properties:
+        rank: {type: integer, minimum: 1}
+        banner_id: {type: string}
+        version: {type: string}
+        phase: {type: string}
+        characters: {type: string}
+        starts_at: {type: string, format: date-time}
+        ends_at: {type: string, format: date-time}
+        hours_above: {type: number, minimum: 0}
+        data_status: {type: string, enum: [licensed_feed, verified_manual]}
+        source: {type: string}
     EstimateMeta:
       type: object
       required: [currency, unit, basis, data_status, methodology_version]

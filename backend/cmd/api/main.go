@@ -9,6 +9,8 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/jackc/pgx/v5/pgxpool"
+
 	"gacha-revenue/backend/internal/config"
 	"gacha-revenue/backend/internal/httpapi"
 )
@@ -20,10 +22,20 @@ func main() {
 		logger.Error("invalid configuration", "error", err)
 		os.Exit(1)
 	}
+	db, err := pgxpool.New(context.Background(), cfg.DatabaseURL)
+	if err != nil {
+		logger.Error("connect postgres", "error", err)
+		os.Exit(1)
+	}
+	defer db.Close()
+	if err := db.Ping(context.Background()); err != nil {
+		logger.Error("ping postgres", "error", err)
+		os.Exit(1)
+	}
 
 	server := &http.Server{
 		Addr:              cfg.Address,
-		Handler:           httpapi.New(cfg, logger),
+		Handler:           httpapi.NewWithDB(cfg, logger, db),
 		ReadHeaderTimeout: 5 * time.Second,
 		ReadTimeout:       15 * time.Second,
 		WriteTimeout:      30 * time.Second,

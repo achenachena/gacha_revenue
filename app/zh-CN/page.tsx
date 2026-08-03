@@ -3,7 +3,7 @@ import Dashboard from "../dashboard";
 
 export const metadata: Metadata = {
   title: "二游流水观察｜流水估算与对比",
-  description: "查看原神、崩铁、绝区零、鸣潮、终末地与异环的流水趋势、版本角色表现和 iOS 畅销榜数据。",
+  description: "查看六款二游的已核验流水、具体卡池角色、iOS 畅销榜与中国区应用线排名。",
 };
 
 export default function ChineseDashboard() {
