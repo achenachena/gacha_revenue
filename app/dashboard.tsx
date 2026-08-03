@@ -140,7 +140,11 @@ const copy = {
 
 function formatMoney(value: number | null, locale: Locale) {
   if (value === null) return "—";
-  return locale === "zh-CN" ? `¥${value.toFixed(2)} 亿` : `¥${value.toFixed(2)}B`;
+  if (locale === "zh-CN") return `¥${value.toFixed(2)} 亿`;
+  const millions = value * 100;
+  return millions >= 1000
+    ? `CN¥${(millions / 1000).toFixed(2)}B`
+    : `CN¥${millions.toFixed(0)}M`;
 }
 
 function GameMark({ game, small = false }: { game: Game; small?: boolean }) {
@@ -319,7 +323,7 @@ export default function Dashboard({ locale }: { locale: Locale }) {
         </div>
         <div className="hero-metric">
           <span>{t.ytdTotal}</span>
-          <strong>¥72.0<small>{locale === "zh-CN" ? "亿" : "B"}</small></strong>
+          <strong>{locale === "zh-CN" ? "¥72.0" : "CN¥7.20"}<small>{locale === "zh-CN" ? "亿" : "B"}</small></strong>
           <div><b>5</b> {t.observed} · <b>6</b> {t.games}</div>
           <small>{t.update}</small>
         </div>
@@ -504,7 +508,7 @@ export default function Dashboard({ locale }: { locale: Locale }) {
           <div className="source-links">
             <strong>{t.sources}</strong>
             <a href="https://sensortower.com/product/mobile-app/app-performance-insights" target="_blank" rel="noreferrer">Sensor Tower ↗</a>
-            <a href="https://appmagic.rocks/tool-descriptions/iap-distribution/" target="_blank" rel="noreferrer">AppMagic ↗</a>
+            <a href="https://appmagic.rocks/files/view/upload/Reports/EN_MobileMarkeLandscape2026.pdf" target="_blank" rel="noreferrer">AppMagic ↗</a>
           </div>
           <p className="source-note">{t.sourceNote}</p>
         </div>
@@ -514,4 +518,3 @@ export default function Dashboard({ locale }: { locale: Locale }) {
     </main>
   );
 }
-

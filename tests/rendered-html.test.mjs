@@ -30,6 +30,6 @@ test("server-renders the English URL locale", async () => {
   const html = await response.text();
   assert.match(html, /One yardstick for gacha revenue/);
   assert.match(html, /Genshin Impact/);
+  assert.match(html, /CN¥7\.20/);
   assert.match(html, /Methodology/);
 });
-
