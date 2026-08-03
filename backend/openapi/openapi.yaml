@@ -1,6 +1,6 @@
 openapi: 3.1.0
 info:
-  title: Gacha Revenue Observatory API
+  title: Gacha Revenue Tracker API
   version: 1.0.0
   description: |
     Estimated gross-bookings data. Values are third-party model estimates,
@@ -166,4 +166,3 @@ components:
         basis: {const: estimated_gross_bookings}
         data_status: {type: string}
         methodology_version: {type: string}
-

@@ -1,4 +1,4 @@
-# 流水观察局 / Gacha Revenue Observatory
+# 二游流水观察 / Gacha Revenue Tracker
 
 面向二游市场研究的中英双语流水估算与对比产品。当前覆盖原神、崩坏：星穹铁道、绝区零、鸣潮、明日方舟：终末地与异环。
 
@@ -95,4 +95,3 @@ EventBridge → SQS → ingestion worker → S3 raw archive
 - 通过 Secrets Manager 注入数据库与供应商令牌；Parameter Store 只放非敏感配置。
 - 为原始授权数据设置许可要求对应的 S3 生命周期与访问审计。
 - 在生产发布前让数据供应商审核展示粒度与再分发条款。
-
