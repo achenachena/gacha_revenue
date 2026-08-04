@@ -47,7 +47,7 @@ func main() {
 		Timeout:       15 * time.Second,
 		CheckRedirect: func(_ *http.Request, _ []*http.Request) error { return http.ErrUseLastResponse },
 	}
-	calendar, err := bannercalendar.New(
+	calendarClient, err := bannercalendar.New(
 		providerHTTPClient,
 		os.Getenv("CALENDAR_FEED_URL"),
 		os.Getenv("CALENDAR_FEED_TOKEN"),
@@ -56,11 +56,13 @@ func main() {
 		logger.Error("configure calendar feed", "error", err)
 		os.Exit(1)
 	}
-	history, err := rankfeed.New(providerHTTPClient, os.Getenv("RANK_HISTORY_FEED_URL"), os.Getenv("RANK_HISTORY_FEED_TOKEN"))
+	historyClient, err := rankfeed.New(providerHTTPClient, os.Getenv("RANK_HISTORY_FEED_URL"), os.Getenv("RANK_HISTORY_FEED_TOKEN"))
 	if err != nil {
 		logger.Error("configure rank history feed", "error", err)
 		os.Exit(1)
 	}
+	calendar := optionalCalendar(calendarClient)
+	history := optionalHistory(historyClient)
 	awsCfg, err := awsconfig.LoadDefaultConfig(ctx)
 	if err != nil {
 		logger.Error("load AWS config", "error", err)
@@ -70,6 +72,20 @@ func main() {
 	fallback := httpapi.New(logger, calendar)
 	api := serverlessapi.New(store, fallback, logger, serverlessapi.Options{CollectionStartedAt: collectionStartedAt, History: history})
 	lambda.Start((&lambdaHandler{http: security.RequireProxyToken(api, proxyToken)}).Invoke)
+}
+
+func optionalCalendar(client *bannercalendar.Client) httpapi.Calendar {
+	if client == nil {
+		return nil
+	}
+	return client
+}
+
+func optionalHistory(client *rankfeed.Client) serverlessapi.HistoryReader {
+	if client == nil {
+		return nil
+	}
+	return client
 }
 
 func (h *lambdaHandler) Invoke(ctx context.Context, event events.LambdaFunctionURLRequest) (events.LambdaFunctionURLResponse, error) {

@@ -30,3 +30,12 @@ func TestInvokeLeavesCORSHeadersToFunctionURL(t *testing.T) {
 		t.Fatalf("non-CORS response headers must be preserved: %+v", response.Headers)
 	}
 }
+
+func TestUnconfiguredOptionalProvidersRemainNilInterfaces(t *testing.T) {
+	if optionalCalendar(nil) != nil {
+		t.Fatal("nil calendar client must remain a nil interface")
+	}
+	if optionalHistory(nil) != nil {
+		t.Fatal("nil history client must remain a nil interface")
+	}
+}
