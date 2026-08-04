@@ -15,6 +15,21 @@ export type PublicRevenueResponse = {
   meta?: { fetched_at: string };
 };
 
+export type ExchangeRateData = {
+  date: string;
+  base: "USD";
+  quote: "CNY";
+  rate: number;
+  provider: string;
+  source_url: string;
+  fallback: boolean;
+};
+
+type ExchangeRateResponse = {
+  data?: Omit<ExchangeRateData, "fallback">;
+  meta?: { fallback_snapshot?: boolean };
+};
+
 type VersionsResponse = {
   data?: Array<{
     id: string;
@@ -84,6 +99,14 @@ async function fetchJSON<T>(path: string, signal: AbortSignal): Promise<T> {
 
 export function loadPublicRevenue(signal: AbortSignal) {
   return fetchJSON<PublicRevenueResponse>("public-revenue", signal);
+}
+
+export function loadExchangeRate(signal: AbortSignal) {
+  return fetchJSON<ExchangeRateResponse>("exchange-rate", signal).then((payload): ExchangeRateData | null => {
+    if (!payload.data || payload.data.base !== "USD" || payload.data.quote !== "CNY") return null;
+    if (!Number.isFinite(payload.data.rate) || payload.data.rate < 4 || payload.data.rate > 12) return null;
+    return { ...payload.data, fallback: Boolean(payload.meta?.fallback_snapshot) };
+  });
 }
 
 export function loadVersions(signal: AbortSignal) {

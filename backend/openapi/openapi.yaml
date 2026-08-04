@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Gacha Revenue Tracker API
-  version: 3.0.0
+  version: 3.1.0
   description: |
     Public-source mobile IAP estimates and hourly iOS rank observations.
     Values are third-party market estimates, not publisher-reported revenue.
@@ -105,6 +105,28 @@ paths:
                   meta:
                     type: object
                     additionalProperties: true
+  /exchange-rate:
+    get:
+      tags: [Revenue]
+      operationId: getDisplayExchangeRate
+      summary: Return the ECB daily USD/CNY display exchange rate
+      description: Fetches the official ECB reference rate through Frankfurter, caches it for 12 hours, and explicitly marks the bundled last-known snapshot when the upstream source is unavailable.
+      responses:
+        '200':
+          description: USD/CNY reference rate and source metadata
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, meta]
+                properties:
+                  data: {$ref: '#/components/schemas/ExchangeRate'}
+                  meta:
+                    type: object
+                    required: [fetched_at, fallback_snapshot]
+                    properties:
+                      fetched_at: {type: string, format: date-time}
+                      fallback_snapshot: {type: boolean}
   /versions:
     get:
       tags: [Versions]
@@ -191,6 +213,16 @@ components:
         p25: {type: number, description: Equal to estimate for source snapshots without a published interval}
         p75: {type: number, description: Equal to estimate for source snapshots without a published interval}
         confidence: {type: string}
+    ExchangeRate:
+      type: object
+      required: [date, base, quote, rate, provider, source_url]
+      properties:
+        date: {type: string, format: date}
+        base: {type: string, const: USD}
+        quote: {type: string, const: CNY}
+        rate: {type: number, minimum: 4, maximum: 12}
+        provider: {type: string}
+        source_url: {type: string, format: uri}
     VersionIntelligence:
       type: object
       required: [id, game_id, version, phase_index, phase_zh, phase_en, characters_zh, characters_en, starts_at, ends_at, data_status, ios_grossing_rank_range, app_line_observations]
