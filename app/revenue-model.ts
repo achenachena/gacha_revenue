@@ -10,6 +10,13 @@ export type VersionRangeOption = {
   estimable: boolean;
 };
 
+export type RevenueSeries = {
+  values: Array<number | null>;
+  labels: string[];
+  available: number;
+  covered: number;
+};
+
 const periodNumber = (period: RevenuePeriod) => period.year * 12 + period.month;
 
 export function latestRevenuePeriod(games: Game[]): RevenuePeriod | null {
@@ -31,6 +38,7 @@ export function highestYTDGameId(games: Game[]): GameId {
 }
 
 function utcDate(value: string) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return Number.NaN;
   return new Date(`${value}T00:00:00Z`).getTime();
 }
 
@@ -38,6 +46,7 @@ export function estimatePhaseRevenue(version: VersionDetail, history: RevenueMon
   if (version.revenue !== null) return version.revenue;
   const phaseStart = utcDate(version.date);
   const phaseEnd = utcDate(version.endDate);
+  if (!Number.isFinite(phaseStart) || !Number.isFinite(phaseEnd) || phaseEnd <= phaseStart) return null;
   let estimate = 0;
   let covered = false;
 
@@ -62,6 +71,70 @@ function phaseLabel(version: VersionDetail, locale: Locale) {
   return `${version.version}${phase}`;
 }
 
+function versionOrder(version: VersionDetail) {
+  const [major = 0, minor = 0] = version.version.split(".").map(Number);
+  return major * 10_000 + minor * 100 + version.phaseIndex;
+}
+
+export function sortVersions(a: VersionDetail, b: VersionDetail) {
+  return versionOrder(a) - versionOrder(b) || a.id.localeCompare(b.id);
+}
+
+export function versionPhaseKey(version: Pick<VersionDetail, "gameId" | "version" | "phaseIndex">) {
+  return `${version.gameId}:${version.version}:${version.phaseIndex}`;
+}
+
+export function buildMonthlyRevenueSeries(
+  game: Game,
+  latest: RevenuePeriod,
+): RevenueSeries {
+  const [launchYear, launchMonth] = game.launchDate.split("-").map(Number);
+  const history = new Map(game.revenueHistory.map((item) => [`${item.year}-${item.month}`, item.value]));
+  const values: Array<number | null> = [];
+  const labels: string[] = [];
+  for (let year = launchYear, month = launchMonth; year < latest.year || year === latest.year && month <= latest.month;) {
+    values.push(history.get(`${year}-${month}`) ?? null);
+    labels.push(`${year}-${String(month).padStart(2, "0")}`);
+    month++;
+    if (month === 13) {
+      year++;
+      month = 1;
+    }
+  }
+  return { values, labels, available: values.length, covered: values.filter((value) => value !== null).length };
+}
+
+export function buildYearlyRevenueSeries(
+  game: Game,
+  latest: RevenuePeriod,
+  locale: Locale,
+): RevenueSeries {
+  const launchYear = Number(game.launchDate.slice(0, 4));
+  const launchMonth = Number(game.launchDate.slice(5, 7));
+  const values: Array<number | null> = [];
+  const labels: string[] = [];
+  for (let year = launchYear; year <= latest.year; year++) {
+    const firstMonth = year === launchYear ? launchMonth : 1;
+    const lastMonth = year === latest.year ? latest.month : 12;
+    const months = game.revenueHistory.filter((item) => item.year === year && item.month >= firstMonth && item.month <= lastMonth);
+    const complete = firstMonth === 1 && lastMonth === 12 && months.length === 12;
+    values.push(months.length ? months.reduce((sum, item) => sum + item.value, 0) : null);
+    const partial = months.length > 0 && !complete;
+    labels.push(
+      partial
+        ? locale === "zh-CN"
+          ? year === latest.year && lastMonth < 12
+            ? `${year}（截至${lastMonth}月）`
+            : `${year}（部分）`
+          : year === latest.year && lastMonth < 12
+            ? `${year} YTD`
+            : `${year} partial`
+        : `${year}`,
+    );
+  }
+  return { values, labels, available: values.length, covered: values.filter((value) => value !== null).length };
+}
+
 export function buildVersionRangeOptions(
   game: Game,
   versions: VersionDetail[],
@@ -73,7 +146,7 @@ export function buildVersionRangeOptions(
     unique.set(version.id, version);
   }
   return [...unique.values()]
-    .sort((a, b) => a.date.localeCompare(b.date) || a.phaseIndex - b.phaseIndex)
+    .sort(sortVersions)
     .map((version) => ({
       id: version.id,
       label: `${phaseLabel(version, locale)} · UP ${version.characters[locale]}`,
@@ -98,22 +171,20 @@ export function buildVersionRevenueSeries(
 ) {
   const allVersions = versions
     .filter((version) => version.gameId === game.id)
-    .filter((version, index, items) => items.findIndex((item) => item.id === version.id) === index)
-    .sort((a, b) => a.date.localeCompare(b.date) || a.phaseIndex - b.phaseIndex);
+    .filter((version, index, items) => items.findIndex((item) => versionPhaseKey(item) === versionPhaseKey(version)) === index)
+    .sort(sortVersions);
   const startIndex = range ? allVersions.findIndex((version) => version.id === range.startId) : 0;
   const endIndex = range ? allVersions.findIndex((version) => version.id === range.endId) : allVersions.length - 1;
   const first = Math.max(0, Math.min(startIndex < 0 ? 0 : startIndex, endIndex < 0 ? allVersions.length - 1 : endIndex));
   const last = Math.max(startIndex < 0 ? 0 : startIndex, endIndex < 0 ? allVersions.length - 1 : endIndex);
   const selectedVersions = allVersions.slice(first, last + 1);
-  const points = selectedVersions
-    .map((version) => ({ version, value: estimatePhaseRevenue(version, game.revenueHistory) }))
-    .filter((point): point is { version: VersionDetail; value: number } => point.value !== null);
+  const points = selectedVersions.map((version) => ({ version, value: estimatePhaseRevenue(version, game.revenueHistory) }));
 
   return {
     values: points.map((point) => point.value),
     labels: points.map((point) => phaseLabel(point.version, locale)),
     available: allVersions.length,
     selected: selectedVersions.length,
-    estimable: points.length,
+    estimable: points.filter((point) => point.value !== null).length,
   };
 }

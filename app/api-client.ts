@@ -1,11 +1,12 @@
-import type {
-  AppLineId,
-  CoverageStatus,
-  DataStatus,
-  Game,
-  GameId,
-  RevenueMonth,
-  VersionDetail,
+import {
+  localizeCharactersToChinese,
+  type AppLineId,
+  type CoverageStatus,
+  type DataStatus,
+  type Game,
+  type GameId,
+  type RevenueMonth,
+  type VersionDetail,
 } from "./data";
 
 const apiBase = "/api/backend";
@@ -193,7 +194,7 @@ function normalizeVersions(payload: VersionsResponse): VersionDetail[] {
       phase: { "zh-CN": item.phase_zh, en: item.phase_en },
       date: item.starts_at.slice(0, 10),
       endDate: item.ends_at.slice(0, 10),
-      characters: { "zh-CN": item.characters_zh, en: item.characters_en },
+      characters: { "zh-CN": localizeCharactersToChinese(item.characters_zh), en: item.characters_en },
       scope: { "zh-CN": "独立卡池窗口", en: "Exact banner window" },
       revenue: item.estimate,
       revenueRange: [item.p25, item.p75],
@@ -232,6 +233,11 @@ export function mergeRevenue(
     }, undefined);
   return current.map((game) => {
     const replacement = payload.data?.find((item) => item.game_id === game.id);
-    return replacement?.history.length ? update(game, replacement.history, period) : update(game, game.revenueHistory, period);
+    if (!replacement?.history.length) return update(game, game.revenueHistory, period);
+    const historyByMonth = new Map(
+      game.revenueHistory.map((item) => [`${item.year}-${item.month}`, item]),
+    );
+    for (const item of replacement.history) historyByMonth.set(`${item.year}-${item.month}`, item);
+    return update(game, [...historyByMonth.values()], period);
   });
 }
