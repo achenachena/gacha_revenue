@@ -18,10 +18,28 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Show non-secret OIDC claims
+        shell: bash
+        run: |
+          node <<'NODE'
+          const response = await fetch(`${process.env.ACTIONS_ID_TOKEN_REQUEST_URL}&audience=sts.amazonaws.com`, {
+            headers: { Authorization: `bearer ${process.env.ACTIONS_ID_TOKEN_REQUEST_TOKEN}` },
+          });
+          if (!response.ok) throw new Error(`OIDC token request returned ${response.status}`);
+          const { value } = await response.json();
+          const encoded = value.split('.')[1].replace(/-/g, '+').replace(/_/g, '/');
+          const claims = JSON.parse(Buffer.from(encoded, 'base64').toString('utf8'));
+          const visible = Object.fromEntries([
+            'iss', 'aud', 'sub', 'repository', 'environment', 'ref', 'workflow', 'job_workflow_ref', 'sha',
+          ].filter((key) => claims[key] !== undefined).map((key) => [key, claims[key]]));
+          console.log(JSON.stringify(visible, null, 2));
+          NODE
+
       - uses: aws-actions/configure-aws-credentials@v6
         with:
           role-to-assume: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
           aws-region: ${{ vars.AWS_REGION }}
+          retry-max-attempts: 3
 
       - uses: actions/setup-go@v5
         with:
