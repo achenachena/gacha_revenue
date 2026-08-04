@@ -1,14 +1,14 @@
 import type { NextRequest } from "next/server";
 
 const allowedGames = new Set(["genshin", "hsr", "zzz", "wuwa", "endfield", "nte"]);
-const allowedEndpoints = new Map([
-  ["public-revenue", { revalidate: 21_600 }],
-  ["versions", { revalidate: 60 }],
-  ["banner-metrics", { revalidate: 300 }],
-]);
+const policies = {
+  "public-revenue": { revalidate: 21_600 },
+  versions: { revalidate: 60 },
+  "banner-metrics": { revalidate: 300 },
+} as const;
 const maxResponseBytes = 2 * 1024 * 1024;
 
-type RouteContext = { params: Promise<{ path: string[] }> };
+export type BackendEndpoint = keyof typeof policies;
 
 function jsonError(status: number, error: string) {
   return Response.json(
@@ -26,7 +26,7 @@ function isISODate(value: string | null): value is string {
   return !Number.isNaN(parsed.getTime()) && parsed.toISOString().startsWith(value);
 }
 
-function validatedQuery(endpoint: string, searchParams: URLSearchParams): URLSearchParams | null {
+function validatedQuery(endpoint: BackendEndpoint, searchParams: URLSearchParams): URLSearchParams | null {
   if (endpoint === "public-revenue") return searchParams.size === 0 ? new URLSearchParams() : null;
   if (endpoint === "versions") {
     if ([...searchParams.keys()].some((key) => key !== "game_id")) return null;
@@ -34,7 +34,6 @@ function validatedQuery(endpoint: string, searchParams: URLSearchParams): URLSea
     const gameID = searchParams.get("game_id");
     return gameID === null || allowedGames.has(gameID) ? new URLSearchParams(searchParams) : null;
   }
-  if (endpoint !== "banner-metrics") return null;
   if ([...searchParams.keys()].some((key) => !["game_id", "start", "end"].includes(key))) return null;
   const gameID = searchParams.get("game_id");
   const start = searchParams.get("start");
@@ -53,7 +52,10 @@ function upstreamBaseURL(): URL | null {
   if (!raw) return null;
   try {
     const parsed = new URL(raw.endsWith("/") ? raw : `${raw}/`);
-    const localDevelopment = process.env.NODE_ENV !== "production" && parsed.protocol === "http:" && ["127.0.0.1", "localhost"].includes(parsed.hostname);
+    const localDevelopment =
+      process.env.NODE_ENV !== "production" &&
+      parsed.protocol === "http:" &&
+      ["127.0.0.1", "localhost"].includes(parsed.hostname);
     if ((!localDevelopment && parsed.protocol !== "https:") || parsed.username || parsed.password || parsed.hash) return null;
     return parsed;
   } catch {
@@ -61,13 +63,7 @@ function upstreamBaseURL(): URL | null {
   }
 }
 
-export async function GET(request: NextRequest, context: RouteContext) {
-  const { path } = await context.params;
-  if (path.length !== 1) return jsonError(404, "not found");
-  const endpoint = path[0];
-  const policy = allowedEndpoints.get(endpoint);
-  if (!policy) return jsonError(404, "not found");
-
+export async function proxyBackend(request: NextRequest, endpoint: BackendEndpoint) {
   const query = validatedQuery(endpoint, request.nextUrl.searchParams);
   if (!query) return jsonError(400, "invalid query");
   const baseURL = upstreamBaseURL();
@@ -89,6 +85,7 @@ export async function GET(request: NextRequest, context: RouteContext) {
     }
     const body = await upstream.arrayBuffer();
     if (body.byteLength > maxResponseBytes) return jsonError(502, "invalid upstream response");
+    const policy = policies[endpoint];
     return new Response(body, {
       status: upstream.status,
       headers: {
