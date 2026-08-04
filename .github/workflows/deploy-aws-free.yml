@@ -82,3 +82,8 @@ jobs:
           curl --fail --show-error --silent --retry 3 --retry-all-errors --retry-delay 3 \
             --header "X-Backend-Token: ${BACKEND_PROXY_TOKEN}" \
             "${API_URL}v1/banner-metrics?game_id=hsr&start=2026-08-01&end=2026-08-03"
+
+      - name: Show API Lambda errors after failed verification
+        if: failure()
+        run: |
+          aws logs tail /aws/lambda/gacha-revenue-free-api --since 10m --format short | tail -n 100
