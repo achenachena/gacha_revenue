@@ -3,15 +3,16 @@ import { expect, test } from "@playwright/test";
 test("switches revenue grain and locale", async ({ page }) => {
   await page.goto("/zh-CN");
   await expect(page.locator("main")).toHaveAttribute("data-hydrated", "true");
-  await expect(page.getByRole("heading", { name: "2026 年 7 月流水估算" })).toBeVisible();
-  await expect(page.getByText("¥10.29 亿")).toBeVisible();
-  await expect(page.getByText("¥2.36 亿").first()).toBeVisible();
+  await expect(page.getByRole("heading", { name: "2026 年 6 月移动端流水估算" })).toBeVisible();
+  await expect(page.getByText("$128.9M")).toBeVisible();
+  await expect(page.getByText("$28.5M").first()).toBeVisible();
+  await expect(page.getByText("$58.1M").first()).toBeVisible();
   await page.getByRole("button", { name: "按年" }).click();
-  await expect(page.getByText("2022", { exact: true })).toBeVisible();
+  await expect(page.getByText("2025", { exact: true })).toBeVisible();
   await expect(page.getByText("2026 YTD").first()).toBeVisible();
   await page.getByRole("link", { name: "EN", exact: true }).click();
   await expect(page).toHaveURL(/\/en$/);
-  await expect(page.getByRole("heading", { name: "July 2026 revenue estimates" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "June 2026 mobile revenue estimates" })).toBeVisible();
 });
 
 test("compares games and opens version intelligence", async ({ page }) => {
@@ -29,8 +30,8 @@ test("compares games and opens version intelligence", async ({ page }) => {
   await page.getByLabel("排名游戏").selectOption("wuwa");
   await page.getByLabel("比较应用线").selectOption("tencent_video");
   const rankingRows = page.locator(".banner-ranking-table tbody tr");
-  await expect(rankingRows.nth(0)).toContainText("2.4 · UP 卡提希娅");
+  await expect(rankingRows.nth(0)).toContainText("2.4 · 上半 · UP 卡提希娅");
   await expect(rankingRows.nth(0)).toContainText("18 小时");
-  await expect(rankingRows.nth(1)).toContainText("3.1 · UP 爱弥斯");
+  await expect(rankingRows.nth(1)).toContainText("3.1 · 上半 · UP 爱弥斯");
   await expect(rankingRows.nth(1)).toContainText("15 小时");
 });

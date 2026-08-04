@@ -4,14 +4,15 @@ import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import {
   appLines,
   games,
-  monthLabels,
+  revenueSource,
+  updateGameRevenue,
   versionDetails,
-  yearLabels,
   type Game,
   type GameId,
   type Locale,
   type AppLineId,
   type DataStatus,
+  type RevenueMonth,
   type VersionDetail,
 } from "./data";
 
@@ -25,25 +26,26 @@ const copy = {
     navIds: ["overview", "trend", "compare", "versions", "methodology"],
     brand: "二游流水观察",
     brandSub: "GACHA REVENUE ESTIMATES",
-    dataBadge: "流水为模型估算 · 榜单为核验观测",
-    disclaimer: "流水为 2026 年 7 月全平台毛流水模型快照（P50），并给出 P25–P75 区间；榜单名次与超应用时长仍只展示有逐小时观测依据的数据。",
-    overviewTitle: "2026 年 7 月流水估算",
-    overviewUnit: "单位：亿元人民币 · 全平台消费者毛支出 · 平台抽成前",
-    monthTotal: "7 月 P50 合计",
+    dataBadge: "月流水来自公开源 · 榜单按小时自动观测",
+    disclaimer: "月流水采用 Sensor Tower 经 GachaRevenue / GachaDash 发布的移动端估算原值；仅含 iOS + Android，中国安卓按中国 iOS 的 1.75 倍估算，不含 PC / 主机。本站每次访问自动检查来源更新。",
+    overviewTitle: "2026 年 6 月移动端流水估算",
+    overviewUnit: "单位：百万美元 · iOS + Android · 中国安卓估算 · 不含 PC / 主机",
+    monthTotal: "6 月来源值合计",
     ytdTotal: "2026 YTD 合计",
-    observed: "估算覆盖",
-    update: "MODEL SNAPSHOT",
-    currentMonth: "7 月 P50",
-    currentRange: "P25–P75",
+    observed: "数据覆盖",
+    update: "SOURCE DATA",
+    currentMonth: "6 月来源值",
+    currentRange: "区间",
     ytd: "2026 YTD",
     notLive: "暂无可估算收入",
-    confidence: "模型置信度",
+    confidence: "数据状态",
+    sourced: "已接入",
     trendTitle: "单游戏流水趋势",
     trendSub: "点击上方游戏卡片切换游戏；纵轴统一从 0 开始",
     month: "按月",
     year: "按年",
     version: "按版本",
-    unit: "估算流水（亿元人民币）",
+    unit: "移动端流水估算（百万美元）",
     monthAxis: "月份",
     yearAxis: "年份",
     versionAxis: "版本",
@@ -51,19 +53,19 @@ const copy = {
     average: "期间均值",
     latest: "最新一期",
     compareTitle: "游戏间流水比较",
-    compareSub: "按同一全平台毛流水模型比较；未开服游戏不参与",
+    compareSub: "统一采用同一公开移动端口径比较；不再混入自定义 PC / 主机系数",
     ytdEstimate: "YTD 估算",
     share: "入选游戏占比",
     selected: "已选择",
     versionTitle: "版本 / 卡池角色观测",
-    versionSub: "通过下拉栏选择具体版本与卡池角色；只展示有来源的观测",
+    versionSub: "下拉选择每个版本的独立上半 / 下半卡池；卡池日历与榜单观测分别标注来源",
     selectGame: "选择游戏",
     selectBanner: "选择版本 / 卡池角色",
     noVerifiedBanner: "该游戏暂无已核验卡池数据",
     dateWindow: "观察窗口",
     associatedCharacters: "关联角色 / 卡池",
     estimateBasis: "归属口径",
-    versionEstimate: "窗口流水估算",
+    versionEstimate: "卡池窗口流水估算",
     estimateRange: "P25–P75 区间",
     rankTitle: "各国 iOS 畅销总榜",
     region: "国家 / 地区",
@@ -79,67 +81,70 @@ const copy = {
     coverage: "占观察窗口",
     exceeded: "超过",
     noHours: "未超过",
-    awaitingFeed: "待接入",
+    awaitingFeed: "暂无覆盖",
     hours: "小时",
-    rankNote: "峰值 = 观察窗口内最小名次；最低 = 最大名次。名次数字越小越靠前。",
+    rankNote: "峰值 = 观察窗口内最小名次；最低 = 最大名次。Apple 公共 feed 只含 Top 200，超出范围时不会伪造精确名次。",
     appLineNote: "每个小时比较一次中国区畅销总榜；当游戏名次小于应用名次时，累计 1 小时。",
-    characterNote: "每条记录按具体卡池开放窗口统计，不再把同一版本的多个角色混在一起。0 小时表示有完整观测且确实未超过；“待接入”表示没有可靠数据，二者严格区分。",
-    correctionSource: "人工校正（待授权 feed 回填）",
+    characterNote: "每条记录按独立上半 / 下半开放窗口统计。0 小时只在已有观测时表示确实未超过；暂无覆盖表示采集启用前的历史小时仍需授权 API 回填，二者严格区分。",
+    correctionSource: "已核验历史记录",
     licensedSource: "授权排名 feed",
+    appleSource: "Apple 畅销榜 RSS 自动观测",
+    calendarSource: "卡池日历来源",
     source: "数据来源",
     updatedAt: "校正日期",
     rankingTitle: "单游戏卡池超应用时间排名",
-    rankingSub: "选择游戏与应用线，按该游戏所有已核验卡池的累计超越时长排序",
+    rankingSub: "选择游戏与应用线，按已有完整或持续自动观测的卡池累计时长排序",
     rankingGame: "排名游戏",
     rankingApp: "比较应用线",
     rankingPosition: "排名",
     versionAndBanner: "版本 / 卡池角色",
     noRankingData: "该游戏在此应用线下暂无已核验观测；不会用未知值参与排名。",
     methodologyTitle: "流水估算公式",
-    storeFormulaTitle: "商店端基线",
-    totalFormulaTitle: "全平台估算",
-    versionFormulaTitle: "版本归属",
+    storeFormulaTitle: "月流水公开口径",
+    totalFormulaTitle: "中国安卓补全",
+    versionFormulaTitle: "上下半卡池归属",
     hoursFormulaTitle: "应用线时长",
-    storeFormula: "S[g,t] = Σ FX[c,t] × median(ST[g,c,p,t], AM[g,c,p,t])",
-    totalFormula: "R[g,t] = (S[g,t] + α[g,t] × iOS_CN[g,t]) × (1 + β[g,t])",
-    versionFormula: "R[g,v] = Σ R[g,d] × overlap_hours(d,v) / 24",
+    storeFormula: "M[g,m] = ST(iOS非中国) + ST(Android非中国) + CN[g,m]",
+    totalFormula: "CN[g,m] = ST(iOS中国) × (1 + 1.75)",
+    versionFormula: "R[g,p] = Σm M[g,m] × W[g,p,m] / W[g,m]",
     hoursFormula: "H[g,v,a] = Σ 1(rank_g,τ < rank_a,τ) × Δτ",
     definitions: [
-      ["S", "中国 iOS、海外 iOS / Google Play 的商店端 IAP 毛收入中位估算，按日汇率换算人民币。"],
-      ["α", "中国 Android / 中国 iOS 流水倍率，按游戏与月份校准。"],
-      ["β", "PC、主机、官网直充相对移动端流水的补全比例。"],
-      ["R[g,v]", "版本窗口按每日重叠小时归属；跨月不重复计算。"],
+      ["M", "直接使用来源发布的美元移动端估算，不二次换汇，也不添加 PC、主机或官网直充。"],
+      ["1.75", "GachaRevenue 默认的中国 Android / 中国 iOS 倍率；它是公开源假设，不是审计事实。"],
+      ["W", "小时权重为各国 iOS 畅销名次的加权 rank^-0.85；月内观测覆盖不足 80% 时不输出卡池流水。"],
+      ["R[g,p]", "按上半 / 下半精确开放时间切分；跨月分别在各月内分配，避免平均摊平卡池爆发。"],
     ],
-    excludes: "口径：消费者毛支出、平台抽成前；不含广告、电商周边与 IP 授权。",
+    excludes: "口径：第三方移动端 IAP 市场估算；不含 PC、主机、广告、电商周边与 IP 授权。",
     sources: "数据源说明",
-    sourceNote: "ST / AppMagic 是第三方估算，只适合同口径趋势和比较，不等同于发行商审计收入。",
+    sourceNote: "竞争游戏不存在可公开核验的真实流水；本站保证来源、口径与计算可追溯，但不会把第三方估算说成厂商审计收入。",
     footer: "二游流水观察",
-    footerNote: "流水为模型估算 · 榜单为核验观测",
+    footerNote: "Sensor Tower 公开汇总估算 · Apple 榜单自动观测",
   },
   en: {
     nav: ["Overview", "Trend", "Compare", "Versions & banners", "Formula"],
     navIds: ["overview", "trend", "compare", "versions", "methodology"],
     brand: "GACHA REVENUE TRACKER",
     brandSub: "二游流水观察",
-    dataBadge: "MODELLED REVENUE · VERIFIED RANK OBSERVATIONS",
-    disclaimer: "Revenue is a July 2026 all-platform gross-bookings model snapshot (P50) with P25–P75 ranges. Rankings and app-line hours appear only when backed by hourly observations.",
-    overviewTitle: "July 2026 revenue estimates",
-    overviewUnit: "CNY 100M · all-platform consumer gross spend · before platform fees",
-    monthTotal: "July P50 total",
+    dataBadge: "PUBLIC MONTHLY SOURCE · HOURLY APPLE RANKS",
+    disclaimer: "Monthly revenue uses the Sensor Tower estimates published by GachaRevenue / GachaDash: iOS + Android only, China Android estimated at 1.75× China iOS, excluding PC and console. The source is checked automatically.",
+    overviewTitle: "June 2026 mobile revenue estimates",
+    overviewUnit: "USD millions · iOS + Android · estimated China Android · excludes PC / console",
+    monthTotal: "June source total",
     ytdTotal: "2026 YTD total",
     observed: "Model coverage",
-    update: "MODEL SNAPSHOT",
-    currentMonth: "July P50",
+    update: "SOURCE DATA",
+    currentMonth: "June source value",
     currentRange: "P25–P75",
     ytd: "2026 YTD",
     notLive: "No revenue estimate",
-    confidence: "Model confidence",
+    confidence: "Data status",
+    sourced: "connected",
     trendTitle: "Single-game revenue trend",
     trendSub: "Select a game card above; the y-axis always starts at zero",
     month: "Monthly",
     year: "Annual",
     version: "By version",
-    unit: "Estimated revenue (CNY 100M)",
+    unit: "Estimated mobile revenue (USD millions)",
     monthAxis: "Month",
     yearAxis: "Year",
     versionAxis: "Version",
@@ -147,12 +152,12 @@ const copy = {
     average: "Period average",
     latest: "Latest",
     compareTitle: "Cross-game comparison",
-    compareSub: "Like-for-like comparison using the same all-platform gross-bookings model; unreleased titles are excluded",
+    compareSub: "Like-for-like comparison using one public mobile-only basis, without invented PC or console multipliers",
     ytdEstimate: "YTD estimate",
     share: "Selected share",
     selected: "selected",
     versionTitle: "Version / character-banner observations",
-    versionSub: "Use the dropdowns to select a specific version and banner character; only sourced observations are shown",
+    versionSub: "Select the exact first/second phase for each version; calendar and rank sources are tracked separately",
     selectGame: "Select game",
     selectBanner: "Select version / character banner",
     noVerifiedBanner: "No verified banner data for this game",
@@ -175,50 +180,50 @@ const copy = {
     coverage: "Window share",
     exceeded: "Above",
     noHours: "Never above",
-    awaitingFeed: "Awaiting feed",
+    awaitingFeed: "No coverage",
     hours: "hours",
-    rankNote: "Peak is the minimum rank and lowest is the maximum rank in the observation window. Smaller rank numbers are better.",
+    rankNote: "Peak is the minimum rank and lowest is the maximum rank. Apple's public feed is Top 200 only; exact ranks outside it are never invented.",
     appLineNote: "China overall-grossing ranks are compared hourly; one hour is added whenever the game rank is smaller than the app rank.",
-    characterNote: "Each row uses the exact character-banner window instead of combining multiple characters in one version. Zero means complete observation and genuinely never above; awaiting feed means unknown.",
-    correctionSource: "Manual correction (pending licensed-feed backfill)",
+    characterNote: "Each row uses the exact phase window. Zero only means genuinely never above when observations exist; no coverage means pre-collector history still needs licensed API backfill.",
+    correctionSource: "Verified historical record",
     licensedSource: "Licensed rank feed",
+    appleSource: "Automated Apple grossing RSS",
+    calendarSource: "Banner calendar source",
     source: "Data source",
     updatedAt: "Correction date",
     rankingTitle: "Per-game banner app-line ranking",
-    rankingSub: "Select a game and app line to rank all verified character banners by cumulative hours above it",
+    rankingSub: "Select a game and app line to rank banners with complete or ongoing automatic observations",
     rankingGame: "Ranking game",
     rankingApp: "Comparison app line",
     rankingPosition: "Rank",
     versionAndBanner: "Version / character banner",
     noRankingData: "No verified observation for this game and app line; unknown values are excluded from ranking.",
     methodologyTitle: "Revenue estimation formulas",
-    storeFormulaTitle: "Store baseline",
-    totalFormulaTitle: "All-platform estimate",
-    versionFormulaTitle: "Version attribution",
+    storeFormulaTitle: "Published monthly basis",
+    totalFormulaTitle: "China Android completion",
+    versionFormulaTitle: "Phase attribution",
     hoursFormulaTitle: "App-line hours",
-    storeFormula: "S[g,t] = Σ FX[c,t] × median(ST[g,c,p,t], AM[g,c,p,t])",
-    totalFormula: "R[g,t] = (S[g,t] + α[g,t] × iOS_CN[g,t]) × (1 + β[g,t])",
-    versionFormula: "R[g,v] = Σ R[g,d] × overlap_hours(d,v) / 24",
+    storeFormula: "M[g,m] = ST(iOS ex-CN) + ST(Android ex-CN) + CN[g,m]",
+    totalFormula: "CN[g,m] = ST(iOS CN) × (1 + 1.75)",
+    versionFormula: "R[g,p] = Σm M[g,m] × W[g,p,m] / W[g,m]",
     hoursFormula: "H[g,v,a] = Σ 1(rank_g,τ < rank_a,τ) × Δτ",
     definitions: [
-      ["S", "Median estimated gross IAP for China iOS and overseas iOS / Google Play, converted to CNY with daily FX."],
-      ["α", "China Android / China iOS multiplier calibrated by title and month."],
-      ["β", "PC, console, and direct top-up completion ratio relative to mobile."],
-      ["R[g,v]", "Daily revenue attributed by overlapping hours; cross-month versions are not double counted."],
+      ["M", "Uses source-published USD mobile estimates directly; no second FX conversion or PC / console uplift."],
+      ["1.75", "GachaRevenue's default China Android / China iOS assumption, not audited revenue."],
+      ["W", "Hourly rank weight is a market-weighted rank^-0.85; no phase estimate is emitted below 80% monthly coverage."],
+      ["R[g,p]", "Uses exact phase timestamps and allocates each overlapping month separately instead of averaging banner spikes."],
     ],
-    excludes: "Basis: consumer gross spend before platform fees; excludes ads, merchandise, and IP licensing.",
+    excludes: "Basis: third-party mobile IAP estimates; excludes PC, console, ads, merchandise, and IP licensing.",
     sources: "Source note",
-    sourceNote: "ST / AppMagic are third-party estimates for like-for-like trends and comparisons, not audited publisher revenue.",
+    sourceNote: "No public source can guarantee competitors' true revenue. This site guarantees traceable provenance and reproducible calculations, not audited publisher results.",
     footer: "Gacha Revenue Tracker · 二游流水观察",
-    footerNote: "Modelled revenue · verified rank observations",
+    footerNote: "Sensor Tower public aggregation · automated Apple rank observations",
   },
 } as const;
 
 function formatMoney(value: number | null, locale: Locale) {
   if (value === null) return "—";
-  if (locale === "zh-CN") return `¥${value.toFixed(2)} 亿`;
-  const millions = value * 100;
-  return millions >= 1000 ? `CN¥${(millions / 1000).toFixed(2)}B` : `CN¥${millions.toFixed(0)}M`;
+  return locale === "zh-CN" ? `$${value.toFixed(1)}M` : `$${value.toFixed(1)}M`;
 }
 
 function GameMark({ game, small = false }: { game: Game; small?: boolean }) {
@@ -300,7 +305,7 @@ function LineChart({
             <line className="chart-x-tick" x1={point.x} x2={point.x} y1={margin.top + plotHeight} y2={margin.top + plotHeight + 5} />
             <text className="axis-tick" x={point.x} y={margin.top + plotHeight + 23} textAnchor="middle">{point.label}</text>
             <circle className="chart-dot" cx={point.x} cy={point.y} r="5" fill="#fff" stroke={color}>
-              <title>{`${point.label}: ${point.value.toFixed(2)} ${locale === "zh-CN" ? "亿元" : "CNY 100M"}`}</title>
+              <title>{`${point.label}: $${point.value.toFixed(2)}M`}</title>
             </circle>
             <text className="chart-value-label" x={point.x} y={Math.max(point.y - 12, 31)} textAnchor="middle">{point.value.toFixed(2)}</text>
           </g>
@@ -346,6 +351,33 @@ type VersionsResponse = {
   }>;
 };
 
+type PublicRevenueResponse = {
+  data?: Array<{ game_id: GameId; history: RevenueMonth[]; source_url: string }>;
+  meta?: { fetched_at: string };
+};
+
+type BannerMetricsResponse = {
+  data?: {
+    ranks: Partial<Record<"CN" | "JP" | "US" | "KR", {
+      peak_rank: number | null;
+      lowest_rank: number | null;
+      observed_hours: number;
+      ranked_hours: number;
+      lowest_is_beyond_200: boolean;
+    }>>;
+    app_line_observations: Array<{
+      app_id: AppLineId;
+      hours_above: number;
+      observed_hours: number;
+      updated_at: string | null;
+    }>;
+    source: "apple_public_feed";
+    phase_revenue: { estimate: number | null; coverage: number; formula: string; threshold: number } | null;
+  };
+};
+
+type BannerMetricsResult = BannerMetricsResponse | null;
+
 function normalizeVersions(payload: VersionsResponse): VersionDetail[] {
   return (payload.data ?? []).map((item) => {
     const startsAt = new Date(item.starts_at);
@@ -354,6 +386,7 @@ function normalizeVersions(payload: VersionsResponse): VersionDetail[] {
       id: item.id,
       gameId: item.game_id,
       version: item.version,
+      phaseIndex: 1,
       phase: { "zh-CN": item.phase_zh, en: item.phase_en },
       date: item.starts_at.slice(0, 10),
       endDate: item.ends_at.slice(0, 10),
@@ -362,8 +395,11 @@ function normalizeVersions(payload: VersionsResponse): VersionDetail[] {
       revenue: item.estimate,
       revenueRange: [item.p25, item.p75],
       confidence: item.confidence,
-      observedHours: Math.max(0, Math.round((endsAt.getTime() - startsAt.getTime()) / 3_600_000)),
+      windowHours: Math.max(0, Math.round((endsAt.getTime() - startsAt.getTime()) / 3_600_000)),
+      observedHours: item.data_status === "awaiting_feed" ? 0 : Math.max(0, Math.round((endsAt.getTime() - startsAt.getTime()) / 3_600_000)),
       dataStatus: item.data_status,
+      sourceUrl: "",
+      sourceUpdatedAt: item.starts_at.slice(0, 10),
       ranks: item.ios_grossing_rank_range,
       appHours: item.app_line_observations.map((line) => ({
         appId: line.app_id,
@@ -379,14 +415,36 @@ function normalizeVersions(payload: VersionsResponse): VersionDetail[] {
 export default function Dashboard({ locale }: { locale: Locale }) {
   const t = copy[locale];
   const hydrated = useSyncExternalStore(subscribeToHydration, () => true, () => false);
-  const [selectedGame, setSelectedGame] = useState<GameId>("wuwa");
+  const [gameData, setGameData] = useState<Game[]>(games);
+  const [selectedGame, setSelectedGame] = useState<GameId>("hsr");
   const [period, setPeriod] = useState<Period>("month");
   const [compareIds, setCompareIds] = useState<GameId[]>(["genshin", "hsr", "zzz", "wuwa"]);
-  const [versionGame, setVersionGame] = useState<GameId>("wuwa");
-  const [selectedVersionId, setSelectedVersionId] = useState("ww-24-cartethyia");
+  const [versionGame, setVersionGame] = useState<GameId>("hsr");
+  const [selectedVersionId, setSelectedVersionId] = useState("hsr-44-p1");
   const [rankingGame, setRankingGame] = useState<GameId>("wuwa");
   const [rankingApp, setRankingApp] = useState<AppLineId>("tencent_video");
   const [versionsData, setVersionsData] = useState<VersionDetail[]>(versionDetails);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    fetch("/api/public-revenue", { signal: controller.signal })
+      .then((response) => {
+        if (!response.ok) throw new Error(`public revenue API returned ${response.status}`);
+        return response.json() as Promise<PublicRevenueResponse>;
+      })
+      .then((payload) => {
+        if (!payload.data?.length) return;
+        setGameData((current) => current.map((game) => {
+          const update = payload.data?.find((item) => item.game_id === game.id);
+          return update?.history.length ? updateGameRevenue(game, update.history) : game;
+        }));
+      })
+      .catch((error: unknown) => {
+        if (error instanceof DOMException && error.name === "AbortError") return;
+        console.error("Unable to refresh public revenue source", error);
+      });
+    return () => controller.abort();
+  }, []);
 
   useEffect(() => {
     const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL;
@@ -411,17 +469,71 @@ export default function Dashboard({ locale }: { locale: Locale }) {
     return () => controller.abort();
   }, []);
 
-  const activeGame = games.find((game) => game.id === selectedGame) ?? games[0];
+  useEffect(() => {
+    const metricTarget = versionDetails.find((item) => item.id === selectedVersionId);
+    if (!metricTarget) return;
+    const controller = new AbortController();
+    const query = new URLSearchParams({ game_id: metricTarget.gameId, start: metricTarget.date, end: metricTarget.endDate });
+    fetch(`/api/banner-metrics?${query}`, { signal: controller.signal })
+      .then((response) => {
+        if (response.status === 503) return null;
+        if (!response.ok) throw new Error(`banner metrics API returned ${response.status}`);
+        return response.json() as Promise<BannerMetricsResult>;
+      })
+      .then((payload) => {
+        const metrics = payload?.data;
+        if (!metrics) return;
+        const observedHours = Math.max(
+          0,
+          ...Object.values(metrics.ranks).map((item) => Number(item?.observed_hours ?? 0)),
+          ...metrics.app_line_observations.map((item) => Number(item.observed_hours ?? 0)),
+        );
+        if (!observedHours) return;
+        setVersionsData((current) => current.map((version) => {
+          if (version.id !== metricTarget.id) return version;
+          const ranks = { ...version.ranks };
+          for (const market of ["CN", "JP", "US", "KR"] as const) {
+            const row = metrics.ranks[market];
+            if (row?.observed_hours) ranks[market] = [row.peak_rank, row.lowest_rank];
+          }
+          const appHours = version.appHours.map((line) => {
+            const row = metrics.app_line_observations.find((item) => item.app_id === line.appId);
+            if (!row?.observed_hours) return line;
+            return { ...line, hours: Number(row.hours_above), source: "apple_public_feed" as const, updatedAt: row.updated_at?.slice(0, 10) ?? null };
+          });
+          const phaseEstimate = metrics.phase_revenue?.estimate ?? null;
+          return {
+            ...version,
+            ranks,
+            appHours,
+            observedHours,
+            revenue: phaseEstimate,
+            confidence: phaseEstimate === null ? "N/A" : "B",
+            dataStatus: "apple_public_feed",
+          };
+        }));
+      })
+      .catch((error: unknown) => {
+        if (error instanceof DOMException && error.name === "AbortError") return;
+        console.error("Unable to load automatic Apple rank observations", error);
+      });
+    return () => controller.abort();
+  }, [selectedVersionId]);
+
+  const activeGame = gameData.find((game) => game.id === selectedGame) ?? gameData[0];
   const selectedVersion = versionsData.find((version) => version.id === selectedVersionId);
-  const visibleVersions = versionsData.filter((item) => item.gameId === versionGame);
-  const comparisonGames = games.filter((game) => compareIds.includes(game.id) && game.ytd !== null);
+  const visibleVersions = versionsData.filter((item) => item.gameId === versionGame).sort((a, b) => b.date.localeCompare(a.date));
+  const comparisonGames = gameData.filter((game) => compareIds.includes(game.id) && game.ytd !== null);
   const compareTotal = comparisonGames.reduce((sum, game) => sum + (game.ytd ?? 0), 0);
-  const monthlyTotal = games.reduce((sum, game) => sum + (game.currentMonth ?? 0), 0);
-  const ytdTotal = games.reduce((sum, game) => sum + (game.ytd ?? 0), 0);
-  const modelledGameCount = games.filter((game) => game.currentMonth !== null).length;
+  const monthlyTotal = gameData.reduce((sum, game) => sum + (game.currentMonth ?? 0), 0);
+  const ytdTotal = gameData.reduce((sum, game) => sum + (game.ytd ?? 0), 0);
+  const modelledGameCount = gameData.filter((game) => game.currentMonth !== null).length;
 
   const trend = useMemo(() => {
-    if (period === "year") return { values: activeGame.yearly, labels: yearLabels, xAxis: t.yearAxis };
+    if (period === "year") {
+      const years = [...new Set(activeGame.revenueHistory.map((item) => item.year))];
+      return { values: activeGame.yearly, labels: years.map((year) => year === 2026 ? "2026 YTD" : `${year}`), xAxis: t.yearAxis };
+    }
     if (period === "version") {
       return {
         values: activeGame.versions.map((item) => item.value),
@@ -429,7 +541,8 @@ export default function Dashboard({ locale }: { locale: Locale }) {
         xAxis: t.versionAxis,
       };
     }
-    return { values: activeGame.monthly, labels: monthLabels[locale], xAxis: t.monthAxis };
+    const months = activeGame.revenueHistory.filter((item) => item.year === 2026).map((item) => item.month);
+    return { values: activeGame.monthly, labels: months.map((month) => locale === "zh-CN" ? `${month}月` : new Intl.DateTimeFormat("en", { month: "short", timeZone: "UTC" }).format(new Date(Date.UTC(2026, month - 1, 1)))), xAxis: t.monthAxis };
   }, [activeGame, locale, period, t.monthAxis, t.versionAxis, t.yearAxis]);
 
   const stats = useMemo(() => {
@@ -467,7 +580,7 @@ export default function Dashboard({ locale }: { locale: Locale }) {
 
   const changeVersionGame = (gameId: GameId) => {
     setVersionGame(gameId);
-    const first = versionsData.find((item) => item.gameId === gameId);
+    const first = versionsData.filter((item) => item.gameId === gameId).sort((a, b) => b.date.localeCompare(a.date))[0];
     setSelectedVersionId(first?.id ?? "");
   };
 
@@ -499,12 +612,12 @@ export default function Dashboard({ locale }: { locale: Locale }) {
         <div className="overview-kpis">
           <div><span>{t.monthTotal}</span><strong>{formatMoney(monthlyTotal, locale)}</strong></div>
           <div><span>{t.ytdTotal}</span><strong>{formatMoney(ytdTotal, locale)}</strong></div>
-          <div><span>{t.observed}</span><strong>{modelledGameCount} / {games.length}</strong></div>
+          <div><span>{t.observed}</span><strong>{modelledGameCount} / {gameData.length}</strong></div>
         </div>
       </section>
 
       <section className="game-grid" aria-label={t.currentMonth}>
-        {games.map((game) => {
+        {gameData.map((game) => {
           const active = game.id === selectedGame;
           return (
             <button
@@ -516,7 +629,7 @@ export default function Dashboard({ locale }: { locale: Locale }) {
             >
               <div className="game-card-top">
                 <GameMark game={game} />
-                <span className={`confidence confidence-${game.confidence.replace("+", "plus")}`}>{t.confidence} {game.confidence}</span>
+                <span className={`confidence confidence-${game.confidence.replace("+", "plus")}`}>{t.confidence} {game.confidence === "SOURCE" ? t.sourced : game.confidence}</span>
               </div>
               <div className="game-name"><strong>{game.name[locale]}</strong><span>{game.publisher}</span></div>
               {game.currentMonth === null ? (
@@ -525,11 +638,11 @@ export default function Dashboard({ locale }: { locale: Locale }) {
                 <>
                   <div className="card-money">
                     <strong>{formatMoney(game.currentMonth, locale)}</strong>
-                    <span>{t.currentMonth}{game.currentMonthRange ? ` · ${t.currentRange} ${formatMoney(game.currentMonthRange[0], locale)}–${formatMoney(game.currentMonthRange[1], locale)}` : ""}</span>
+                    <span>{t.currentMonth}</span>
                   </div>
                   <div className="card-foot">
                     <span>{t.ytd} <b>{formatMoney(game.ytd, locale)}</b></span>
-                    <span className={game.change && game.change > 0 ? "positive" : "negative"}>{game.change && game.change > 0 ? "+" : ""}{game.change}%</span>
+                    <span className={game.change && game.change > 0 ? "positive" : "negative"}>{game.change === null ? "—" : `${game.change > 0 ? "+" : ""}${game.change.toFixed(1)}%`}</span>
                   </div>
                   <MiniTrend values={game.monthly} color={game.color} />
                 </>
@@ -570,18 +683,18 @@ export default function Dashboard({ locale }: { locale: Locale }) {
           <span className="selected-count">{compareIds.length} {t.selected}</span>
         </div>
         <div className="game-toggles">
-          {games.map((game) => (
+          {gameData.map((game) => (
             <button key={game.id} className={compareIds.includes(game.id) ? "active" : ""} onClick={() => toggleCompare(game.id)} aria-pressed={compareIds.includes(game.id)} style={{ "--game-color": game.color } as React.CSSProperties}>
               <span style={{ background: game.color }} />{game.name[locale]}
             </button>
           ))}
         </div>
         <div className="compare-bars">
-          {comparisonGames.sort((a, b) => (b.ytd ?? 0) - (a.ytd ?? 0)).map((game, index) => (
+          {[...comparisonGames].sort((a, b) => (b.ytd ?? 0) - (a.ytd ?? 0)).map((game, index) => (
             <div className="compare-row" key={game.id}>
               <span className="compare-rank">0{index + 1}</span>
               <div className="compare-game"><GameMark game={game} small /><strong>{game.name[locale]}</strong></div>
-              <div className="compare-bar-track"><span style={{ width: `${((game.ytd ?? 0) / 24) * 100}%`, background: game.color }} /></div>
+              <div className="compare-bar-track"><span style={{ width: `${((game.ytd ?? 0) / Math.max(...comparisonGames.map((item) => item.ytd ?? 0), 1)) * 100}%`, background: game.color }} /></div>
               <div className="compare-value"><strong>{formatMoney(game.ytd, locale)}</strong><small>{t.ytdEstimate}</small></div>
               <div className="compare-share"><strong>{compareTotal ? (((game.ytd ?? 0) / compareTotal) * 100).toFixed(1) : 0}%</strong><small>{t.share}</small></div>
             </div>
@@ -599,7 +712,7 @@ export default function Dashboard({ locale }: { locale: Locale }) {
           <label>
             <span>{t.selectGame}</span>
             <select value={versionGame} onChange={(event) => changeVersionGame(event.target.value as GameId)} aria-label={t.selectGame}>
-              {games.map((game) => <option key={game.id} value={game.id}>{game.name[locale]}</option>)}
+              {gameData.map((game) => <option key={game.id} value={game.id}>{game.name[locale]}</option>)}
             </select>
           </label>
           <label>
@@ -621,11 +734,11 @@ export default function Dashboard({ locale }: { locale: Locale }) {
               <div className="version-identity">
                 <span>{t.associatedCharacters}</span>
                 <strong>UP · {selectedVersion.characters[locale]}</strong>
-                <small>{games.find((game) => game.id === selectedVersion.gameId)?.name[locale]} · {selectedVersion.version} · {selectedVersion.phase[locale]}</small>
+                <small>{gameData.find((game) => game.id === selectedVersion.gameId)?.name[locale]} · {selectedVersion.version} · {selectedVersion.phase[locale]}</small>
               </div>
-              <div><span>{t.dateWindow}</span><strong>{selectedVersion.date}<i>→</i>{selectedVersion.endDate}</strong><small>{selectedVersion.observedHours} {t.hours}</small></div>
-              <div><span>{t.estimateBasis}</span><strong>{selectedVersion.scope[locale]}</strong><small>{t.confidence} {selectedVersion.confidence}</small></div>
-              <div className="version-money"><span>{t.versionEstimate}</span><strong>{formatMoney(selectedVersion.revenue, locale)}</strong><small>{t.awaitingFeed} Sensor Tower / AppMagic</small></div>
+              <div><span>{t.dateWindow}</span><strong>{selectedVersion.date}<i>→</i>{selectedVersion.endDate}</strong><small>{selectedVersion.observedHours} / {selectedVersion.windowHours} {t.hours}</small></div>
+              <div><span>{t.estimateBasis}</span><strong>{selectedVersion.scope[locale]}</strong><small><a href={selectedVersion.sourceUrl} target="_blank" rel="noreferrer">{t.calendarSource} ↗</a> · {selectedVersion.sourceUpdatedAt}</small></div>
+              <div className="version-money"><span>{t.versionEstimate}</span><strong>{formatMoney(selectedVersion.revenue, locale)}</strong><small>{selectedVersion.dataStatus === "verified_manual" ? t.correctionSource : t.appleSource} · {selectedVersion.observedHours}/{selectedVersion.windowHours}h</small></div>
             </div>
 
             <div className="intelligence-grid">
@@ -657,7 +770,7 @@ export default function Dashboard({ locale }: { locale: Locale }) {
                             <td><strong>{item.app[locale]}</strong></td>
                             <td><span className={`line-result ${known && (item.hours ?? 0) > 0 ? "yes" : "no"}`}>{!known ? t.awaitingFeed : (item.hours ?? 0) > 0 ? t.exceeded : t.noHours}</span></td>
                             <td><div className="hours-cell"><i><b style={{ width: known ? `${((item.hours ?? 0) / maxAppHours) * 100}%` : "0%" }} /></i><strong>{known ? `${item.hours} ${t.hours}` : "—"}</strong></div></td>
-                            <td><span className="source-cell">{item.source === "licensed_feed" ? t.licensedSource : item.source === "verified_manual" ? t.correctionSource : t.awaitingFeed}{item.updatedAt && <small>{item.updatedAt}</small>}</span></td>
+                            <td><span className="source-cell">{item.source === "licensed_feed" ? t.licensedSource : item.source === "apple_public_feed" ? t.appleSource : item.source === "verified_manual" ? t.correctionSource : t.awaitingFeed}{item.updatedAt && <small>{item.updatedAt}</small>}</span></td>
                           </tr>
                         );
                       })}
@@ -675,7 +788,7 @@ export default function Dashboard({ locale }: { locale: Locale }) {
           <div className="ranking-heading">
             <div><p className="section-kicker">RANKING · VERIFIED HOURS</p><h3>{t.rankingTitle}</h3><p>{t.rankingSub}</p></div>
             <div className="ranking-controls">
-              <label><span>{t.rankingGame}</span><select value={rankingGame} onChange={(event) => setRankingGame(event.target.value as GameId)} aria-label={t.rankingGame}>{games.map((game) => <option key={game.id} value={game.id}>{game.name[locale]}</option>)}</select></label>
+              <label><span>{t.rankingGame}</span><select value={rankingGame} onChange={(event) => setRankingGame(event.target.value as GameId)} aria-label={t.rankingGame}>{gameData.map((game) => <option key={game.id} value={game.id}>{game.name[locale]}</option>)}</select></label>
               <label><span>{t.rankingApp}</span><select value={rankingApp} onChange={(event) => setRankingApp(event.target.value as AppLineId)} aria-label={t.rankingApp}>{appLines.map((app) => <option key={app.id} value={app.id}>{app.name[locale]}</option>)}</select></label>
             </div>
           </div>
@@ -684,7 +797,7 @@ export default function Dashboard({ locale }: { locale: Locale }) {
               <table className="banner-ranking-table">
                 <thead><tr><th>{t.rankingPosition}</th><th>{t.versionAndBanner}</th><th>{t.dateWindow}</th><th>{t.hoursAbove}</th><th>{t.source}</th></tr></thead>
                 <tbody>{bannerRanking.map(({ version, observation }, index) => (
-                  <tr key={version.id}><td><strong>{`#${index + 1}`}</strong></td><td><b>{`${version.version} · UP ${version.characters[locale]}`}</b><small>{version.phase[locale]}</small></td><td>{version.date}<i>→</i>{version.endDate}</td><td><strong>{`${observation.hours} ${t.hours}`}</strong></td><td><span className="source-cell">{observation.source === "licensed_feed" ? t.licensedSource : t.correctionSource}{observation.updatedAt && <small>{observation.updatedAt}</small>}</span></td></tr>
+                  <tr key={version.id}><td><strong>{`#${index + 1}`}</strong></td><td><b>{`${version.version} · ${version.phase[locale]} · UP ${version.characters[locale]}`}</b></td><td>{version.date}<i>→</i>{version.endDate}</td><td><strong>{`${observation.hours} ${t.hours}`}</strong></td><td><span className="source-cell">{observation.source === "licensed_feed" ? t.licensedSource : observation.source === "apple_public_feed" ? t.appleSource : t.correctionSource}{observation.updatedAt && <small>{observation.updatedAt}</small>}</span></td></tr>
                 ))}</tbody>
               </table>
             </div>
@@ -706,7 +819,7 @@ export default function Dashboard({ locale }: { locale: Locale }) {
         </div>
         <div className="formula-definitions">
           {t.definitions.map(([symbol, definition]) => <div key={symbol}><code>{symbol}</code><p>{definition}</p></div>)}
-          <div className="source-links"><strong>{t.sources}</strong><a href="https://sensortower.com/product/mobile-app/app-performance-insights" target="_blank" rel="noreferrer">Sensor Tower ↗</a><a href="https://appmagic.rocks/files/view/upload/Reports/EN_MobileMarkeLandscape2026.pdf" target="_blank" rel="noreferrer">AppMagic ↗</a></div>
+          <div className="source-links"><strong>{t.sources}</strong><a href={revenueSource.url} target="_blank" rel="noreferrer">GachaDash / GachaRevenue ↗</a><a href="https://sensortower.com/product/mobile-app/app-performance-insights" target="_blank" rel="noreferrer">Sensor Tower ↗</a><a href="https://itunes.apple.com/cn/rss/topgrossingapplications/limit=200/json" target="_blank" rel="noreferrer">Apple Top Grossing RSS ↗</a></div>
           <p className="source-note">{t.sourceNote}</p>
         </div>
       </section>

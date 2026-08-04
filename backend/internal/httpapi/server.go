@@ -158,7 +158,7 @@ func (s *Server) revenueFromDB(w http.ResponseWriter, r *http.Request, gameID, g
 		}
 		data = append(data, point)
 	}
-	writeJSON(w, http.StatusOK, map[string]any{"data": data, "meta": responseMeta()})
+	writeJSON(w, http.StatusOK, map[string]any{"data": data, "meta": legacyRevenueMeta()})
 }
 
 type appLineAPI struct {
@@ -386,11 +386,24 @@ func writeJSON(w http.ResponseWriter, status int, payload any) {
 
 func responseMeta() map[string]any {
 	return map[string]any{
+		"currency":            "USD",
+		"unit":                "million",
+		"basis":               "mobile_iap_ios_android_with_cn_android_1_75x",
+		"data_status":         "public_source_snapshot_with_automatic_rank_observations",
+		"methodology_version": "3.0.0",
+	}
+}
+
+// The original PostgreSQL schema stores estimates in CNY. Keep that legacy
+// endpoint correctly labelled instead of presenting those rows as the newer
+// public USD source used by the fixture/site API.
+func legacyRevenueMeta() map[string]any {
+	return map[string]any{
 		"currency":            "CNY",
-		"unit":                "100_million",
-		"basis":               "estimated_gross_bookings",
-		"data_status":         "model_snapshot_with_verified_rank_observations",
-		"methodology_version": "2.1.0",
+		"unit":                "hundred_million",
+		"basis":               "legacy_postgresql_model",
+		"data_status":         "licensed_feed_or_model_output",
+		"methodology_version": "2.0.0",
 	}
 }
 
@@ -404,12 +417,12 @@ type gameFixture struct {
 }
 
 var gameFixtures = []gameFixture{
-	{"genshin", "原神", "Genshin Impact", "HoYoverse", []string{"ios", "android", "pc", "playstation"}, "B+"},
-	{"hsr", "崩坏：星穹铁道", "Honkai: Star Rail", "HoYoverse", []string{"ios", "android", "pc", "playstation"}, "B+"},
-	{"zzz", "绝区零", "Zenless Zone Zero", "HoYoverse", []string{"ios", "android", "pc", "playstation", "xbox"}, "B+"},
-	{"wuwa", "鸣潮", "Wuthering Waves", "Kuro Games", []string{"ios", "android", "pc", "playstation"}, "B"},
-	{"endfield", "明日方舟：终末地", "Arknights: Endfield", "GRYPHLINE", []string{"ios", "android", "pc", "playstation"}, "B"},
-	{"ananta", "异环", "ANANTA", "NetEase Games", []string{"ios", "android", "pc", "playstation"}, "N/A"},
+	{"genshin", "原神", "Genshin Impact", "HoYoverse", []string{"ios", "android", "pc", "playstation"}, "SOURCE"},
+	{"hsr", "崩坏：星穹铁道", "Honkai: Star Rail", "HoYoverse", []string{"ios", "android", "pc", "playstation"}, "SOURCE"},
+	{"zzz", "绝区零", "Zenless Zone Zero", "HoYoverse", []string{"ios", "android", "pc", "playstation", "xbox"}, "SOURCE"},
+	{"wuwa", "鸣潮", "Wuthering Waves", "Kuro Games", []string{"ios", "android", "pc", "playstation"}, "SOURCE"},
+	{"endfield", "明日方舟：终末地", "Arknights: Endfield", "GRYPHLINE", []string{"ios", "android", "pc", "playstation"}, "SOURCE"},
+	{"nte", "异环", "Neverness to Everness", "Hotta Studio / Perfect World", []string{"ios", "android", "pc", "playstation"}, "SOURCE"},
 }
 
 type revenuePoint struct {
@@ -434,14 +447,15 @@ var revenueFixtures = buildRevenueFixtures()
 
 func buildRevenueFixtures() []revenuePoint {
 	series := []modelRevenueSeries{
-		{"genshin", "B+", []float64{3.15, 2.74, 3.02, 2.58, 2.83, 2.61, 2.36}, []float64{97.1, 63.8, 48.2, 41.7, 18.9}, versionPoints("genshin", "B+", map[string]float64{"5.4": 5.28, "5.5": 4.74, "5.6": 5.63, "5.7": 6.12})},
-		{"hsr", "B+", []float64{3.42, 2.95, 3.84, 2.71, 3.19, 2.31, 2.98}, []float64{0, 39.6, 47.8, 43.1, 21.4}, versionPoints("hsr", "B+", map[string]float64{"3.1": 5.84, "3.2": 6.72, "3.3": 5.36, "3.4": 6.08})},
-		{"zzz", "B+", []float64{1.58, 1.26, 1.88, 1.32, 1.74, 1.60, 1.42}, []float64{0, 0, 11.7, 24.6, 10.8}, versionPoints("zzz", "B+", map[string]float64{"1.5": 3.76, "1.6": 3.12, "1.7": 3.48, "2.0": 4.36})},
-		{"wuwa", "B", []float64{1.44, 1.31, 2.05, 1.67, 2.42, 2.92, 1.89}, []float64{0, 0, 10.2, 23.8, 13.7}, versionPoints("wuwa", "B", map[string]float64{"2.1": 3.42, "2.2": 3.06, "2.3": 4.58, "2.4": 5.12})},
-		{"endfield", "B", []float64{0, 0.95, 1.40, 1.22, 1.02, 0.97, 1.64}, []float64{0, 0, 0, 0, 7.2}, versionPoints("endfield", "B", map[string]float64{"1.0": 2.88, "1.1": 2.12, "1.2": 1.86, "1.3": 2.34})},
+		{"genshin", "SOURCE", []float64{66.04, 55.245, 40.11, 40.105, 41.655, 33.34}, []float64{276.495}, nil},
+		{"hsr", "SOURCE", []float64{8.0375, 21.135, 31.73, 58.1, 38.765, 28.455}, []float64{186.2225}, nil},
+		{"zzz", "SOURCE", []float64{23.245, 13.35, 16.44, 7.167, 9.37, 9.655}, []float64{79.227}, nil},
+		{"wuwa", "SOURCE", []float64{19.15, 46, 11.4, 14.7, 31.75, 34}, []float64{157}, nil},
+		{"endfield", "SOURCE", []float64{28.55, 26.08, 22.05, 17.28, 4.766, 9.52}, []float64{108.246}, nil},
+		{"nte", "SOURCE", []float64{0, 0, 0, 6.74, 23.575, 13.95}, []float64{44.265}, nil},
 	}
-	monthPeriods := []string{"2026-01-01", "2026-02-01", "2026-03-01", "2026-04-01", "2026-05-01", "2026-06-01", "2026-07-01"}
-	yearPeriods := []string{"2022-01-01", "2023-01-01", "2024-01-01", "2025-01-01", "2026-01-01"}
+	monthPeriods := []string{"2026-01-01", "2026-02-01", "2026-03-01", "2026-04-01", "2026-05-01", "2026-06-01"}
+	yearPeriods := []string{"2026-01-01"}
 	points := make([]revenuePoint, 0, 60)
 	for _, game := range series {
 		for index, estimate := range game.Monthly {
@@ -469,11 +483,7 @@ func versionPoints(gameID, confidence string, values map[string]float64) []reven
 }
 
 func modelRevenuePoint(gameID, grain, period string, estimate float64, confidence string) revenuePoint {
-	lowScale, highScale := 0.8, 1.25
-	if confidence == "B" {
-		lowScale, highScale = 0.75, 1.30
-	}
-	return revenuePoint{GameID: gameID, Grain: grain, Period: period, Estimate: estimate, Low: estimate * lowScale, High: estimate * highScale, Confidence: confidence}
+	return revenuePoint{GameID: gameID, Grain: grain, Period: period, Estimate: estimate, Low: estimate, High: estimate, Confidence: confidence}
 }
 
 type versionFixture struct {

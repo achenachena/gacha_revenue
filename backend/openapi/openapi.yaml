@@ -3,8 +3,8 @@ info:
   title: Gacha Revenue Tracker API
   version: 1.0.0
   description: |
-    Estimated gross-bookings data. Values are third-party model estimates,
-    not publisher-reported revenue. All money endpoints include methodology metadata.
+    Public-source mobile IAP estimates and hourly iOS rank observations.
+    Values are third-party market estimates, not publisher-reported revenue.
 servers:
   - url: https://api.example.com/v1
   - url: http://localhost:8080/v1
@@ -56,7 +56,7 @@ paths:
           schema: {type: string, format: date}
       responses:
         '200':
-          description: Estimate time series with P25–P75 interval
+          description: Source-labelled mobile revenue time series
           content:
             application/json:
               schema:
@@ -156,7 +156,7 @@ components:
           items: {type: string}
         confidence:
           type: string
-          enum: [A, B+, B, C, N/A]
+          enum: [SOURCE, A, B+, B, C, N/A]
     RevenuePoint:
       type: object
       required: [game_id, grain, period, estimate, p25, p75, confidence]
@@ -164,9 +164,9 @@ components:
         game_id: {type: string}
         grain: {type: string, enum: [month, year, version, banner]}
         period: {type: string}
-        estimate: {type: number, description: CNY 100 million}
-        p25: {type: number}
-        p75: {type: number}
+        estimate: {type: number, description: USD millions}
+        p25: {type: number, description: Equal to estimate for source snapshots without a published interval}
+        p75: {type: number, description: Equal to estimate for source snapshots without a published interval}
         confidence: {type: string}
     VersionIntelligence:
       type: object
@@ -187,7 +187,7 @@ components:
         confidence: {type: string}
         data_status:
           type: string
-          enum: [licensed_feed, verified_manual, awaiting_feed]
+          enum: [licensed_feed, apple_public_feed, public_calendar, verified_manual, awaiting_feed]
         ios_grossing_rank_range:
           type: object
           additionalProperties:
@@ -205,7 +205,7 @@ components:
               name_zh: {type: string}
               name_en: {type: string}
               hours_above: {type: [number, 'null']}
-              data_status: {type: string, enum: [licensed_feed, verified_manual, awaiting_feed]}
+              data_status: {type: string, enum: [licensed_feed, apple_public_feed, verified_manual, awaiting_feed]}
               updated_at: {type: [string, 'null'], format: date-time}
     AppLineRanking:
       type: object
@@ -219,14 +219,14 @@ components:
         starts_at: {type: string, format: date-time}
         ends_at: {type: string, format: date-time}
         hours_above: {type: number, minimum: 0}
-        data_status: {type: string, enum: [licensed_feed, verified_manual]}
+        data_status: {type: string, enum: [licensed_feed, apple_public_feed, verified_manual]}
         source: {type: string}
     EstimateMeta:
       type: object
       required: [currency, unit, basis, data_status, methodology_version]
       properties:
-        currency: {const: CNY}
-        unit: {const: 100_million}
-        basis: {const: estimated_gross_bookings}
+        currency: {const: USD}
+        unit: {const: million}
+        basis: {const: mobile_iap_ios_android_with_cn_android_1_75x}
         data_status: {type: string}
         methodology_version: {type: string}

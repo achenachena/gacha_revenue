@@ -2,8 +2,8 @@ import type { Metadata } from "next";
 import Dashboard from "../dashboard";
 
 export const metadata: Metadata = {
-  title: "Gacha Revenue Tracker | Estimates & Comparisons",
-  description: "Compare modelled gacha revenue, character banners, iOS grossing ranks, and verified China app-line observations.",
+  title: "Gacha Revenue Tracker | Mobile estimates & hourly ranks",
+  description: "Compare public-source mobile revenue, exact banner phases, iOS grossing ranks, and automated China app-line observations.",
 };
 
 export default function EnglishDashboard() {

@@ -29,7 +29,7 @@ func TestGamesIncludesEstimateMetadata(t *testing.T) {
 	if len(payload.Data) != 6 {
 		t.Fatalf("expected 6 games, got %d", len(payload.Data))
 	}
-	if payload.Meta["basis"] != "estimated_gross_bookings" {
+	if payload.Meta["basis"] != "mobile_iap_ios_android_with_cn_android_1_75x" {
 		t.Fatalf("unexpected basis: %v", payload.Meta["basis"])
 	}
 }
@@ -43,7 +43,7 @@ func TestEditorEndpointRejectsViewer(t *testing.T) {
 	}
 }
 
-func TestRevenueReturnsLabelledModelSnapshot(t *testing.T) {
+func TestRevenueReturnsLabelledPublicSourceSnapshot(t *testing.T) {
 	request := httptest.NewRequest(http.MethodGet, "/v1/revenue?grain=month", nil)
 	recorder := httptest.NewRecorder()
 	New(config.Config{}, slog.New(slog.NewTextHandler(io.Discard, nil))).ServeHTTP(recorder, request)
@@ -54,15 +54,15 @@ func TestRevenueReturnsLabelledModelSnapshot(t *testing.T) {
 	if err := json.NewDecoder(bytes.NewReader(recorder.Body.Bytes())).Decode(&payload); err != nil {
 		t.Fatal(err)
 	}
-	if len(payload.Data) != 34 {
-		t.Fatalf("expected 34 monthly model points, got %d", len(payload.Data))
+	if len(payload.Data) != 33 {
+		t.Fatalf("expected 33 monthly source points, got %d", len(payload.Data))
 	}
-	if payload.Meta["data_status"] != "model_snapshot_with_verified_rank_observations" {
+	if payload.Meta["data_status"] != "public_source_snapshot_with_automatic_rank_observations" {
 		t.Fatalf("unexpected data status: %v", payload.Meta["data_status"])
 	}
 	last := payload.Data[len(payload.Data)-1]
-	if last.GameID != "endfield" || last.Period != "2026-07-01" || last.Estimate != 1.64 || last.Low <= 0 || last.High <= last.Estimate {
-		t.Fatalf("unexpected final model point: %+v", last)
+	if last.GameID != "nte" || last.Period != "2026-06-01" || last.Estimate != 13.95 || last.Low != last.Estimate || last.High != last.Estimate {
+		t.Fatalf("unexpected final source point: %+v", last)
 	}
 }
 

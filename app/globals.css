@@ -328,6 +328,7 @@ main {
 }
 
 .confidence-A { color: #0c806b; border-color: #b8ddd5; }
+.confidence-SOURCE { color: #0c806b; border-color: #b8ddd5; }
 .confidence-Bplus,
 .confidence-B { color: #9a6811; border-color: #ead4a4; }
 

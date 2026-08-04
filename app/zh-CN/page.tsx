@@ -2,8 +2,8 @@ import type { Metadata } from "next";
 import Dashboard from "../dashboard";
 
 export const metadata: Metadata = {
-  title: "二游流水观察｜流水估算与对比",
-  description: "查看六款二游的模型流水估算、具体卡池角色、iOS 畅销榜与中国区核验应用线排名。",
+  title: "二游流水观察｜移动端流水与小时榜单",
+  description: "查看六款二游的公开源移动端流水、上下半卡池、iOS 畅销榜与中国区应用线逐小时观测。",
 };
 
 export default function ChineseDashboard() {
