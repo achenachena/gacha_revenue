@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
+import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import {
   appLines,
   games,
@@ -22,6 +22,12 @@ import {
   mergeRevenue,
   type BannerMetricsData,
 } from "./api-client";
+import {
+  buildVersionRevenueSeries,
+  highestRevenueGameId,
+  latestRevenuePeriod,
+  type VersionPointLimit,
+} from "./revenue-model";
 
 type Period = "month" | "year" | "version";
 
@@ -35,15 +41,9 @@ const copy = {
     brandSub: "GACHA REVENUE ESTIMATES",
     dataBadge: "月流水来自公开源 · 榜单按小时自动观测",
     disclaimer: "月流水采用 Sensor Tower 经 GachaRevenue / GachaDash 发布的移动端估算原值；仅含 iOS + Android，中国安卓按中国 iOS 的 1.75 倍估算，不含 PC / 主机。本站每次访问自动检查来源更新。",
-    overviewTitle: "2026 年 6 月移动端流水估算",
     overviewUnit: "单位：百万美元 · iOS + Android · 中国安卓估算 · 不含 PC / 主机",
-    monthTotal: "6 月来源值合计",
-    ytdTotal: "2026 YTD 合计",
     observed: "数据覆盖",
     update: "SOURCE DATA",
-    currentMonth: "6 月来源值",
-    currentRange: "区间",
-    ytd: "2026 YTD",
     notLive: "暂无可估算收入",
     confidence: "数据状态",
     sourced: "已接入",
@@ -52,6 +52,12 @@ const copy = {
     month: "按月",
     year: "按年",
     version: "按版本",
+    versionRange: "版本显示范围",
+    latest4: "最新 4 个可估算小版本",
+    latest8: "最新 8 个可估算小版本",
+    latest12: "最新 12 个可估算小版本",
+    allVersions: "全部可估算小版本",
+    versionModelNote: "版本值按卡池窗口与已发布月流水的重叠小时比例归属；尚无月流水覆盖的卡池不进入图表。",
     unit: "移动端流水估算（百万美元）",
     monthAxis: "月份",
     yearAxis: "年份",
@@ -138,15 +144,9 @@ const copy = {
     brandSub: "二游流水观察",
     dataBadge: "PUBLIC MONTHLY SOURCE · HOURLY APPLE RANKS",
     disclaimer: "Monthly revenue uses the Sensor Tower estimates published by GachaRevenue / GachaDash: iOS + Android only, China Android estimated at 1.75× China iOS, excluding PC and console. The source is checked automatically.",
-    overviewTitle: "June 2026 mobile revenue estimates",
     overviewUnit: "USD millions · iOS + Android · estimated China Android · excludes PC / console",
-    monthTotal: "June source total",
-    ytdTotal: "2026 YTD total",
     observed: "Model coverage",
     update: "SOURCE DATA",
-    currentMonth: "June source value",
-    currentRange: "P25–P75",
-    ytd: "2026 YTD",
     notLive: "No revenue estimate",
     confidence: "Data status",
     sourced: "connected",
@@ -155,6 +155,12 @@ const copy = {
     month: "Monthly",
     year: "Annual",
     version: "By version",
+    versionRange: "Version range",
+    latest4: "Latest 4 estimable phases",
+    latest8: "Latest 8 estimable phases",
+    latest12: "Latest 12 estimable phases",
+    allVersions: "All estimable phases",
+    versionModelNote: "Phase values allocate published monthly revenue by exact banner-window overlap; phases without monthly coverage are excluded.",
     unit: "Estimated mobile revenue (USD millions)",
     monthAxis: "Month",
     yearAxis: "Year",
@@ -225,7 +231,7 @@ const copy = {
     definitions: [
       ["M", "Uses source-published USD mobile estimates directly; no second FX conversion or PC / console uplift."],
       ["1.75", "GachaRevenue's default China Android / China iOS assumption, not audited revenue."],
-      ["W", "Hourly rank weight is a market-weighted rank^-0.85; no phase estimate is emitted below 80% monthly coverage."],
+      ["W", "Uses market-weighted rank^-0.85 when hourly coverage is complete; otherwise uses the phase's exact overlap share of each published month."],
       ["R[g,p]", "Uses exact phase timestamps and allocates each overlapping month separately instead of averaging banner spikes."],
     ],
     excludes: "Basis: third-party mobile IAP estimates; excludes PC, console, ads, merchandise, and IP licensing.",
@@ -282,7 +288,7 @@ function LineChart({
   locale: Locale;
   xAxisTitle: string;
 }) {
-  const chartWidth = 900;
+  const chartWidth = Math.max(900, values.length * 105);
   const chartHeight = 330;
   const margin = { top: 42, right: 28, bottom: 58, left: 76 };
   const plotWidth = chartWidth - margin.left - margin.right;
@@ -299,7 +305,7 @@ function LineChart({
 
   return (
     <div className="line-chart" role="img" aria-label={`${copy[locale].trendTitle}，${copy[locale].unit}`}>
-      <svg viewBox={`0 0 ${chartWidth} ${chartHeight}`} preserveAspectRatio="xMidYMid meet">
+      <svg viewBox={`0 0 ${chartWidth} ${chartHeight}`} preserveAspectRatio="xMidYMid meet" style={{ minWidth: chartWidth }}>
         <text className="axis-title axis-title-y" x={margin.left} y="17">{copy[locale].unit}</text>
         {ticks.map((tick) => {
           const y = margin.top + (1 - tick / yMax) * plotHeight;
@@ -316,7 +322,7 @@ function LineChart({
           <polyline className="chart-line" points={linePoints} fill="none" stroke={color} />
         )}
         {points.map((point) => (
-          <g key={`${point.label}-${point.value}`}>
+          <g key={`${point.label}-${point.value}`} data-testid="trend-point">
             <line className="chart-x-tick" x1={point.x} x2={point.x} y1={margin.top + plotHeight} y2={margin.top + plotHeight + 5} />
             <text className="axis-tick" x={point.x} y={margin.top + plotHeight + 23} textAnchor="middle">{point.label}</text>
             <circle className="chart-dot" cx={point.x} cy={point.y} r="5" fill="#fff" stroke={color}>
@@ -342,8 +348,10 @@ export default function Dashboard({ locale }: { locale: Locale }) {
   const t = copy[locale];
   const hydrated = useSyncExternalStore(subscribeToHydration, () => true, () => false);
   const [gameData, setGameData] = useState<Game[]>(games);
-  const [selectedGame, setSelectedGame] = useState<GameId>("hsr");
+  const [selectedGame, setSelectedGame] = useState<GameId>(() => highestRevenueGameId(games));
+  const userSelectedGame = useRef(false);
   const [period, setPeriod] = useState<Period>("month");
+  const [versionPointLimit, setVersionPointLimit] = useState<VersionPointLimit>(4);
   const [compareIds, setCompareIds] = useState<GameId[]>(["genshin", "hsr", "zzz", "wuwa"]);
   const [versionGame, setVersionGame] = useState<GameId>("hsr");
   const [selectedVersionId, setSelectedVersionId] = useState("hsr-44-p1");
@@ -357,7 +365,9 @@ export default function Dashboard({ locale }: { locale: Locale }) {
     loadPublicRevenue(controller.signal)
       .then((payload) => {
         if (!payload.data?.length) return;
-        setGameData((current) => mergeRevenue(current, payload, updateGameRevenue));
+        const merged = mergeRevenue(games, payload, updateGameRevenue);
+        setGameData(merged);
+        if (!userSelectedGame.current) setSelectedGame(highestRevenueGameId(merged));
       })
       .catch((error: unknown) => {
         if (error instanceof DOMException && error.name === "AbortError") return;
@@ -439,6 +449,18 @@ export default function Dashboard({ locale }: { locale: Locale }) {
   );
 
   const activeGame = gameData.find((game) => game.id === selectedGame) ?? gameData[0];
+  const sourcePeriod = latestRevenuePeriod(gameData);
+  const sourceYear = sourcePeriod?.year ?? new Date().getUTCFullYear();
+  const sourceMonth = sourcePeriod?.month ?? 1;
+  const sourceMonthName = locale === "zh-CN"
+    ? `${sourceMonth} 月`
+    : new Intl.DateTimeFormat("en", { month: "long", timeZone: "UTC" }).format(new Date(Date.UTC(sourceYear, sourceMonth - 1, 1)));
+  const overviewTitle = locale === "zh-CN"
+    ? `${sourceYear} 年 ${sourceMonth} 月移动端流水估算`
+    : `${sourceMonthName} ${sourceYear} mobile revenue estimates`;
+  const currentMonthLabel = locale === "zh-CN" ? `${sourceMonth} 月来源值` : `${sourceMonthName} source value`;
+  const monthTotalLabel = locale === "zh-CN" ? `${sourceMonth} 月来源值合计` : `${sourceMonthName} source total`;
+  const ytdLabel = `${sourceYear} YTD`;
   const selectedVersion = versionsData.find((version) => version.id === selectedVersionId);
   const visibleVersions = versionsData.filter((item) => item.gameId === versionGame).sort((a, b) => b.date.localeCompare(a.date));
   const comparisonGames = gameData.filter((game) => compareIds.includes(game.id) && game.ytd !== null);
@@ -462,21 +484,26 @@ export default function Dashboard({ locale }: { locale: Locale }) {
     return coverageLabel(version);
   };
 
+  const versionSeries = useMemo(
+    () => buildVersionRevenueSeries(activeGame, versionsData, versionPointLimit, locale),
+    [activeGame, locale, versionPointLimit, versionsData],
+  );
+
   const trend = useMemo(() => {
     if (period === "year") {
       const years = [...new Set(activeGame.revenueHistory.map((item) => item.year))];
-      return { values: activeGame.yearly, labels: years.map((year) => year === 2026 ? "2026 YTD" : `${year}`), xAxis: t.yearAxis };
+      return { values: activeGame.yearly, labels: years.map((year) => year === sourceYear ? `${sourceYear} YTD` : `${year}`), xAxis: t.yearAxis };
     }
     if (period === "version") {
       return {
-        values: activeGame.versions.map((item) => item.value),
-        labels: activeGame.versions.map((item) => item.label),
+        values: versionSeries.values,
+        labels: versionSeries.labels,
         xAxis: t.versionAxis,
       };
     }
-    const months = activeGame.revenueHistory.filter((item) => item.year === 2026).map((item) => item.month);
-    return { values: activeGame.monthly, labels: months.map((month) => locale === "zh-CN" ? `${month}月` : new Intl.DateTimeFormat("en", { month: "short", timeZone: "UTC" }).format(new Date(Date.UTC(2026, month - 1, 1)))), xAxis: t.monthAxis };
-  }, [activeGame, locale, period, t.monthAxis, t.versionAxis, t.yearAxis]);
+    const months = activeGame.revenueHistory.filter((item) => item.year === sourceYear).map((item) => item.month);
+    return { values: activeGame.monthly, labels: months.map((month) => locale === "zh-CN" ? `${month}月` : new Intl.DateTimeFormat("en", { month: "short", timeZone: "UTC" }).format(new Date(Date.UTC(sourceYear, month - 1, 1)))), xAxis: t.monthAxis };
+  }, [activeGame, locale, period, sourceYear, t.monthAxis, t.versionAxis, t.yearAxis, versionSeries.labels, versionSeries.values]);
 
   const stats = useMemo(() => {
     const populated = trend.values.filter((value) => value > 0);
@@ -539,24 +566,27 @@ export default function Dashboard({ locale }: { locale: Locale }) {
       <section className="overview-strip" id="overview">
         <div className="overview-heading">
           <p className="section-kicker">OVERVIEW · {t.update}</p>
-          <h1>{t.overviewTitle}</h1>
+          <h1>{overviewTitle}</h1>
           <p>{t.overviewUnit}</p>
         </div>
         <div className="overview-kpis">
-          <div><span>{t.monthTotal}</span><strong>{formatMoney(monthlyTotal, locale)}</strong></div>
-          <div><span>{t.ytdTotal}</span><strong>{formatMoney(ytdTotal, locale)}</strong></div>
+          <div><span>{monthTotalLabel}</span><strong>{formatMoney(monthlyTotal, locale)}</strong></div>
+          <div><span>{ytdLabel} {locale === "zh-CN" ? "合计" : "total"}</span><strong>{formatMoney(ytdTotal, locale)}</strong></div>
           <div><span>{t.observed}</span><strong>{modelledGameCount} / {gameData.length}</strong></div>
         </div>
       </section>
 
-      <section className="game-grid" aria-label={t.currentMonth}>
+      <section className="game-grid" aria-label={currentMonthLabel}>
         {gameData.map((game) => {
           const active = game.id === selectedGame;
           return (
             <button
               key={game.id}
               className={`game-card ${active ? "active" : ""}`}
-              onClick={() => setSelectedGame(game.id)}
+              onClick={() => {
+                userSelectedGame.current = true;
+                setSelectedGame(game.id);
+              }}
               aria-pressed={active}
               style={{ "--game-color": game.color, "--game-pale": game.pale } as React.CSSProperties}
             >
@@ -571,10 +601,10 @@ export default function Dashboard({ locale }: { locale: Locale }) {
                 <>
                   <div className="card-money">
                     <strong>{formatMoney(game.currentMonth, locale)}</strong>
-                    <span>{t.currentMonth}</span>
+                    <span>{currentMonthLabel}</span>
                   </div>
                   <div className="card-foot">
-                    <span>{t.ytd} <b>{formatMoney(game.ytd, locale)}</b></span>
+                    <span>{ytdLabel} <b>{formatMoney(game.ytd, locale)}</b></span>
                     <span className={game.change && game.change > 0 ? "positive" : "negative"}>{game.change === null ? "—" : `${game.change > 0 ? "+" : ""}${game.change.toFixed(1)}%`}</span>
                   </div>
                   <MiniTrend values={game.monthly} color={game.color} />
@@ -588,15 +618,33 @@ export default function Dashboard({ locale }: { locale: Locale }) {
       <section className="panel trend-panel" id="trend">
         <div className="panel-heading">
           <div><p className="section-kicker">01 · TREND</p><h2>{t.trendTitle}</h2><p>{t.trendSub}</p></div>
-          <div className="period-switch" role="group" aria-label={t.trendSub}>
-            {(["month", "year", "version"] as Period[]).map((item) => (
-              <button key={item} className={period === item ? "active" : ""} onClick={() => setPeriod(item)} aria-pressed={period === item}>{t[item]}</button>
-            ))}
+          <div className="trend-controls">
+            <div className="period-switch" role="group" aria-label={t.trendSub}>
+              {(["month", "year", "version"] as Period[]).map((item) => (
+                <button key={item} className={period === item ? "active" : ""} onClick={() => setPeriod(item)} aria-pressed={period === item}>{t[item]}</button>
+              ))}
+            </div>
+            {period === "version" && (
+              <label className="version-range-control">
+                <span>{t.versionRange}</span>
+                <select
+                  aria-label={t.versionRange}
+                  value={versionPointLimit}
+                  onChange={(event) => setVersionPointLimit(event.target.value === "all" ? "all" : Number(event.target.value) as 4 | 8 | 12)}
+                >
+                  <option value="4">{t.latest4}</option>
+                  <option value="8">{t.latest8}</option>
+                  <option value="12">{t.latest12}</option>
+                  <option value="all">{t.allVersions} ({versionSeries.available})</option>
+                </select>
+              </label>
+            )}
           </div>
         </div>
         <div className="trend-layout">
           <div className="trend-main">
             <div className="chart-title-row"><div><GameMark game={activeGame} small /><strong>{activeGame.name[locale]}</strong></div><span>{t.unit}</span></div>
+            {period === "version" && <p className="version-model-note">{t.versionModelNote}</p>}
             {trend.values.length && trend.values.some((value) => value > 0) ? (
               <LineChart values={trend.values} labels={trend.labels} color={activeGame.color} locale={locale} xAxisTitle={trend.xAxis} />
             ) : <div className="empty-chart">{t.notLive}</div>}
@@ -605,7 +653,7 @@ export default function Dashboard({ locale }: { locale: Locale }) {
             <div><span>{t.peak}</span><strong>{formatMoney(stats.peak, locale)}</strong></div>
             <div><span>{t.average}</span><strong>{formatMoney(stats.average, locale)}</strong></div>
             <div><span>{t.latest}</span><strong>{formatMoney(stats.latest, locale)}</strong></div>
-            <p><i style={{ background: activeGame.color }} />{activeGame.name[locale]} · {period === "month" ? "2026" : period === "year" ? "2022—2026" : t.versionAxis}</p>
+            <p><i style={{ background: activeGame.color }} />{activeGame.name[locale]} · {period === "month" ? sourceYear : period === "year" ? `${activeGame.revenueHistory[0]?.year ?? sourceYear}—${sourceYear}` : t.versionAxis}</p>
           </aside>
         </div>
       </section>

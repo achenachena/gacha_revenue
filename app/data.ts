@@ -23,7 +23,6 @@ export type Game = {
   confidence: "SOURCE" | "N/A";
   yearly: number[];
   monthly: number[];
-  versions: Array<{ label: string; value: number }>;
   revenueHistory: RevenueMonth[];
 };
 
@@ -37,29 +36,40 @@ export const revenueSource = {
 } as const;
 
 function sourcedGame(
-  game: Omit<Game, "currentMonth" | "currentMonthRange" | "ytd" | "change" | "confidence" | "yearly" | "monthly" | "versions" | "revenueHistory">,
+  game: Omit<Game, "currentMonth" | "currentMonthRange" | "ytd" | "change" | "confidence" | "yearly" | "monthly" | "revenueHistory">,
   revenueHistory: RevenueMonth[],
+  alignedPeriod?: Pick<RevenueMonth, "year" | "month">,
 ): Game {
-  const latest = revenueHistory.at(-1);
-  const previous = revenueHistory.at(-2);
-  const ytd = revenueHistory.filter((item) => item.year === 2026).reduce((sum, item) => sum + item.value, 0);
+  const history = [...revenueHistory].sort((a, b) => a.year - b.year || a.month - b.month);
+  const sourcePeriod = alignedPeriod ?? history.at(-1);
+  const latest = sourcePeriod
+    ? history.find((item) => item.year === sourcePeriod.year && item.month === sourcePeriod.month)
+    : undefined;
+  const latestIndex = latest ? history.indexOf(latest) : -1;
+  const previous = latestIndex > 0 ? history[latestIndex - 1] : undefined;
+  const ytd = sourcePeriod
+    ? history.filter((item) => item.year === sourcePeriod.year && item.month <= sourcePeriod.month).reduce((sum, item) => sum + item.value, 0)
+    : 0;
   const annual = new Map<number, number>();
-  for (const item of revenueHistory) annual.set(item.year, (annual.get(item.year) ?? 0) + item.value);
+  for (const item of history) annual.set(item.year, (annual.get(item.year) ?? 0) + item.value);
   return {
     ...game,
     currentMonth: latest?.value ?? null,
     currentMonthRange: null,
-    ytd: revenueHistory.length ? ytd : null,
+    ytd: sourcePeriod && history.some((item) => item.year === sourcePeriod.year) ? ytd : null,
     change: latest && previous ? ((latest.value - previous.value) / previous.value) * 100 : null,
     confidence: revenueHistory.length ? "SOURCE" : "N/A",
     yearly: [...annual.entries()].sort(([a], [b]) => a - b).map(([, value]) => value),
-    monthly: revenueHistory.filter((item) => item.year === 2026).map((item) => item.value),
-    versions: [],
-    revenueHistory,
+    monthly: sourcePeriod ? history.filter((item) => item.year === sourcePeriod.year).map((item) => item.value) : [],
+    revenueHistory: history,
   };
 }
 
-export function updateGameRevenue(game: Game, revenueHistory: RevenueMonth[]): Game {
+export function updateGameRevenue(
+  game: Game,
+  revenueHistory: RevenueMonth[],
+  alignedPeriod?: Pick<RevenueMonth, "year" | "month">,
+): Game {
   return sourcedGame(
     {
       id: game.id,
@@ -71,6 +81,7 @@ export function updateGameRevenue(game: Game, revenueHistory: RevenueMonth[]): G
       pale: game.pale,
     },
     revenueHistory,
+    alignedPeriod,
   );
 }
 

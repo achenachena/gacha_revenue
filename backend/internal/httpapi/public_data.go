@@ -1,11 +1,11 @@
 package httpapi
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
-	"regexp"
-	"strconv"
+	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -35,15 +35,11 @@ var publicRevenueSources = []struct {
 	{"nte", "neverness-to-everness"},
 }
 
-var revenueHistoryPattern = regexp.MustCompile(`\\"year\\":(\d{4}),\\"month\\":(\d+),\\"revenue_total\\":(\d+)`)
-
 var publicRevenueCache struct {
 	sync.RWMutex
 	data      []publicRevenueGame
 	fetchedAt time.Time
 }
-
-var fixtureRevenueObservedAt = time.Date(2026, 8, 3, 0, 0, 0, 0, time.UTC)
 
 func (s *Server) publicRevenue(w http.ResponseWriter, r *http.Request) {
 	publicRevenueCache.RLock()
@@ -74,16 +70,21 @@ func (s *Server) publicRevenue(w http.ResponseWriter, r *http.Request) {
 		}(index, source.GameID, source.Slug)
 	}
 	group.Wait()
+	fallbackByGame := make(map[string]publicRevenueGame, len(publicRevenueSources))
+	for _, game := range fixturePublicRevenue() {
+		fallbackByGame[game.GameID] = game
+	}
+	for _, game := range staleData {
+		fallbackByGame[game.GameID] = game
+	}
 	data := make([]publicRevenueGame, 0, len(results))
+	usedFallback := false
 	for _, result := range results {
 		if result.err != nil {
 			s.logger.Warn("public revenue refresh failed", "game_id", result.game.GameID, "error", result.err)
-			if len(staleData) > 0 {
-				writePublicRevenue(w, staleData, staleFetchedAt, true)
-			} else {
-				writePublicRevenue(w, fixturePublicRevenue(), fixtureRevenueObservedAt, true)
-			}
-			return
+			usedFallback = true
+			data = append(data, fallbackByGame[result.game.GameID])
+			continue
 		}
 		data = append(data, result.game)
 	}
@@ -91,7 +92,7 @@ func (s *Server) publicRevenue(w http.ResponseWriter, r *http.Request) {
 	publicRevenueCache.Lock()
 	publicRevenueCache.data, publicRevenueCache.fetchedAt = data, fetchedAt
 	publicRevenueCache.Unlock()
-	writePublicRevenue(w, data, fetchedAt, false)
+	writePublicRevenue(w, data, fetchedAt, usedFallback)
 }
 
 func fetchPublicRevenue(r *http.Request, client *http.Client, slug string) ([]publicRevenueMonth, string, error) {
@@ -121,24 +122,53 @@ func fetchPublicRevenue(r *http.Request, client *http.Client, slug string) ([]pu
 }
 
 func parsePublicRevenueSource(text string) ([]publicRevenueMonth, error) {
-	start := strings.Index(text, `\"revenueHistory\":[`)
+	marker := `\"revenueHistory\":`
+	start := strings.Index(text, marker)
+	if start < 0 {
+		marker = `"revenueHistory":`
+		start = strings.Index(text, marker)
+	}
 	if start < 0 {
 		return nil, fmt.Errorf("revenue history not found")
 	}
+	start += len(marker)
+	arrayStart := strings.Index(text[start:], "[")
+	if arrayStart < 0 {
+		return nil, fmt.Errorf("revenue history array not found")
+	}
+	start += arrayStart
 	finish := strings.Index(text[start:], "]")
 	if finish < 0 {
 		return nil, fmt.Errorf("revenue history was truncated")
 	}
-	history := make([]publicRevenueMonth, 0, 12)
-	for _, match := range revenueHistoryPattern.FindAllStringSubmatch(text[start:start+finish+1], -1) {
-		year, _ := strconv.Atoi(match[1])
-		month, _ := strconv.Atoi(match[2])
-		total, _ := strconv.ParseFloat(match[3], 64)
-		history = append(history, publicRevenueMonth{Year: year, Month: month, Value: total / 100_000_000})
+	encoded := strings.ReplaceAll(text[start:start+finish+1], `\"`, `"`)
+	var source []struct {
+		Year         int   `json:"year"`
+		Month        int   `json:"month"`
+		RevenueTotal int64 `json:"revenue_total"`
 	}
-	if len(history) == 0 {
+	if err := json.Unmarshal([]byte(encoded), &source); err != nil {
+		return nil, fmt.Errorf("decode revenue history: %w", err)
+	}
+	if len(source) == 0 {
 		return nil, fmt.Errorf("revenue history was empty")
 	}
+	history := make([]publicRevenueMonth, 0, len(source))
+	seen := make(map[string]struct{}, len(source))
+	for _, item := range source {
+		if item.Year < 2010 || item.Year > 2200 || item.Month < 1 || item.Month > 12 || item.RevenueTotal <= 0 {
+			return nil, fmt.Errorf("invalid revenue point: year=%d month=%d total=%d", item.Year, item.Month, item.RevenueTotal)
+		}
+		key := fmt.Sprintf("%04d-%02d", item.Year, item.Month)
+		if _, exists := seen[key]; exists {
+			return nil, fmt.Errorf("duplicate revenue point: %s", key)
+		}
+		seen[key] = struct{}{}
+		history = append(history, publicRevenueMonth{Year: item.Year, Month: item.Month, Value: float64(item.RevenueTotal) / 100_000_000})
+	}
+	sort.Slice(history, func(i, j int) bool {
+		return history[i].Year < history[j].Year || history[i].Year == history[j].Year && history[i].Month < history[j].Month
+	})
 	return history, nil
 }
 

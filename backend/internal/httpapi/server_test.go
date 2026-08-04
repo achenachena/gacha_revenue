@@ -56,7 +56,7 @@ func TestRevenueReturnsLabelledPublicSourceSnapshot(t *testing.T) {
 }
 
 func TestParsePublicRevenueSourceUsesPublishedTotals(t *testing.T) {
-	body := `before \"revenueHistory\":[{\"year\":2026,\"month\":4,\"revenue_total\":5810000000},{\"year\":2026,\"month\":5,\"revenue_total\":3876500000}] after`
+	body := `before \"revenueHistory\":[{\"year\":2026,\"month\":5,\"revenue_total\":3876500000},{\"year\":2026,\"month\":4,\"revenue_total\":5810000000}] after`
 	history, err := parsePublicRevenueSource(body)
 	if err != nil {
 		t.Fatal(err)
@@ -64,6 +64,26 @@ func TestParsePublicRevenueSourceUsesPublishedTotals(t *testing.T) {
 	if len(history) != 2 || history[0].Year != 2026 || history[0].Month != 4 || history[0].Value != 58.1 || history[1].Value != 38.765 {
 		t.Fatalf("unexpected public revenue history: %+v", history)
 	}
+}
+
+func TestParsePublicRevenueSourceRejectsDuplicateMonths(t *testing.T) {
+	body := `\"revenueHistory\":[{\"year\":2026,\"month\":4,\"revenue_total\":5810000000},{\"year\":2026,\"month\":4,\"revenue_total\":3876500000}]`
+	if _, err := parsePublicRevenueSource(body); err == nil {
+		t.Fatal("expected duplicate source month to be rejected")
+	}
+}
+
+func TestPublicRevenueFixtureIncludesNevernessToEverness(t *testing.T) {
+	for _, game := range fixturePublicRevenue() {
+		if game.GameID != "nte" {
+			continue
+		}
+		if len(game.History) != 3 || game.History[2].Year != 2026 || game.History[2].Month != 6 || game.History[2].Value != 13.95 {
+			t.Fatalf("unexpected Neverness to Everness history: %+v", game.History)
+		}
+		return
+	}
+	t.Fatal("Neverness to Everness was missing from the public revenue fixture")
 }
 
 func TestVersionsPreserveOwnerCorrectionsWithoutInventingUnknownHours(t *testing.T) {
