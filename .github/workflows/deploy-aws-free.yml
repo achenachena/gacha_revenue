@@ -1,0 +1,58 @@
+name: Deploy free AWS backend
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: production-aws-free
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: aws-actions/configure-aws-credentials@v6
+        with:
+          role-to-assume: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.24.x'
+          cache-dependency-path: backend/go.sum
+
+      - name: Build ARM64 Lambda archives
+        working-directory: backend
+        env:
+          CGO_ENABLED: "0"
+          GOOS: linux
+          GOARCH: arm64
+        run: |
+          mkdir -p ../artifacts/api ../artifacts/collector
+          go build -trimpath -ldflags="-s -w" -o ../artifacts/api/bootstrap ./cmd/lambda-api
+          go build -trimpath -ldflags="-s -w" -o ../artifacts/collector/bootstrap ./cmd/lambda-collector
+          chmod +x ../artifacts/api/bootstrap ../artifacts/collector/bootstrap
+          (cd ../artifacts/api && zip -q ../api.zip bootstrap)
+          (cd ../artifacts/collector && zip -q ../collector.zip bootstrap)
+
+      - name: Deploy no-VPC free backend
+        id: deploy
+        env:
+          AWS_REGION: ${{ vars.AWS_REGION }}
+          API_ZIP: ${{ github.workspace }}/artifacts/api.zip
+          COLLECTOR_ZIP: ${{ github.workspace }}/artifacts/collector.zip
+        run: bash infra/serverless/deploy.sh
+
+      - name: Verify public API
+        env:
+          API_URL: ${{ steps.deploy.outputs.api_url }}
+        run: |
+          curl --fail --show-error --silent --retry 6 --retry-all-errors --retry-delay 5 "${API_URL}healthz"
+          curl --fail --show-error --silent --retry 3 --retry-all-errors --retry-delay 3 "${API_URL}v1/banner-metrics?game_id=hsr&start=2026-08-01&end=2026-08-03"

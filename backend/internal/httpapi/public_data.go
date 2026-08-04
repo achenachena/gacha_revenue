@@ -54,15 +54,29 @@ func (s *Server) publicRevenue(w http.ResponseWriter, r *http.Request) {
 	publicRevenueCache.RUnlock()
 
 	client := &http.Client{Timeout: 20 * time.Second}
-	data := make([]publicRevenueGame, 0, len(publicRevenueSources))
-	for _, source := range publicRevenueSources {
-		history, sourceURL, err := fetchPublicRevenue(r, client, source.Slug)
-		if err != nil {
-			s.logger.Warn("public revenue refresh failed", "game_id", source.GameID, "error", err)
+	type fetchResult struct {
+		game publicRevenueGame
+		err  error
+	}
+	results := make([]fetchResult, len(publicRevenueSources))
+	var group sync.WaitGroup
+	for index, source := range publicRevenueSources {
+		group.Add(1)
+		go func(index int, gameID, slug string) {
+			defer group.Done()
+			history, sourceURL, err := fetchPublicRevenue(r, client, slug)
+			results[index] = fetchResult{game: publicRevenueGame{GameID: gameID, History: history, SourceURL: sourceURL}, err: err}
+		}(index, source.GameID, source.Slug)
+	}
+	group.Wait()
+	data := make([]publicRevenueGame, 0, len(results))
+	for _, result := range results {
+		if result.err != nil {
+			s.logger.Warn("public revenue refresh failed", "game_id", result.game.GameID, "error", result.err)
 			writePublicRevenue(w, fixturePublicRevenue(), time.Now().UTC(), true)
 			return
 		}
-		data = append(data, publicRevenueGame{GameID: source.GameID, History: history, SourceURL: sourceURL})
+		data = append(data, result.game)
 	}
 	fetchedAt := time.Now().UTC()
 	publicRevenueCache.Lock()
@@ -190,7 +204,7 @@ func (s *Server) bannerMetrics(w http.ResponseWriter, r *http.Request) {
 			writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "rank scan failed"})
 			return
 		}
-		ranks[market] = map[string]any{"peak_rank": peak, "lowest_rank": lowest, "observed_hours": observed, "ranked_hours": observed, "lowest_is_beyond_200": false}
+		ranks[market] = map[string]any{"peak_rank": peak, "lowest_rank": lowest, "observed_hours": observed, "ranked_hours": observed, "lowest_is_beyond_feed": false, "feed_limit": 100}
 	}
 	rankRows.Close()
 

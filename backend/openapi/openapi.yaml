@@ -6,7 +6,10 @@ info:
     Public-source mobile IAP estimates and hourly iOS rank observations.
     Values are third-party market estimates, not publisher-reported revenue.
 servers:
-  - url: https://api.example.com/v1
+  - url: https://{functionId}.lambda-url.ap-northeast-1.on.aws/v1
+    variables:
+      functionId:
+        default: replace-after-deployment
   - url: http://localhost:8080/v1
 tags:
   - name: Catalog
@@ -142,9 +145,9 @@ paths:
           required: true
           schema: {type: string, format: date}
       responses:
-        '200': {description: Aggregated rank observations}
+        '200': {description: Aggregated Apple Top 100 rank observations from DynamoDB}
         '400': {description: Invalid or missing window parameters}
-        '503': {description: Rank database is unavailable}
+        '500': {description: DynamoDB query failed}
   /app-line-rankings:
     get:
       tags: [Versions]

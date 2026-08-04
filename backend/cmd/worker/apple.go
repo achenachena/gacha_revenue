@@ -61,7 +61,7 @@ func (w *worker) ingestAppleRanks(ctx context.Context) error {
 	archive := appleArchive{ObservedHour: observedHour, CapturedAt: time.Now().UTC()}
 	for _, market := range []string{"CN", "JP", "US", "KR"} {
 		country := map[string]string{"CN": "cn", "JP": "jp", "US": "us", "KR": "kr"}[market]
-		sourceURL := fmt.Sprintf("https://itunes.apple.com/%s/rss/topgrossingapplications/limit=200/json", country)
+		sourceURL := fmt.Sprintf("https://itunes.apple.com/%s/rss/topgrossingapplications/limit=100/json", country)
 		request, err := http.NewRequestWithContext(ctx, http.MethodGet, sourceURL, nil)
 		if err != nil {
 			return err
