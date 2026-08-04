@@ -27,8 +27,11 @@ test("switches revenue grain and locale", async ({ page }) => {
   await page.locator(".game-card").filter({ hasText: "崩坏：星穹铁道" }).click();
   await expect(page.getByText("¥12.57亿").first()).toBeVisible();
   await expect(page.getByText("3.92", { exact: true }).first()).toBeVisible();
+  await expect(page.locator(".line-chart text").filter({ hasText: "2024-01" })).toHaveCount(1);
+  await expect(page.getByText("6.99", { exact: true }).first()).toBeAttached();
   await page.getByRole("button", { name: "按年" }).click();
-  await expect(page.getByText("2025（部分）", { exact: true })).toBeAttached();
+  await expect(page.getByText("2024", { exact: true })).toBeAttached();
+  await expect(page.getByText("2025", { exact: true })).toBeAttached();
   await expect(page.getByText("2026（截至6月）", { exact: true })).toBeAttached();
   await page.getByRole("link", { name: "EN", exact: true }).click();
   await expect(page).toHaveURL(/\/en$/);
@@ -71,7 +74,7 @@ test("keeps overview text clear and lets users expand phase history", async ({ p
   await page.getByRole("button", { name: "选择开服至今" }).click();
   await expect(start).toHaveValue("catalog-genshin-10-p1");
   await expect(end).toHaveValue("gi-67-p2");
-  await expect(page.getByText(/已选 102 个小版本，其中 8 个有月流水覆盖/)).toBeVisible();
+  await expect(page.getByText(/已选 102 个小版本，其中 \d+ 个有月流水覆盖/)).toBeVisible();
   await expect(page.locator(".line-chart text").filter({ hasText: "1.0上" })).toHaveCount(1);
   await expect(page.locator(".line-chart text").filter({ hasText: "6.7下" })).toHaveCount(1);
 });

@@ -186,8 +186,8 @@ type revenuePoint struct {
 type modelRevenueSeries struct {
 	GameID     string
 	Confidence string
+	StartsAt   string
 	Monthly    []float64
-	Yearly     []float64
 	Versions   []revenuePoint
 }
 
@@ -195,26 +195,62 @@ var revenueFixtures = buildRevenueFixtures()
 
 func buildRevenueFixtures() []revenuePoint {
 	series := []modelRevenueSeries{
-		{"genshin", "SOURCE", []float64{66.04, 55.245, 40.11, 40.105, 41.655, 33.34}, []float64{276.495}, nil},
-		{"hsr", "SOURCE", []float64{8.0375, 21.135, 31.73, 58.1, 38.765, 28.455}, []float64{186.2225}, nil},
-		{"zzz", "SOURCE", []float64{23.245, 13.35, 16.44, 7.167, 9.37, 9.655}, []float64{79.227}, nil},
-		{"wuwa", "SOURCE", []float64{19.15, 46, 11.4, 14.7, 31.75, 34}, []float64{157}, nil},
-		{"endfield", "SOURCE", []float64{28.55, 26.08, 22.05, 17.28, 4.766, 9.52}, []float64{108.246}, nil},
-		{"nte", "SOURCE", []float64{0, 0, 0, 6.74, 23.575, 13.95}, []float64{44.265}, nil},
+		{
+			"genshin", "SOURCE", "2024-01-01",
+			[]float64{
+				99.25, 92.75, 68, 119.5, 53.25, 67.5, 37.25, 42.25, 46.25, 52.75, 37.795, 45.585,
+				99.44, 27.28, 39.845, 22.69, 36.085, 65.505, 42.335, 27.765, 43.875, 56.725, 20.97, 40.825,
+				66.04, 55.245, 40.11, 40.105, 41.655, 33.34,
+			}, nil,
+		},
+		{
+			"hsr", "SOURCE", "2024-01-01",
+			[]float64{
+				47.5, 92.5, 144.25, 109, 91, 95.5, 41.25, 40.25, 69, 43.25, 23.595, 55.52,
+				50.775, 45.785, 29.935, 103.45, 44.575, 19.12, 92.45, 29.925, 39.535, 23.45, 81.38, 27.895,
+				8.0375, 21.135, 31.73, 58.1, 38.765, 28.455,
+			}, nil,
+		},
+		{
+			"zzz", "SOURCE", "2024-07-01",
+			[]float64{
+				99.75, 32.5, 35.5, 15.5, 20.29, 57.93,
+				26.255, 17.935, 15.915, 21.94, 10.615, 38.34, 22.96, 15.925, 10.89, 12.915, 10.89, 27.55,
+				23.245, 13.35, 16.44, 7.167, 9.37, 9.655,
+			}, nil,
+		},
+		{
+			"wuwa", "SOURCE", "2024-05-01",
+			[]float64{
+				25.75, 46.25, 29.5, 13.5, 11.5, 9.75, 18.25, 7.75,
+				28, 13.775, 21.625, 21.625, 25.35, 39.975, 16.875, 14.875, 21.9, 16.6, 18.875, 23.175,
+				19.15, 46, 11.4, 14.7, 31.75, 34,
+			}, nil,
+		},
+		{"endfield", "SOURCE", "2026-01-01", []float64{28.55, 26.08, 22.05, 17.28, 4.766, 9.52}, nil},
+		{"nte", "SOURCE", "2026-04-01", []float64{6.74, 23.575, 13.95}, nil},
 	}
-	monthPeriods := []string{"2026-01-01", "2026-02-01", "2026-03-01", "2026-04-01", "2026-05-01", "2026-06-01"}
-	yearPeriods := []string{"2026-01-01"}
-	points := make([]revenuePoint, 0, 60)
+	points := make([]revenuePoint, 0, 140)
 	for _, game := range series {
+		period, err := time.Parse("2006-01-02", game.StartsAt)
+		if err != nil {
+			panic("invalid bundled revenue start date: " + game.StartsAt)
+		}
+		annual := make(map[int]float64)
 		for index, estimate := range game.Monthly {
 			if estimate > 0 {
-				points = append(points, modelRevenuePoint(game.GameID, "month", monthPeriods[index], estimate, game.Confidence))
+				month := period.AddDate(0, index, 0)
+				points = append(points, modelRevenuePoint(game.GameID, "month", month.Format("2006-01-02"), estimate, game.Confidence))
+				annual[month.Year()] += estimate
 			}
 		}
-		for index, estimate := range game.Yearly {
-			if estimate > 0 {
-				points = append(points, modelRevenuePoint(game.GameID, "year", yearPeriods[index], estimate, game.Confidence))
-			}
+		years := make([]int, 0, len(annual))
+		for year := range annual {
+			years = append(years, year)
+		}
+		sort.Ints(years)
+		for _, year := range years {
+			points = append(points, modelRevenuePoint(game.GameID, "year", time.Date(year, 1, 1, 0, 0, 0, 0, time.UTC).Format("2006-01-02"), annual[year], game.Confidence))
 		}
 		points = append(points, game.Versions...)
 	}

@@ -75,7 +75,12 @@ func (s *Server) publicRevenue(w http.ResponseWriter, r *http.Request) {
 		fallbackByGame[game.GameID] = game
 	}
 	for _, game := range staleData {
-		fallbackByGame[game.GameID] = game
+		fallback := fallbackByGame[game.GameID]
+		fallback.History = mergePublicRevenueHistory(fallback.History, game.History)
+		if game.SourceURL != "" {
+			fallback.SourceURL = game.SourceURL
+		}
+		fallbackByGame[game.GameID] = fallback
 	}
 	data := make([]publicRevenueGame, 0, len(results))
 	usedFallback := false
@@ -86,6 +91,7 @@ func (s *Server) publicRevenue(w http.ResponseWriter, r *http.Request) {
 			data = append(data, fallbackByGame[result.game.GameID])
 			continue
 		}
+		result.game.History = mergePublicRevenueHistory(fallbackByGame[result.game.GameID].History, result.game.History)
 		data = append(data, result.game)
 	}
 	fetchedAt := time.Now().UTC()
@@ -93,6 +99,23 @@ func (s *Server) publicRevenue(w http.ResponseWriter, r *http.Request) {
 	publicRevenueCache.data, publicRevenueCache.fetchedAt = data, fetchedAt
 	publicRevenueCache.Unlock()
 	writePublicRevenue(w, data, fetchedAt, usedFallback)
+}
+
+func mergePublicRevenueHistory(historySets ...[]publicRevenueMonth) []publicRevenueMonth {
+	byMonth := make(map[string]publicRevenueMonth)
+	for _, history := range historySets {
+		for _, item := range history {
+			byMonth[fmt.Sprintf("%04d-%02d", item.Year, item.Month)] = item
+		}
+	}
+	merged := make([]publicRevenueMonth, 0, len(byMonth))
+	for _, item := range byMonth {
+		merged = append(merged, item)
+	}
+	sort.Slice(merged, func(i, j int) bool {
+		return merged[i].Year < merged[j].Year || merged[i].Year == merged[j].Year && merged[i].Month < merged[j].Month
+	})
+	return merged
 }
 
 func fetchPublicRevenue(r *http.Request, client *http.Client, slug string) ([]publicRevenueMonth, string, error) {
@@ -185,7 +208,7 @@ func fixturePublicRevenue() []publicRevenueGame {
 				history = append(history, publicRevenueMonth{Year: period.Year(), Month: int(period.Month()), Value: point.Estimate})
 			}
 		}
-		data = append(data, publicRevenueGame{GameID: source.GameID, History: history, SourceURL: "https://www.gachadash.com/revenue"})
+		data = append(data, publicRevenueGame{GameID: source.GameID, History: history, SourceURL: "https://revenue.ennead.cc/revenue"})
 	}
 	return data
 }

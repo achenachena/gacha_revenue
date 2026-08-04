@@ -81,8 +81,8 @@ func TestRevenueReturnsLabelledPublicSourceSnapshot(t *testing.T) {
 	if err := json.NewDecoder(bytes.NewReader(recorder.Body.Bytes())).Decode(&payload); err != nil {
 		t.Fatal(err)
 	}
-	if len(payload.Data) != 33 {
-		t.Fatalf("expected 33 monthly source points, got %d", len(payload.Data))
+	if len(payload.Data) != 119 {
+		t.Fatalf("expected 119 monthly source points, got %d", len(payload.Data))
 	}
 	if payload.Meta["data_status"] != "public_source_snapshot_with_automatic_rank_observations" {
 		t.Fatalf("unexpected data status: %v", payload.Meta["data_status"])
@@ -90,6 +90,39 @@ func TestRevenueReturnsLabelledPublicSourceSnapshot(t *testing.T) {
 	last := payload.Data[len(payload.Data)-1]
 	if last.GameID != "nte" || last.Period != "2026-06-01" || last.Estimate != 13.95 || last.Low != last.Estimate || last.High != last.Estimate {
 		t.Fatalf("unexpected final source point: %+v", last)
+	}
+}
+
+func TestRevenueIncludesReliablePreJuly2025History(t *testing.T) {
+	request := httptest.NewRequest(http.MethodGet, "/v1/revenue?grain=month", nil)
+	recorder := httptest.NewRecorder()
+	New(slog.New(slog.NewTextHandler(io.Discard, nil)), nil).ServeHTTP(recorder, request)
+	var payload struct {
+		Data []revenuePoint `json:"data"`
+	}
+	if err := json.NewDecoder(bytes.NewReader(recorder.Body.Bytes())).Decode(&payload); err != nil {
+		t.Fatal(err)
+	}
+	want := map[string]float64{
+		"genshin/2024-01-01": 99.25,
+		"hsr/2025-04-01":     103.45,
+		"zzz/2024-07-01":     99.75,
+		"wuwa/2024-05-01":    25.75,
+	}
+	for _, point := range payload.Data {
+		key := point.GameID + "/" + point.Period
+		if expected, ok := want[key]; ok {
+			if point.Estimate != expected {
+				t.Fatalf("unexpected estimate for %s: got %v want %v", key, point.Estimate, expected)
+			}
+			delete(want, key)
+		}
+		if (point.GameID == "genshin" || point.GameID == "hsr") && point.Period < "2024-01-01" {
+			t.Fatalf("incomplete pre-2024 regional total must not be published: %+v", point)
+		}
+	}
+	if len(want) != 0 {
+		t.Fatalf("missing historical source points: %v", want)
 	}
 }
 
@@ -108,6 +141,21 @@ func TestParsePublicRevenueSourceRejectsDuplicateMonths(t *testing.T) {
 	body := `\"revenueHistory\":[{\"year\":2026,\"month\":4,\"revenue_total\":5810000000},{\"year\":2026,\"month\":4,\"revenue_total\":3876500000}]`
 	if _, err := parsePublicRevenueSource(body); err == nil {
 		t.Fatal("expected duplicate source month to be rejected")
+	}
+}
+
+func TestMergePublicRevenueHistoryPreservesArchiveAndLetsLiveDataWin(t *testing.T) {
+	archive := []publicRevenueMonth{
+		{Year: 2025, Month: 6, Value: 19.12},
+		{Year: 2025, Month: 7, Value: 90},
+	}
+	live := []publicRevenueMonth{
+		{Year: 2025, Month: 7, Value: 92.45},
+		{Year: 2025, Month: 8, Value: 29.925},
+	}
+	merged := mergePublicRevenueHistory(archive, live)
+	if len(merged) != 3 || merged[0].Month != 6 || merged[0].Value != 19.12 || merged[1].Month != 7 || merged[1].Value != 92.45 || merged[2].Month != 8 {
+		t.Fatalf("unexpected merged history: %+v", merged)
 	}
 }
 
