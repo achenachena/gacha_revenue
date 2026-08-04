@@ -6,12 +6,32 @@ import {
   type Game,
   type GameId,
   type MetricEvidence,
-  type RevenueMonth,
+  type MarketCoverage,
+  type RevenueScope,
   type RevenueYear,
   type VersionDetail,
 } from "./data";
 
 const apiBase = "/api/backend";
+
+type APIRevenueMonth = {
+  year: number;
+  month: number;
+  value: number;
+  market_coverage?: MarketCoverage;
+  scope?: RevenueScope;
+  source_id?: string;
+  source_url?: string;
+};
+
+type APIRevenueYear = {
+  year: number;
+  value: number;
+  months: number;
+  complete: boolean;
+  market_coverage?: MarketCoverage;
+  scopes?: RevenueScope[];
+};
 
 type PublicRevenueGame = {
   id: GameId;
@@ -20,14 +40,14 @@ type PublicRevenueGame = {
   name_zh: string;
   name_en: string;
   publisher: string;
-  history: RevenueMonth[];
+  history: APIRevenueMonth[];
   source_url: string;
   source_fetched_at: string;
   source_status: string;
-  latest: RevenueMonth | null;
+  latest: APIRevenueMonth | null;
   ytd: number | null;
   change_percent: number | null;
-  yearly: RevenueYear[];
+  yearly: APIRevenueYear[];
 };
 
 export type PublicRevenueResponse = {
@@ -118,6 +138,8 @@ type VersionsResponse = {
     confidence: VersionDetail["confidence"];
     revenue_coverage?: number;
     revenue_formula?: string;
+    revenue_market_coverage?: MarketCoverage;
+    revenue_scope?: RevenueScope;
     window_hours?: number;
     observed_hours?: number;
     coverage_status?: CoverageStatus;
@@ -186,7 +208,17 @@ export function normalizePublicRevenue(payload: PublicRevenueResponse): PublicRe
   const games = (payload.data ?? []).flatMap((item): Game[] => {
     const visual = gameVisuals[item.id];
     if (!visual) return [];
-    const history = [...(item.history ?? [])].sort((a, b) => a.year - b.year || a.month - b.month);
+    const history = (item.history ?? [])
+      .map((month) => ({
+        year: month.year,
+        month: month.month,
+        value: month.value,
+        marketCoverage: month.market_coverage ?? "complete",
+        scope: month.scope ?? "combined_mobile_estimate",
+        sourceId: month.source_id,
+        sourceUrl: month.source_url,
+      }))
+      .sort((a, b) => a.year - b.year || a.month - b.month);
     return [{
       id: item.id,
       sourceSlug: item.source_slug,
@@ -201,7 +233,14 @@ export function normalizePublicRevenue(payload: PublicRevenueResponse): PublicRe
       ytd: item.ytd,
       change: item.change_percent,
       confidence: history.length ? "SOURCE" : "N/A",
-      yearly: item.yearly ?? [],
+      yearly: (item.yearly ?? []).map((year): RevenueYear => ({
+        year: year.year,
+        value: year.value,
+        months: year.months,
+        complete: year.complete,
+        marketCoverage: year.market_coverage ?? "complete",
+        scopes: year.scopes ?? ["combined_mobile_estimate"],
+      })),
       monthly: latestPeriod ? history.filter((month) => month.year === latestPeriod.year && month.month <= latestPeriod.month).map((month) => month.value) : [],
       revenueHistory: history,
       sourceUrl: item.source_url,
@@ -341,6 +380,8 @@ function normalizeVersions(payload: VersionsResponse): VersionDetail[] {
     revenueRange: [item.p25, item.p75],
     revenueCoverage: item.revenue_coverage ?? 0,
     revenueFormula: item.revenue_formula ?? "",
+    revenueMarketCoverage: item.revenue_market_coverage ?? "complete",
+    revenueScope: item.revenue_scope ?? "combined_mobile_estimate",
     confidence: item.confidence,
     windowHours: item.window_hours ?? 0,
     observedHours: item.observed_hours ?? 0,

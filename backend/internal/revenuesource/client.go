@@ -78,6 +78,9 @@ func (c *Client) Fetch(ctx context.Context, slug string) ([]revenue.Month, strin
 		return nil, sourceURL, fmt.Errorf("source response exceeded 8 MiB")
 	}
 	history, err := Parse(string(body))
+	for index := range history {
+		history[index].SourceURL = sourceURL
+	}
 	return history, sourceURL, err
 }
 
@@ -125,7 +128,11 @@ func Parse(text string) ([]revenue.Month, error) {
 			return nil, fmt.Errorf("duplicate revenue point: %04d-%02d", item.Year, item.Month)
 		}
 		seen[key] = true
-		history = append(history, revenue.Month{Year: item.Year, Month: item.Month, Value: value})
+		history = append(history, revenue.Month{
+			Year: item.Year, Month: item.Month, Value: value,
+			MarketCoverage: revenue.MarketCoverageComplete, Scope: revenue.ScopeCombinedMobile,
+			SourceID: "gacha_dash",
+		})
 	}
 	sort.Slice(history, func(i, j int) bool {
 		return history[i].Year < history[j].Year || history[i].Year == history[j].Year && history[i].Month < history[j].Month

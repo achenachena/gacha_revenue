@@ -42,7 +42,8 @@ func TestRevenueJobPreservesFailuresAndStoresValidatedSuccesses(t *testing.T) {
 		t.Fatalf("unexpected collector response: %+v, writes=%d", response, len(writer.histories))
 	}
 	history := writer.histories[0].History
-	if len(history) < 7 || history[len(history)-1] != (revenue.Month{Year: 2026, Month: 7, Value: 50}) {
+	latest := history[len(history)-1]
+	if len(history) < 7 || latest.Year != 2026 || latest.Month != 7 || latest.Value != 50 || latest.MarketCoverage != revenue.MarketCoverageComplete {
 		t.Fatalf("expected archive merged with latest source month: %+v", history)
 	}
 }

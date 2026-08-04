@@ -1,107 +1,74 @@
-# 二游流水观察 / Gacha Revenue Tracker
+# Gacha Revenue Tracker
 
-中英双语的二游移动端流水、独立卡池窗口与 iOS 畅销榜观察站。覆盖原神、崩坏：星穹铁道、绝区零、鸣潮、明日方舟：终末地和异环。网站公开读取，不含登录功能。
+A bilingual, read-only dashboard for estimated mobile revenue, version/banner windows, and iOS grossing-rank observations. It currently covers Genshin Impact, Honkai: Star Rail, Zenless Zone Zero, Wuthering Waves, Arknights: Endfield, and Neverness to Everness. The public site has no sign-in flow.
 
-## 数据边界
+## What the data means
 
-月流水采用 GachaDash / GachaRevenue 发布的 Sensor Tower 移动端估算，底层保留来源的美元百万单位：
-
-```text
-月移动端流水 = 海外 iOS + 海外 Android + 中国 iOS × (1 + 1.75)
-```
-
-- 仅含移动端 IAP，不含 PC、主机、官网直充、广告、周边或 IP 授权。
-- `1.75` 是来源采用的中国 Android / 中国 iOS 假设，不是发行商披露或审计结果。
-- 上游不可用时只返回明确标记的最后快照，不插值、不把市场估算写成真实流水。
-- 中文页面按 Frankfurter 提供的 ECB 每日 USD/CNY 参考汇率换算为亿元人民币；英文页面保留百万美元。汇率响应缓存 12 小时，并始终返回日期、来源与是否使用缓存快照。
-- 首页默认展示当年累计（截至公开源最新月份），游戏默认选中当年累计最高者。公开源尚未发布的月份会明确提示，不用未完整月推算整月值。
-
-月度和年度趋势的时间轴从每个游戏的公测日期开始，一直生成到公开源最新月份；版本趋势内置开服至今的版本期次目录，使用两个下拉栏选择任意起止小版本，默认显示最近 4 个可估算期次，也可以一键选择开服至今。
-
-Go 后端内置了一份从 [GACHAREVENUE](https://revenue.ennead.cc/revenue) 公开地区数据逐月复算的历史快照；定时任务从 GachaDash 读取新增月份并持久化，API 再按月份键合并两者。当前可靠覆盖边界为：原神和崩铁自 2024 年 1 月起，绝区零和鸣潮自开服月起，终末地和异环自开服月起。2025 年 7 月前共 62 个目标游戏月值已在 `2026-08-04` 逐点对照公开源。来源方说明旧平台迁移的部分 2022–2023 数据存在地区缺失，因此本站不会把那些不完整合计当作全球流水；缺失月份保持为空、折线断开，也不会用均值、插值或虚构角色补齐。详见 [来源更新记录](https://revenue.ennead.cc/changelog)。
-
-应用线时长按小时计算：
+Canonical revenue values are stored as USD millions. The published monthly estimate is:
 
 ```text
-H[g,p,a] = Σ 1(rank_game(g,t) < rank_app(a,t)) × 1 hour
+monthly mobile revenue = non-China iOS + non-China Android + China iOS × (1 + 1.75)
 ```
 
-Apple 公共榜当前只提供 Top 100。若游戏在榜、应用掉出 Top 100，可以确定游戏超过应用；若游戏掉榜、应用在榜，可以确定没有超过；两者都掉榜时该小时记为未知，不伪造精确名次。
-
-## 为什么历史时长会为空
-
-Apple 榜单是实时快照，不提供过去任意小时的回放。本站从 `2026-08-04T02:00:00Z` 开始自动采集，因此更早的卡池只能由具有历史小时榜权限的七麦、Sensor Tower 或其他授权供应商回填。页面会区分：
-
-- `observed`：已有自动小时观测；
-- `historical_provider_required`：窗口早于采集启用时间，需要授权历史 feed；
-- `pending_collection`：卡池尚未开始；
-- `collection_gap`：应当采集但窗口内没有可用快照。
-
-空值不会被当作 `0 小时`。只有在存在可判定观测时，`0` 才表示确实没有超过。
-
-## 自动更新架构
+- Revenue covers mobile IAP only. It excludes PC, console, direct-store payments, advertising, merchandise, and licensing.
+- `1.75` is the upstream model's China Android / China iOS assumption, not publisher-reported or audited revenue.
+- Chinese pages convert canonical USD values to CNY with the ECB reference rate exposed by Frankfurter. English pages display USD.
+- Missing months remain null. The application does not interpolate them or distribute lifetime milestones across months.
+- Version estimates are computed by the Go backend from exact banner/month overlap:
 
 ```text
-EventBridge（每小时） ─→ Go collector Lambda ─→ DynamoDB 小时榜快照
-EventBridge（每 6 小时）→ Go collector Lambda ─→ DynamoDB 月流水快照
-授权历史榜 adapter ────────────────────────────────┐
-自动卡池日历 adapter ───────────────→ Go API Lambda │
-浏览器 → Vercel 同源只读代理 ───────────────────────┘
+phase revenue = Σ(month revenue × phase/month overlap hours ÷ hours in month)
 ```
 
-- Apple CN / JP / US / KR 畅销榜每小时第 8 分钟采集一次；采集对象按游戏，不依赖当前卡池日历。
-- 月流水每 6 小时第 23 分钟检查一次公开源，只覆盖成功返回且通过完整性校验的游戏；单个游戏失败时保留 DynamoDB 中上一份成功快照。网页请求不再临时抓取第三方页面。
-- 卡池 feed 和 Vercel 代理各缓存 1 分钟。新卡池进入 feed 后通常在 2 分钟内自动出现在下拉栏；即使日历稍晚发布，此前已经采集的游戏小时榜仍可按窗口重新聚合。
-- 授权历史 feed 只在查询早于本站采集起点的窗口时调用，并与 DynamoDB 实时快照按小时合并。
-- 未配置商业供应商时，实时采集仍会继续，但历史数据无法免费回溯。代码不会抓取登录页面、绕过付费权限或把密钥写入仓库。
+GACHAREVENUE and GachaDash republish third-party Sensor Tower estimates. Those estimates may be revised and should not be presented as publisher revenue. See the [GACHAREVENUE methodology](https://revenue.ennead.cc/revenue) and [changelog](https://revenue.ennead.cc/changelog).
 
-代码职责严格分层：
+### Historical coverage
 
-- `backend/internal/revenue` 是流水领域模型的唯一权威，实现历史合并、共同最新月份、YTD、月环比、年度合计，以及按卡池与自然月重叠小时比例分配版本流水。
-- `backend/internal/revenuesource` 只负责读取和校验外部公开源；`backend/internal/revenuestore` 只负责 DynamoDB 持久化。
-- `backend/internal/versioncatalog` 保存完整小版本、角色、日期和证据目录，并由 Go API 与自动日历 feed 合并；TS 不再保存第二份业务数据。
-- `app/api-client.ts` 仅把后端 DTO 转换为视图模型；`app/revenue-model.ts` 只处理标签、筛选范围和图表点位，不再计算流水。
+The Go service embeds a versioned revenue snapshot and merges newer validated source months by `(game, year, month)`.
 
-供应商只需一次性适配成以下规范，之后不需要逐卡池手工更新。完整字段由 Go 类型校验，所有 URL 必须为 HTTPS，响应分别限制为 1 MiB / 2 MiB。
+- Complete-market monthly estimates start in January 2024 for Genshin Impact and Honkai: Star Rail.
+- Zenless Zone Zero, Wuthering Waves, Arknights: Endfield, and Neverness to Everness have complete-market estimates from launch.
+- An archived public GACHAREVENUE dataset adds Genshin Impact from December 2022 and Honkai: Star Rail from launch in April 2023. These older points cover global mobile excluding China because the archived China rows are empty. They are explicitly tagged `partial` and `global_mobile_excluding_china` throughout the Go API.
+- No reliable month-by-month source is currently available for earlier Genshin Impact months. Those periods remain empty even when a lifetime milestone is known.
 
-卡池 feed：
+The chart breaks the line when coverage scope changes and renders partial-market history as a dashed gray series. Annual and banner aggregates inherit `complete`, `partial`, or `mixed` coverage metadata so unlike scopes cannot be silently combined.
 
-```json
-{
-  "data": [{
-    "id": "hsr-44-p1",
-    "game_id": "hsr",
-    "version": "4.4",
-    "phase_index": 1,
-    "phase_zh": "上半",
-    "phase_en": "Phase 1",
-    "characters_zh": "角色 A、角色 B",
-    "characters_en": "Character A, Character B",
-    "starts_at": "2026-07-15",
-    "ends_at": "2026-08-05",
-    "source_url": "https://provider.example/source",
-    "source_updated_at": "2026-07-15"
-  }]
-}
+The embedded banner catalog contains localized phase dates and character names for Genshin Impact, Honkai: Star Rail, Zenless Zone Zero, and Wuthering Waves from the public [BannerHistory calendar](https://bannerhistory.app/en/schedule). Provider updates enrich matching `(game, version, phase)` entries while owner-verified rank evidence remains authoritative.
+
+## Rank observations
+
+App-line time is calculated hourly:
+
+```text
+hours_above(game, phase, app) = Σ 1(game_rank < app_rank) × one hour
 ```
 
-历史小时榜 feed 接收 `game_id`、`start`、`end` 查询参数（UTC RFC3339），返回与 `rankstore.Snapshot` 相同的小时数组：
+Apple's public feed is a current Top 100 snapshot; it does not provide historical hourly replay. The collector can calculate new observations automatically, but pre-collection windows require an authorized historical provider. Unknown values remain null and are never represented as zero.
 
-```json
-{
-  "data": [{
-    "observed_hour": "2026-04-22T01:00:00Z",
-    "markets": {
-      "CN": {
-        "games": {"hsr": 2},
-        "app_lines": {"tencent_video": 4}
-      }
-    }
-  }]
-}
+## Architecture
+
+```text
+EventBridge Scheduler ──> Go collector Lambda ──> DynamoDB snapshots
+                                                    │
+Browser ──> Vercel Next.js proxy ──> Go API Lambda ─┘
 ```
 
-## 本地开发
+Responsibilities are intentionally separated:
+
+- `backend/internal/revenue`: canonical revenue facts, validation, monthly merging, YTD, annual aggregation, coverage propagation, and version allocation.
+- `backend/internal/revenuesource`: public-source retrieval and validation.
+- `backend/internal/revenuestore`: DynamoDB persistence.
+- `backend/internal/versioncatalog`: embedded phase catalog and provider enrichment rules.
+- `backend/internal/httpapi`: public REST response composition.
+- `app/api-client.ts`: DTO-to-view-model normalization only.
+- `app/revenue-model.ts`: labels, range selection, and null-preserving chart projection only; it does not calculate revenue.
+- `app/dashboard.tsx`: interaction and visualization.
+
+External calendar and licensed rank providers use normalized adapters. Secrets are server-only environment variables and are never committed.
+
+## Local development
+
+Requirements: Node.js 22.13 or newer and a current Go toolchain.
 
 ```bash
 npm ci
@@ -109,14 +76,14 @@ cp .env.example .env.local
 npm run dev
 ```
 
-`.env.local` 使用两个仅服务端变量，绝不能加 `NEXT_PUBLIC_` 前缀：
+Server-only frontend variables:
 
 ```text
-BACKEND_API_BASE_URL=https://<function-id>.lambda-url.ap-northeast-1.on.aws/v1
-BACKEND_PROXY_TOKEN=<与 AWS Lambda 相同的随机值>
+BACKEND_API_BASE_URL=https://<function-id>.lambda-url.<region>.on.aws/v1
+BACKEND_PROXY_TOKEN=<same random value configured on the Lambda>
 ```
 
-验证：
+Run all checks:
 
 ```bash
 npm run lint
@@ -127,29 +94,29 @@ bash -n infra/serverless/deploy.sh
 jq empty infra/serverless/*.json
 ```
 
-## 部署配置
+## Deployment
 
-Vercel Production / Preview：
+The frontend is deployed to Vercel. The zero-idle-cost AWS profile uses two ARM64 Lambda functions, one DynamoDB table, and EventBridge Scheduler; it does not create ECS, RDS, Redis, NAT Gateway, ALB, ECR, or API Gateway resources.
 
-| 名称 | 类型 | 必需 | 说明 |
+Vercel variables:
+
+| Name | Required | Notes |
+|---|---:|---|
+| `BACKEND_API_BASE_URL` | yes | Go API `/v1` base URL |
+| `BACKEND_PROXY_TOKEN` | yes | Sensitive, server-only value; at least 32 random bytes |
+
+GitHub `production` environment:
+
+| Name | Kind | Required | Notes |
 |---|---|---:|---|
-| `BACKEND_API_BASE_URL` | server-only env | 是 | Lambda `/v1` 地址 |
-| `BACKEND_PROXY_TOKEN` | sensitive env | 是 | 至少 32 字节；建议 64 个随机十六进制字符，与 GitHub secret 相同 |
+| `AWS_DEPLOY_ROLE_ARN` | variable | yes | GitHub OIDC deployment role |
+| `AWS_REGION` | variable | yes | AWS deployment region |
+| `BACKEND_PROXY_TOKEN` | secret | yes | Shared with the Lambda environment |
+| `CALENDAR_FEED_URL` | variable | no | Normalized automatic calendar provider |
+| `CALENDAR_FEED_TOKEN` | secret | no | Calendar provider bearer token |
+| `RANK_HISTORY_FEED_URL` | variable | no | Authorized historical hourly-rank provider |
+| `RANK_HISTORY_FEED_TOKEN` | secret | no | Historical provider bearer token |
 
-GitHub `production` environment：
+The browser can access only an explicit Vercel proxy allowlist. Vercel attaches the proxy token server-side; the Lambda compares it in constant time. The public repository must not contain AWS access keys, provider tokens, Vercel tokens, or local environment files.
 
-| 名称 | 类型 | 必需 | 说明 |
-|---|---|---:|---|
-| `AWS_DEPLOY_ROLE_ARN` | variable | 是 | GitHub OIDC 部署角色 |
-| `AWS_REGION` | variable | 是 | 当前为 `ap-northeast-1` |
-| `BACKEND_PROXY_TOKEN` | secret | 是 | 写入 Lambda 环境，不输出到日志 |
-| `CALENDAR_FEED_URL` | variable | 否 | 标准化自动卡池 feed |
-| `CALENDAR_FEED_TOKEN` | secret | 否 | 卡池 feed Bearer token |
-| `RANK_HISTORY_FEED_URL` | variable | 否 | 标准化授权历史小时榜 feed |
-| `RANK_HISTORY_FEED_TOKEN` | secret | 否 | 历史榜 Bearer token |
-
-浏览器只能访问 Vercel 的 `/api/backend/*` allowlist。Vercel 在服务端添加代理 token；Lambda `/v1/*` 使用恒定时间比较拒绝无 token 请求，`/healthz` 仅返回无敏感信息。生产仓库不保存 AWS access key、供应商 token 或 Vercel token。
-
-AWS 使用两个 ARM64 Lambda、一个 DynamoDB 表和两个 EventBridge Scheduler 计划；不创建 VPC、NAT、ECS、RDS、Redis、ALB、ECR、S3 或 API Gateway。免费计划仍需配置预算告警，并关注 AWS credits 与计划到期时间。
-
-安全问题请按 [SECURITY.md](SECURITY.md) 私下报告。
+Report security issues privately as described in [SECURITY.md](SECURITY.md).
