@@ -25,7 +25,8 @@ API_FUNCTION="$PREFIX-api"
 COLLECTOR_FUNCTION="$PREFIX-collector"
 LAMBDA_ROLE="$PREFIX-lambda-role"
 SCHEDULER_ROLE="$PREFIX-scheduler-role"
-SCHEDULE_NAME="$PREFIX-hourly-ranks"
+RANK_SCHEDULE_NAME="$PREFIX-hourly-ranks"
+REVENUE_SCHEDULE_NAME="$PREFIX-six-hour-revenue"
 WORK_DIR="$(mktemp -d)"
 
 LAMBDA_ROLE_ARN="arn:aws:iam::$ACCOUNT_ID:role/$LAMBDA_ROLE"
@@ -210,31 +211,49 @@ add_public_permission() {
 add_public_permission "FunctionURLAllowPublicAccess" --action lambda:InvokeFunctionUrl --principal '*' --function-url-auth-type NONE
 add_public_permission "FunctionURLInvokeAllowPublicAccess" --action lambda:InvokeFunction --principal '*' --invoked-via-function-url
 
-TARGET_JSON="$(jq -cn --arg arn "$COLLECTOR_ARN" --arg role "$SCHEDULER_ROLE_ARN" '{Arn:$arn,RoleArn:$role,RetryPolicy:{MaximumEventAgeInSeconds:3600,MaximumRetryAttempts:2}}')"
-if aws scheduler get-schedule --name "$SCHEDULE_NAME" >/dev/null 2>&1; then
-  aws scheduler update-schedule \
-    --name "$SCHEDULE_NAME" \
-    --schedule-expression 'cron(8 * * * ? *)' \
-    --schedule-expression-timezone UTC \
-    --flexible-time-window '{"Mode":"OFF"}' \
-    --target "$TARGET_JSON" \
-    --state ENABLED >/dev/null
-else
-  aws scheduler create-schedule \
-    --name "$SCHEDULE_NAME" \
-    --description "Collect Apple Top Grossing ranks once per hour" \
-    --schedule-expression 'cron(8 * * * ? *)' \
-    --schedule-expression-timezone UTC \
-    --flexible-time-window '{"Mode":"OFF"}' \
-    --target "$TARGET_JSON" \
-    --state ENABLED >/dev/null
-fi
+ensure_schedule() {
+  local schedule_name="$1"
+  local description="$2"
+  local expression="$3"
+  local payload="$4"
+  local target_json
+  target_json="$(jq -cn --arg arn "$COLLECTOR_ARN" --arg role "$SCHEDULER_ROLE_ARN" --arg input "$payload" '{Arn:$arn,RoleArn:$role,Input:$input,RetryPolicy:{MaximumEventAgeInSeconds:3600,MaximumRetryAttempts:2}}')"
+  if aws scheduler get-schedule --name "$schedule_name" >/dev/null 2>&1; then
+    aws scheduler update-schedule \
+      --name "$schedule_name" \
+      --schedule-expression "$expression" \
+      --schedule-expression-timezone UTC \
+      --flexible-time-window '{"Mode":"OFF"}' \
+      --target "$target_json" \
+      --state ENABLED >/dev/null
+  else
+    aws scheduler create-schedule \
+      --name "$schedule_name" \
+      --description "$description" \
+      --schedule-expression "$expression" \
+      --schedule-expression-timezone UTC \
+      --flexible-time-window '{"Mode":"OFF"}' \
+      --target "$target_json" \
+      --state ENABLED >/dev/null
+  fi
+}
 
-INVOKE_ERROR="$(aws lambda invoke --function-name "$COLLECTOR_FUNCTION" --cli-binary-format raw-in-base64-out --payload '{}' "$WORK_DIR/collector-output.json" --query FunctionError --output text)"
-if [[ "$INVOKE_ERROR" != "None" ]]; then
-  cat "$WORK_DIR/collector-output.json"
-  exit 1
-fi
+ensure_schedule "$RANK_SCHEDULE_NAME" "Collect Apple Top Grossing ranks once per hour" 'cron(8 * * * ? *)' '{"job":"rank"}'
+ensure_schedule "$REVENUE_SCHEDULE_NAME" "Refresh public monthly revenue histories every six hours" 'cron(23 0/6 * * ? *)' '{"job":"revenue"}'
+
+invoke_collector() {
+  local job="$1"
+  local output_file="$WORK_DIR/collector-$job-output.json"
+  local invoke_error
+  invoke_error="$(aws lambda invoke --function-name "$COLLECTOR_FUNCTION" --cli-binary-format raw-in-base64-out --payload "{\"job\":\"$job\"}" "$output_file" --query FunctionError --output text)"
+  if [[ "$invoke_error" != "None" ]]; then
+    cat "$output_file"
+    exit 1
+  fi
+}
+
+invoke_collector rank
+invoke_collector revenue
 
 FUNCTION_URL="$(aws lambda get-function-url-config --function-name "$API_FUNCTION" --query FunctionUrl --output text)"
 echo "api_url=$FUNCTION_URL" >>"${GITHUB_OUTPUT:-/dev/null}"
@@ -244,7 +263,7 @@ if [[ -n "${GITHUB_STEP_SUMMARY:-}" ]]; then
     echo
     echo "- API: ${FUNCTION_URL}v1"
     echo "- DynamoDB: $TABLE_NAME (provisioned 5 RCU / 5 WCU)"
-    echo "- Schedule: hourly at minute 08 UTC"
+    echo "- Schedules: ranks hourly at minute 08 UTC; revenue every six hours at minute 23 UTC"
     echo "- No VPC, NAT, ECS, RDS, Redis, ALB, ECR, S3 or API Gateway"
   } >>"$GITHUB_STEP_SUMMARY"
 fi

@@ -21,6 +21,7 @@ import (
 	"gacha-revenue/backend/internal/httpapi"
 	"gacha-revenue/backend/internal/rankfeed"
 	"gacha-revenue/backend/internal/rankstore"
+	"gacha-revenue/backend/internal/revenuestore"
 	"gacha-revenue/backend/internal/security"
 	"gacha-revenue/backend/internal/serverlessapi"
 )
@@ -68,9 +69,11 @@ func main() {
 		logger.Error("load AWS config", "error", err)
 		os.Exit(1)
 	}
-	store := rankstore.New(dynamodb.NewFromConfig(awsCfg), tableName)
-	fallback := httpapi.New(logger, calendar)
-	api := serverlessapi.New(store, fallback, logger, serverlessapi.Options{CollectionStartedAt: collectionStartedAt, History: history})
+	dynamoClient := dynamodb.NewFromConfig(awsCfg)
+	store := rankstore.New(dynamoClient, tableName)
+	revenueStore := revenuestore.New(dynamoClient, tableName)
+	fallback := httpapi.NewWithOptions(logger, calendar, httpapi.Options{Revenue: revenueStore})
+	api := serverlessapi.New(store, fallback, logger, serverlessapi.Options{CollectionStartedAt: collectionStartedAt, History: history, Revenue: revenueStore})
 	lambda.Start((&lambdaHandler{http: security.RequireProxyToken(api, proxyToken)}).Invoke)
 }
 

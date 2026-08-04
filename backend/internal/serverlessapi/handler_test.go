@@ -11,11 +11,18 @@ import (
 	"time"
 
 	"gacha-revenue/backend/internal/rankstore"
+	"gacha-revenue/backend/internal/revenue"
 )
 
 type fakeReader struct {
 	snapshots []rankstore.Snapshot
 	err       error
+}
+
+type fakeRevenueReader struct{ histories []revenue.GameHistory }
+
+func (reader fakeRevenueReader) List(context.Context) ([]revenue.GameHistory, error) {
+	return reader.histories, nil
 }
 
 func (f fakeReader) QueryRange(context.Context, time.Time, time.Time) ([]rankstore.Snapshot, error) {
@@ -118,5 +125,28 @@ func TestBannerMetricsExplainsPreCollectionHistory(t *testing.T) {
 	}
 	if response.Data.CoverageStatus != "historical_provider_required" {
 		t.Fatalf("unexpected coverage status: %q", response.Data.CoverageStatus)
+	}
+}
+
+func TestBannerMetricsIncludesBackendPhaseRevenue(t *testing.T) {
+	handler := New(fakeReader{}, http.NotFoundHandler(), slog.New(slog.NewTextHandler(io.Discard, nil)), Options{
+		Revenue: fakeRevenueReader{histories: []revenue.GameHistory{{GameID: "hsr", History: []revenue.Month{{Year: 2026, Month: 4, Value: 30}}}}},
+	})
+	recorder := httptest.NewRecorder()
+	handler.ServeHTTP(recorder, httptest.NewRequest(http.MethodGet, "/v1/banner-metrics?game_id=hsr&start=2026-04-01&end=2026-05-01", nil))
+	var response struct {
+		Data struct {
+			PhaseRevenue struct {
+				Estimate *float64 `json:"estimate"`
+				Coverage float64  `json:"coverage"`
+				Formula  string   `json:"formula"`
+			} `json:"phase_revenue"`
+		} `json:"data"`
+	}
+	if err := json.NewDecoder(recorder.Body).Decode(&response); err != nil {
+		t.Fatal(err)
+	}
+	if response.Data.PhaseRevenue.Estimate == nil || *response.Data.PhaseRevenue.Estimate != 30 || response.Data.PhaseRevenue.Coverage != 1 || response.Data.PhaseRevenue.Formula != revenue.VersionAllocationFormula {
+		t.Fatalf("unexpected phase revenue: %+v", response.Data.PhaseRevenue)
 	}
 }

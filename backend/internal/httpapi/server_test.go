@@ -6,12 +6,25 @@ import (
 	"encoding/json"
 	"io"
 	"log/slog"
+	"math"
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
+
+	"gacha-revenue/backend/internal/revenue"
 )
 
 type exchangeRateRoundTripFunc func(*http.Request) (*http.Response, error)
+
+type fakeRevenueReader struct {
+	histories []revenue.GameHistory
+	err       error
+}
+
+func (reader fakeRevenueReader) List(context.Context) ([]revenue.GameHistory, error) {
+	return reader.histories, reader.err
+}
 
 func (function exchangeRateRoundTripFunc) Do(request *http.Request) (*http.Response, error) {
 	return function(request)
@@ -56,8 +69,8 @@ func TestGamesIncludesEstimateMetadata(t *testing.T) {
 		t.Fatalf("expected 200, got %d", recorder.Code)
 	}
 	var payload struct {
-		Data []gameFixture  `json:"data"`
-		Meta map[string]any `json:"meta"`
+		Data []revenue.GameDefinition `json:"data"`
+		Meta map[string]any           `json:"meta"`
 	}
 	if err := json.NewDecoder(bytes.NewReader(recorder.Body.Bytes())).Decode(&payload); err != nil {
 		t.Fatal(err)
@@ -65,8 +78,26 @@ func TestGamesIncludesEstimateMetadata(t *testing.T) {
 	if len(payload.Data) != 6 {
 		t.Fatalf("expected 6 games, got %d", len(payload.Data))
 	}
-	if payload.Meta["basis"] != "mobile_iap_ios_android_with_cn_android_1_75x" {
+	if payload.Meta["basis"] != revenue.Basis {
 		t.Fatalf("unexpected basis: %v", payload.Meta["basis"])
+	}
+}
+
+func TestMethodologyIsServedByTheGoDomain(t *testing.T) {
+	request := httptest.NewRequest(http.MethodGet, "/v1/methodology", nil)
+	recorder := httptest.NewRecorder()
+	New(slog.New(slog.NewTextHandler(io.Discard, nil)), nil).ServeHTTP(recorder, request)
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d", recorder.Code)
+	}
+	var payload struct {
+		Data revenue.MethodologyDocument `json:"data"`
+	}
+	if err := json.NewDecoder(recorder.Body).Decode(&payload); err != nil {
+		t.Fatal(err)
+	}
+	if payload.Data.Version != revenue.MethodologyVersion || len(payload.Data.Formulas) != 4 || payload.Data.Formulas[2].Expression != "R[g,p] = sum_m M[g,m] x overlap_hours[p,m] / month_hours[m]" {
+		t.Fatalf("unexpected backend methodology: %+v", payload.Data)
 	}
 }
 
@@ -88,7 +119,7 @@ func TestRevenueReturnsLabelledPublicSourceSnapshot(t *testing.T) {
 		t.Fatalf("unexpected data status: %v", payload.Meta["data_status"])
 	}
 	last := payload.Data[len(payload.Data)-1]
-	if last.GameID != "nte" || last.Period != "2026-06-01" || last.Estimate != 13.95 || last.Low != last.Estimate || last.High != last.Estimate {
+	if last.GameID != "nte" || last.Period != "2026-06-01" || last.Estimate != 13.95 || last.Low != nil || last.High != nil {
 		t.Fatalf("unexpected final source point: %+v", last)
 	}
 }
@@ -126,41 +157,8 @@ func TestRevenueIncludesReliablePreJuly2025History(t *testing.T) {
 	}
 }
 
-func TestParsePublicRevenueSourceUsesPublishedTotals(t *testing.T) {
-	body := `before \"revenueHistory\":[{\"year\":2026,\"month\":5,\"revenue_total\":3876500000},{\"year\":2026,\"month\":4,\"revenue_total\":5810000000}] after`
-	history, err := parsePublicRevenueSource(body)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if len(history) != 2 || history[0].Year != 2026 || history[0].Month != 4 || history[0].Value != 58.1 || history[1].Value != 38.765 {
-		t.Fatalf("unexpected public revenue history: %+v", history)
-	}
-}
-
-func TestParsePublicRevenueSourceRejectsDuplicateMonths(t *testing.T) {
-	body := `\"revenueHistory\":[{\"year\":2026,\"month\":4,\"revenue_total\":5810000000},{\"year\":2026,\"month\":4,\"revenue_total\":3876500000}]`
-	if _, err := parsePublicRevenueSource(body); err == nil {
-		t.Fatal("expected duplicate source month to be rejected")
-	}
-}
-
-func TestMergePublicRevenueHistoryPreservesArchiveAndLetsLiveDataWin(t *testing.T) {
-	archive := []publicRevenueMonth{
-		{Year: 2025, Month: 6, Value: 19.12},
-		{Year: 2025, Month: 7, Value: 90},
-	}
-	live := []publicRevenueMonth{
-		{Year: 2025, Month: 7, Value: 92.45},
-		{Year: 2025, Month: 8, Value: 29.925},
-	}
-	merged := mergePublicRevenueHistory(archive, live)
-	if len(merged) != 3 || merged[0].Month != 6 || merged[0].Value != 19.12 || merged[1].Month != 7 || merged[1].Value != 92.45 || merged[2].Month != 8 {
-		t.Fatalf("unexpected merged history: %+v", merged)
-	}
-}
-
 func TestPublicRevenueFixtureIncludesNevernessToEverness(t *testing.T) {
-	for _, game := range fixturePublicRevenue() {
+	for _, game := range revenue.Archive() {
 		if game.GameID != "nte" {
 			continue
 		}
@@ -170,6 +168,45 @@ func TestPublicRevenueFixtureIncludesNevernessToEverness(t *testing.T) {
 		return
 	}
 	t.Fatal("Neverness to Everness was missing from the public revenue fixture")
+}
+
+func TestPublicRevenueReturnsBackendAggregatesAtAlignedLatestPeriod(t *testing.T) {
+	reader := fakeRevenueReader{histories: []revenue.GameHistory{{
+		GameID:          "hsr",
+		History:         []revenue.Month{{Year: 2026, Month: 6, Value: 30}, {Year: 2026, Month: 7, Value: 60}},
+		SourceURL:       "https://www.gachadash.com/game/honkai-star-rail",
+		SourceFetchedAt: time.Date(2026, 8, 4, 1, 0, 0, 0, time.UTC),
+		SourceStatus:    "live_public_source",
+	}}}
+	request := httptest.NewRequest(http.MethodGet, "/v1/public-revenue", nil)
+	recorder := httptest.NewRecorder()
+	NewWithOptions(slog.New(slog.NewTextHandler(io.Discard, nil)), nil, Options{Revenue: reader}).ServeHTTP(recorder, request)
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d", recorder.Code)
+	}
+	var payload struct {
+		Data []revenue.GameSummary `json:"data"`
+		Meta struct {
+			LatestPeriod         revenue.Period `json:"latest_period"`
+			AggregationAuthority string         `json:"aggregation_authority"`
+		} `json:"meta"`
+	}
+	if err := json.NewDecoder(recorder.Body).Decode(&payload); err != nil {
+		t.Fatal(err)
+	}
+	if payload.Meta.LatestPeriod != (revenue.Period{Year: 2026, Month: 7}) || payload.Meta.AggregationAuthority != "go_backend" {
+		t.Fatalf("unexpected response metadata: %+v", payload.Meta)
+	}
+	for _, game := range payload.Data {
+		if game.ID != "hsr" {
+			continue
+		}
+		if game.Latest == nil || game.Latest.Value != 60 || game.YTD == nil || math.Abs(*game.YTD-247.7675) > 0.000001 || game.ChangePercent == nil || *game.ChangePercent != 100 {
+			t.Fatalf("unexpected backend aggregate: %+v", game)
+		}
+		return
+	}
+	t.Fatal("missing HSR aggregate")
 }
 
 func TestVersionsPreserveOwnerCorrectionsWithoutInventingUnknownHours(t *testing.T) {
@@ -182,12 +219,30 @@ func TestVersionsPreserveOwnerCorrectionsWithoutInventingUnknownHours(t *testing
 	if err := json.NewDecoder(bytes.NewReader(recorder.Body.Bytes())).Decode(&payload); err != nil {
 		t.Fatal(err)
 	}
-	if len(payload.Data) != 2 || payload.Data[0].CharactersZh != "爱弥斯" || payload.Data[1].CharactersZh != "卡提希娅" {
-		t.Fatalf("unexpected version corrections: %+v", payload.Data)
+	found := map[string]bool{"ww-31-aemeath": false, "ww-24-cartethyia": false}
+	for _, version := range payload.Data {
+		if _, ok := found[version.ID]; !ok {
+			continue
+		}
+		found[version.ID] = true
+		known := 0
+		for _, observation := range version.AppHours {
+			if observation.Hours != nil {
+				known++
+			}
+		}
+		if known != 1 {
+			t.Fatalf("expected exactly one supplied correction for %s, got %d", version.CharactersZh, known)
+		}
+	}
+	for character, ok := range found {
+		if !ok {
+			t.Fatalf("missing owner correction for %s", character)
+		}
 	}
 	for _, version := range payload.Data {
-		if len(version.AppHours) != 1 || version.AppHours[0].Hours == nil {
-			t.Fatalf("expected only the supplied correction to be known: %+v", version)
+		if version.ID == "ww-24-cartethyia" && (version.Estimate == nil || version.RevenueFormula != revenue.VersionAllocationFormula || version.RevenueCoverage <= 0) {
+			t.Fatalf("expected Go-computed version revenue: %+v", version)
 		}
 	}
 }

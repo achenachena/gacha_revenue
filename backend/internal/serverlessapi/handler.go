@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"gacha-revenue/backend/internal/rankstore"
+	"gacha-revenue/backend/internal/revenue"
 )
 
 var trackedGames = map[string]bool{"genshin": true, "hsr": true, "zzz": true, "wuwa": true, "endfield": true, "nte": true}
@@ -29,16 +30,22 @@ type Handler struct {
 	logger              *slog.Logger
 	collectionStartedAt time.Time
 	history             HistoryReader
+	revenue             RevenueReader
 	now                 func() time.Time
 }
 
 type Options struct {
 	CollectionStartedAt time.Time
 	History             HistoryReader
+	Revenue             RevenueReader
+}
+
+type RevenueReader interface {
+	List(context.Context) ([]revenue.GameHistory, error)
 }
 
 func New(reader Reader, fallback http.Handler, logger *slog.Logger, options Options) http.Handler {
-	return &Handler{reader: reader, fallback: fallback, logger: logger, collectionStartedAt: options.CollectionStartedAt.UTC(), history: options.History, now: time.Now}
+	return &Handler{reader: reader, fallback: fallback, logger: logger, collectionStartedAt: options.CollectionStartedAt.UTC(), history: options.History, revenue: options.Revenue, now: time.Now}
 }
 
 func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -149,9 +156,29 @@ func (h *Handler) bannerMetrics(w http.ResponseWriter, r *http.Request) {
 	if historyUsed {
 		source = "licensed_feed"
 	}
+	var phaseRevenue any
+	if h.revenue != nil {
+		histories, revenueErr := h.revenue.List(r.Context())
+		if revenueErr != nil {
+			h.logger.Error("query phase revenue history", "error", revenueErr)
+		} else {
+			for _, history := range histories {
+				if history.GameID != gameID {
+					continue
+				}
+				estimate := revenue.EstimateWindow(history.History, start.Format("2006-01-02"), end.Format("2006-01-02"))
+				phaseRevenue = map[string]any{
+					"estimate": estimate.Estimate, "coverage": estimate.Coverage,
+					"covered_hours": estimate.CoveredHours, "window_hours": estimate.WindowHours,
+					"formula": estimate.Formula, "threshold": 1.0,
+				}
+				break
+			}
+		}
+	}
 	writeJSON(w, http.StatusOK, map[string]any{
 		"data": map[string]any{
-			"ranks": ranks, "app_line_observations": lines, "source": source, "phase_revenue": nil,
+			"ranks": ranks, "app_line_observations": lines, "source": source, "phase_revenue": phaseRevenue,
 			"coverage_status": status, "collection_started_at": nullableTime(h.collectionStartedAt),
 		},
 		"meta": map[string]any{"game_id": gameID, "start": start, "end": end, "snapshot_hours": len(snapshots)},

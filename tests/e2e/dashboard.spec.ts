@@ -1,10 +1,12 @@
 import { expect, test } from "@playwright/test";
 
 test("exposes only the explicit validated backend proxy routes", async ({ request }) => {
-  const unconfigured = await request.get("/api/backend/versions");
-  expect(unconfigured.status()).toBe(503);
+  const versions = await request.get("/api/backend/versions");
+  expect(versions.status()).toBe(200);
   const exchangeRate = await request.get("/api/backend/exchange-rate");
-  expect(exchangeRate.status()).toBe(503);
+  expect(exchangeRate.status()).toBe(200);
+  const methodology = await request.get("/api/backend/methodology");
+  expect(methodology.status()).toBe(200);
   const invalidExchangeRate = await request.get("/api/backend/exchange-rate?base=EUR");
   expect(invalidExchangeRate.status()).toBe(400);
   const invalid = await request.get("/api/backend/banner-metrics?game_id=hsr&start=bad&end=2026-08-05");

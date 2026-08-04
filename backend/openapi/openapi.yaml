@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Gacha Revenue Tracker API
-  version: 3.1.0
+  version: 4.0.0
   description: |
     Public-source mobile IAP estimates and hourly iOS rank observations.
     Values are third-party market estimates, not publisher-reported revenue.
@@ -73,9 +73,9 @@ paths:
   /public-revenue:
     get:
       tags: [Revenue]
-      operationId: refreshPublicRevenue
-      summary: Return the public monthly mobile-revenue history
-      description: Merges a source-verified historical baseline with the latest source-published Sensor Tower aggregation. Falls back to the bundled snapshot when the upstream page is temporarily unavailable.
+      operationId: listPublicRevenue
+      summary: Return canonical revenue facts and backend aggregates
+      description: Reads the latest scheduled source snapshot from DynamoDB, merges it with the verified historical baseline, and computes aligned latest-month, YTD, month-over-month and annual values in Go.
       responses:
         '200':
           description: Public monthly revenue series for all supported games
@@ -89,9 +89,14 @@ paths:
                     type: array
                     items:
                       type: object
-                      required: [game_id, history, source_url]
+                      required: [id, source_slug, launch_date, name_zh, name_en, publisher, history, source_url, source_fetched_at, source_status, yearly]
                       properties:
-                        game_id: {type: string}
+                        id: {type: string}
+                        source_slug: {type: string}
+                        launch_date: {type: string, format: date}
+                        name_zh: {type: string}
+                        name_en: {type: string}
+                        publisher: {type: string}
                         history:
                           type: array
                           items:
@@ -102,9 +107,29 @@ paths:
                               month: {type: integer, minimum: 1, maximum: 12}
                               value: {type: number, description: USD millions}
                         source_url: {type: string, format: uri}
+                        source_fetched_at: {type: string, format: date-time}
+                        source_status: {type: string}
+                        latest:
+                          oneOf:
+                            - {$ref: '#/components/schemas/RevenueMonth'}
+                            - {type: 'null'}
+                        ytd: {type: [number, 'null']}
+                        change_percent: {type: [number, 'null']}
+                        yearly:
+                          type: array
+                          items: {$ref: '#/components/schemas/AnnualRevenue'}
                   meta:
                     type: object
                     additionalProperties: true
+                    properties:
+                      totals:
+                        type: object
+                        required: [latest, ytd, covered_games, games]
+                        properties:
+                          latest: {type: number}
+                          ytd: {type: number}
+                          covered_games: {type: integer}
+                          games: {type: integer}
   /exchange-rate:
     get:
       tags: [Revenue]
@@ -154,7 +179,7 @@ paths:
       tags: [Versions]
       operationId: getBannerMetrics
       summary: Aggregate hourly Apple ranks and China app-line hours for one banner window
-      description: Combines licensed historical hourly snapshots with locally collected Apple snapshots. Missing historical data is returned as an explicit coverage status, never as zero.
+      description: Combines licensed historical hourly snapshots with locally collected Apple snapshots and the Go-computed banner-window revenue allocation. Missing historical data is returned as an explicit coverage status, never as zero.
       parameters:
         - in: query
           name: game_id
@@ -180,6 +205,14 @@ paths:
       responses:
         '200':
           description: Active model summary
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, meta]
+                properties:
+                  data: {$ref: '#/components/schemas/Methodology'}
+                  meta: {$ref: '#/components/schemas/EstimateMeta'}
 components:
   securitySchemes:
     BackendProxyToken:
@@ -190,18 +223,32 @@ components:
   schemas:
     Game:
       type: object
-      required: [id, name_zh, name_en, publisher, platforms, confidence]
+      required: [id, source_slug, launch_date, name_zh, name_en, publisher, platforms]
       properties:
         id: {type: string}
+        source_slug: {type: string}
+        launch_date: {type: string, format: date}
         name_zh: {type: string}
         name_en: {type: string}
         publisher: {type: string}
         platforms:
           type: array
           items: {type: string}
-        confidence:
-          type: string
-          enum: [SOURCE, A, B+, B, C, N/A]
+    RevenueMonth:
+      type: object
+      required: [year, month, value]
+      properties:
+        year: {type: integer}
+        month: {type: integer, minimum: 1, maximum: 12}
+        value: {type: number, description: USD millions}
+    AnnualRevenue:
+      type: object
+      required: [year, value, months, complete]
+      properties:
+        year: {type: integer}
+        value: {type: number, description: USD millions}
+        months: {type: integer, minimum: 1, maximum: 12}
+        complete: {type: boolean}
     RevenuePoint:
       type: object
       required: [game_id, grain, period, estimate, p25, p75, confidence]
@@ -210,8 +257,8 @@ components:
         grain: {type: string, enum: [month, year, version]}
         period: {type: string}
         estimate: {type: number, description: USD millions}
-        p25: {type: number, description: Equal to estimate for source snapshots without a published interval}
-        p75: {type: number, description: Equal to estimate for source snapshots without a published interval}
+        p25: {type: [number, 'null']}
+        p75: {type: [number, 'null']}
         confidence: {type: string}
     ExchangeRate:
       type: object
@@ -235,17 +282,24 @@ components:
         phase_en: {type: string}
         characters_zh: {type: string}
         characters_en: {type: string}
-        starts_at: {type: string, format: date}
-        ends_at: {type: string, format: date}
+        starts_at: {type: string, description: ISO date when known; empty when the historical calendar is not yet verified}
+        ends_at: {type: string, description: ISO date when known; empty when the historical calendar is not yet verified}
         estimate: {type: [number, 'null']}
         p25: {type: [number, 'null']}
         p75: {type: [number, 'null']}
         confidence: {type: string}
+        revenue_coverage: {type: number, minimum: 0, maximum: 1}
+        revenue_covered_hours: {type: integer, minimum: 0}
+        window_hours: {type: integer, minimum: 0}
+        revenue_formula: {type: string}
+        coverage_status: {type: string}
+        observed_hours: {type: integer, minimum: 0}
+        collection_started_at: {type: [string, 'null'], format: date-time}
         data_status:
           type: string
           enum: [licensed_feed, apple_public_feed, public_calendar, verified_manual, awaiting_feed]
-        source_url: {type: string, format: uri}
-        source_updated_at: {type: string, format: date}
+        source_url: {type: string}
+        source_updated_at: {type: string}
         ios_grossing_rank_range:
           type: object
           additionalProperties:
@@ -253,6 +307,10 @@ components:
             prefixItems: [{type: [integer, 'null']}, {type: [integer, 'null']}]
             minItems: 2
             maxItems: 2
+        rank_evidence:
+          oneOf:
+            - {$ref: '#/components/schemas/MetricEvidence'}
+            - {type: 'null'}
         app_line_observations:
           type: array
           items:
@@ -264,13 +322,61 @@ components:
               name_en: {type: string}
               hours_above: {type: [number, 'null']}
               data_status: {type: string, enum: [licensed_feed, apple_public_feed, verified_manual, awaiting_feed]}
-              updated_at: {type: [string, 'null'], format: date-time}
+              updated_at: {type: [string, 'null'], description: ISO date or date-time supplied by the evidence source}
+              evidence:
+                oneOf:
+                  - {$ref: '#/components/schemas/MetricEvidence'}
+                  - {type: 'null'}
+    MetricEvidence:
+      type: object
+      required: [primary_url, cross_check_url, note_zh, note_en]
+      properties:
+        primary_url: {type: string, format: uri}
+        cross_check_url: {type: string, format: uri}
+        note_zh: {type: string}
+        note_en: {type: string}
+    Methodology:
+      type: object
+      required: [version, basis, excludes_zh, excludes_en, formulas, definitions, sources]
+      properties:
+        version: {type: string}
+        basis: {type: string}
+        excludes_zh: {type: string}
+        excludes_en: {type: string}
+        formulas:
+          type: array
+          items:
+            type: object
+            required: [id, title_zh, title_en, expression]
+            properties:
+              id: {type: string}
+              title_zh: {type: string}
+              title_en: {type: string}
+              expression: {type: string}
+        definitions:
+          type: array
+          items:
+            type: object
+            required: [symbol, text_zh, text_en]
+            properties:
+              symbol: {type: string}
+              text_zh: {type: string}
+              text_en: {type: string}
+        sources:
+          type: array
+          items:
+            type: object
+            required: [id, label, url]
+            properties:
+              id: {type: string}
+              label: {type: string}
+              url: {type: string, format: uri}
     EstimateMeta:
       type: object
       required: [currency, unit, basis, data_status, methodology_version]
       properties:
         currency: {const: USD}
         unit: {const: million}
-        basis: {const: mobile_iap_ios_android_with_cn_android_1_75x}
+        basis: {const: mobile_iap_ios_android}
         data_status: {type: string}
         methodology_version: {type: string}

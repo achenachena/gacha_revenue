@@ -18,7 +18,7 @@
 
 月度和年度趋势的时间轴从每个游戏的公测日期开始，一直生成到公开源最新月份；版本趋势内置开服至今的版本期次目录，使用两个下拉栏选择任意起止小版本，默认显示最近 4 个可估算期次，也可以一键选择开服至今。
 
-仓库内置了一份从 [GACHAREVENUE](https://revenue.ennead.cc/revenue) 公开地区数据逐月复算的历史快照，实时 GachaDash 数据负责覆盖其后的最新 12 个月。当前可靠覆盖边界为：原神和崩铁自 2024 年 1 月起，绝区零和鸣潮自开服月起，终末地和异环自开服月起。2025 年 7 月前共 62 个目标游戏月值已在 `2026-08-04` 逐点对照公开源。来源方说明旧平台迁移的部分 2022–2023 数据存在地区缺失，因此本站不会把那些不完整合计当作全球流水；缺失月份保持为空、折线断开，也不会用均值、插值或虚构角色补齐。详见 [来源更新记录](https://revenue.ennead.cc/changelog)。
+Go 后端内置了一份从 [GACHAREVENUE](https://revenue.ennead.cc/revenue) 公开地区数据逐月复算的历史快照；定时任务从 GachaDash 读取新增月份并持久化，API 再按月份键合并两者。当前可靠覆盖边界为：原神和崩铁自 2024 年 1 月起，绝区零和鸣潮自开服月起，终末地和异环自开服月起。2025 年 7 月前共 62 个目标游戏月值已在 `2026-08-04` 逐点对照公开源。来源方说明旧平台迁移的部分 2022–2023 数据存在地区缺失，因此本站不会把那些不完整合计当作全球流水；缺失月份保持为空、折线断开，也不会用均值、插值或虚构角色补齐。详见 [来源更新记录](https://revenue.ennead.cc/changelog)。
 
 应用线时长按小时计算：
 
@@ -42,16 +42,25 @@ Apple 榜单是实时快照，不提供过去任意小时的回放。本站从 `
 ## 自动更新架构
 
 ```text
-EventBridge Scheduler → Go collector Lambda → DynamoDB 小时快照
+EventBridge（每小时） ─→ Go collector Lambda ─→ DynamoDB 小时榜快照
+EventBridge（每 6 小时）→ Go collector Lambda ─→ DynamoDB 月流水快照
 授权历史榜 adapter ────────────────────────────────┐
 自动卡池日历 adapter ───────────────→ Go API Lambda │
 浏览器 → Vercel 同源只读代理 ───────────────────────┘
 ```
 
 - Apple CN / JP / US / KR 畅销榜每小时第 8 分钟采集一次；采集对象按游戏，不依赖当前卡池日历。
+- 月流水每 6 小时第 23 分钟检查一次公开源，只覆盖成功返回且通过完整性校验的游戏；单个游戏失败时保留 DynamoDB 中上一份成功快照。网页请求不再临时抓取第三方页面。
 - 卡池 feed 和 Vercel 代理各缓存 1 分钟。新卡池进入 feed 后通常在 2 分钟内自动出现在下拉栏；即使日历稍晚发布，此前已经采集的游戏小时榜仍可按窗口重新聚合。
 - 授权历史 feed 只在查询早于本站采集起点的窗口时调用，并与 DynamoDB 实时快照按小时合并。
 - 未配置商业供应商时，实时采集仍会继续，但历史数据无法免费回溯。代码不会抓取登录页面、绕过付费权限或把密钥写入仓库。
+
+代码职责严格分层：
+
+- `backend/internal/revenue` 是流水领域模型的唯一权威，实现历史合并、共同最新月份、YTD、月环比、年度合计，以及按卡池与自然月重叠小时比例分配版本流水。
+- `backend/internal/revenuesource` 只负责读取和校验外部公开源；`backend/internal/revenuestore` 只负责 DynamoDB 持久化。
+- `backend/internal/versioncatalog` 保存完整小版本、角色、日期和证据目录，并由 Go API 与自动日历 feed 合并；TS 不再保存第二份业务数据。
+- `app/api-client.ts` 仅把后端 DTO 转换为视图模型；`app/revenue-model.ts` 只处理标签、筛选范围和图表点位，不再计算流水。
 
 供应商只需一次性适配成以下规范，之后不需要逐卡池手工更新。完整字段由 Go 类型校验，所有 URL 必须为 HTTPS，响应分别限制为 1 MiB / 2 MiB。
 
@@ -141,6 +150,6 @@ GitHub `production` environment：
 
 浏览器只能访问 Vercel 的 `/api/backend/*` allowlist。Vercel 在服务端添加代理 token；Lambda `/v1/*` 使用恒定时间比较拒绝无 token 请求，`/healthz` 仅返回无敏感信息。生产仓库不保存 AWS access key、供应商 token 或 Vercel token。
 
-AWS 使用两个 ARM64 Lambda、一个 DynamoDB 表和一个 EventBridge Scheduler；不创建 VPC、NAT、ECS、RDS、Redis、ALB、ECR、S3 或 API Gateway。免费计划仍需配置预算告警，并关注 AWS credits 与计划到期时间。
+AWS 使用两个 ARM64 Lambda、一个 DynamoDB 表和两个 EventBridge Scheduler 计划；不创建 VPC、NAT、ECS、RDS、Redis、ALB、ECR、S3 或 API Gateway。免费计划仍需配置预算告警，并关注 AWS credits 与计划到期时间。
 
 安全问题请按 [SECURITY.md](SECURITY.md) 私下报告。
