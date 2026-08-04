@@ -1,5 +1,14 @@
 import { expect, test } from "@playwright/test";
 
+test("exposes only the explicit validated backend proxy routes", async ({ request }) => {
+  const unconfigured = await request.get("/api/backend/versions");
+  expect(unconfigured.status()).toBe(503);
+  const invalid = await request.get("/api/backend/banner-metrics?game_id=hsr&start=bad&end=2026-08-05");
+  expect(invalid.status()).toBe(400);
+  const unknown = await request.get("/api/backend/unknown");
+  expect(unknown.status()).toBe(404);
+});
+
 test("switches revenue grain and locale", async ({ page }) => {
   await page.goto("/zh-CN");
   await expect(page.locator("main")).toHaveAttribute("data-hydrated", "true");
