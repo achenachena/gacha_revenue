@@ -92,6 +92,6 @@ GitHub Actions 的 `Deploy free AWS backend` workflow 使用 GitHub OIDC，不�
 | `AWS_DEPLOY_ROLE_ARN` | `arn:aws:iam::597994428399:role/gacha-revenue-free-github-deploy` |
 | `AWS_REGION` | `ap-northeast-1` |
 
-角色信任范围必须限制为 `repo:achenachena/gacha_revenue:environment:production`，并附加 [最小部署权限](infra/serverless/github-deploy-policy.json)。触发 workflow 后会幂等创建或更新所有资源、立即采集一轮数据，并在 Summary 输出 Function URL。
+角色使用 [GitHub OIDC Trust policy](infra/serverless/github-oidc-trust-policy.json) 中经过实际 token 验证的不可变仓库 ID，只允许本仓库的 `production` environment；同时附加 [最小部署权限](infra/serverless/github-deploy-policy.json)。触发 workflow 后会幂等创建或更新所有资源、立即采集一轮数据，并在 Summary 输出 Function URL。
 
 “Free plan / 免费额度”仍不是无限期免计费承诺：需要保持 AWS 预算告警开启，并关注账号的 credits 与 Free plan 到期日。部署脚本把资源规格锁定在上述范围，也不授予 GitHub 删除资源或创建其他 AWS 服务的权限。
