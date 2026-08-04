@@ -36,9 +36,12 @@ func main() {
 		os.Exit(1)
 	}
 	handler := &collectorHandler{
-		collector: applefeed.New(&http.Client{Timeout: 20 * time.Second}),
-		store:     rankstore.New(dynamodb.NewFromConfig(awsCfg), tableName),
-		logger:    logger,
+		collector: applefeed.New(&http.Client{
+			Timeout:       20 * time.Second,
+			CheckRedirect: func(_ *http.Request, _ []*http.Request) error { return http.ErrUseLastResponse },
+		}),
+		store:  rankstore.New(dynamodb.NewFromConfig(awsCfg), tableName),
+		logger: logger,
 	}
 	lambda.Start(handler.Handle)
 }

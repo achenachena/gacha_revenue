@@ -39,9 +39,15 @@ func TestBannerMetricsAggregatesVisibleRanksAndPairedAppHours(t *testing.T) {
 				"JP": {Games: map[string]int{"hsr": 8}},
 			},
 		},
+		{
+			ObservedHour: start.Add(2 * time.Hour),
+			Markets: map[string]rankstore.MarketSnapshot{
+				"CN": {Games: map[string]int{"hsr": 4}, AppLines: map[string]int{}},
+			},
+		},
 	}}
 	fallback := http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) { http.NotFound(w, nil) })
-	handler := New(reader, fallback, slog.New(slog.NewTextHandler(io.Discard, nil)))
+	handler := New(reader, fallback, slog.New(slog.NewTextHandler(io.Discard, nil)), Options{})
 	recorder := httptest.NewRecorder()
 	handler.ServeHTTP(recorder, httptest.NewRequest(http.MethodGet, "/v1/banner-metrics?game_id=hsr&start=2026-08-01&end=2026-08-03", nil))
 	if recorder.Code != http.StatusOK {
@@ -67,7 +73,7 @@ func TestBannerMetricsAggregatesVisibleRanksAndPairedAppHours(t *testing.T) {
 		t.Fatal(err)
 	}
 	cn := response.Data.Ranks["CN"]
-	if cn.Peak == nil || *cn.Peak != 5 || cn.Lowest == nil || *cn.Lowest != 5 || cn.Observed != 2 || cn.Ranked != 1 || !cn.BeyondFeed {
+	if cn.Peak == nil || *cn.Peak != 4 || cn.Lowest == nil || *cn.Lowest != 5 || cn.Observed != 3 || cn.Ranked != 2 || !cn.BeyondFeed {
 		t.Fatalf("unexpected CN range: %+v", cn)
 	}
 	jp := response.Data.Ranks["JP"]
@@ -80,16 +86,37 @@ func TestBannerMetricsAggregatesVisibleRanksAndPairedAppHours(t *testing.T) {
 			tencentHours, tencentObserved = line.Hours, line.Observed
 		}
 	}
-	if tencentHours != 1 || tencentObserved != 1 {
-		t.Fatalf("expected one paired hour above Tencent Video, got hours=%d observed=%d", tencentHours, tencentObserved)
+	if tencentHours != 2 || tencentObserved != 3 {
+		t.Fatalf("expected conclusive comparisons when either side is visible, got hours=%d observed=%d", tencentHours, tencentObserved)
 	}
 }
 
 func TestBannerMetricsRejectsOversizedWindow(t *testing.T) {
-	handler := New(fakeReader{}, http.NotFoundHandler(), slog.New(slog.NewTextHandler(io.Discard, nil)))
+	handler := New(fakeReader{}, http.NotFoundHandler(), slog.New(slog.NewTextHandler(io.Discard, nil)), Options{})
 	recorder := httptest.NewRecorder()
 	handler.ServeHTTP(recorder, httptest.NewRequest(http.MethodGet, "/v1/banner-metrics?game_id=hsr&start=2026-01-01&end=2026-08-01", nil))
 	if recorder.Code != http.StatusBadRequest {
 		t.Fatalf("expected 400, got %d", recorder.Code)
+	}
+}
+
+func TestBannerMetricsExplainsPreCollectionHistory(t *testing.T) {
+	started := time.Date(2026, 8, 4, 2, 0, 0, 0, time.UTC)
+	handler := New(fakeReader{}, http.NotFoundHandler(), slog.New(slog.NewTextHandler(io.Discard, nil)), Options{CollectionStartedAt: started})
+	recorder := httptest.NewRecorder()
+	handler.ServeHTTP(recorder, httptest.NewRequest(http.MethodGet, "/v1/banner-metrics?game_id=hsr&start=2026-04-22&end=2026-05-13", nil))
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d", recorder.Code)
+	}
+	var response struct {
+		Data struct {
+			CoverageStatus string `json:"coverage_status"`
+		} `json:"data"`
+	}
+	if err := json.NewDecoder(recorder.Body).Decode(&response); err != nil {
+		t.Fatal(err)
+	}
+	if response.Data.CoverageStatus != "historical_provider_required" {
+		t.Fatalf("unexpected coverage status: %q", response.Data.CoverageStatus)
 	}
 }

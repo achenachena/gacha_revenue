@@ -1,29 +1,27 @@
 package httpapi
 
 import (
+	"context"
 	"encoding/json"
 	"log/slog"
 	"net/http"
 	"sort"
 	"time"
 
-	"github.com/jackc/pgx/v5/pgxpool"
-
-	"gacha-revenue/backend/internal/config"
+	"gacha-revenue/backend/internal/bannercalendar"
 )
 
+type Calendar interface {
+	List(context.Context, string) ([]bannercalendar.Banner, error)
+}
+
 type Server struct {
-	config config.Config
-	logger *slog.Logger
-	db     *pgxpool.Pool
+	logger   *slog.Logger
+	calendar Calendar
 }
 
-func New(cfg config.Config, logger *slog.Logger) http.Handler {
-	return NewWithDB(cfg, logger, nil)
-}
-
-func NewWithDB(cfg config.Config, logger *slog.Logger, db *pgxpool.Pool) http.Handler {
-	server := &Server{config: cfg, logger: logger, db: db}
+func New(logger *slog.Logger, calendar Calendar) http.Handler {
+	server := &Server{logger: logger, calendar: calendar}
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /healthz", server.health)
@@ -31,10 +29,8 @@ func NewWithDB(cfg config.Config, logger *slog.Logger, db *pgxpool.Pool) http.Ha
 	mux.HandleFunc("GET /v1/public-revenue", server.publicRevenue)
 	mux.HandleFunc("GET /v1/revenue", server.revenue)
 	mux.HandleFunc("GET /v1/versions", server.versions)
-	mux.HandleFunc("GET /v1/banner-metrics", server.bannerMetrics)
-	mux.HandleFunc("GET /v1/app-line-rankings", server.appLineRankings)
 	mux.HandleFunc("GET /v1/methodology", server.methodology)
-	return server.recover(server.requestLog(server.cors(mux)))
+	return server.recover(server.requestLog(mux))
 }
 
 func (s *Server) health(w http.ResponseWriter, _ *http.Request) {
@@ -51,8 +47,8 @@ func (s *Server) revenue(w http.ResponseWriter, r *http.Request) {
 	if grain == "" {
 		grain = "month"
 	}
-	if s.db != nil {
-		s.revenueFromDB(w, r, gameID, grain)
+	if grain != "month" && grain != "year" && grain != "version" {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid grain"})
 		return
 	}
 	rows := make([]revenuePoint, 0)
@@ -66,255 +62,50 @@ func (s *Server) revenue(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) versions(w http.ResponseWriter, r *http.Request) {
 	gameID := r.URL.Query().Get("game_id")
-	if s.db != nil {
-		s.versionsFromDB(w, r, gameID)
+	if gameID != "" && !knownGame(gameID) {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid game_id"})
 		return
 	}
-	rows := make([]versionFixture, 0)
+	rows := make([]versionFixture, 0, len(versionFixtures))
 	for _, version := range versionFixtures {
 		if gameID == "" || version.GameID == gameID {
 			rows = append(rows, version)
 		}
 	}
-	writeJSON(w, http.StatusOK, map[string]any{"data": rows, "meta": responseMeta()})
-}
-
-func (s *Server) appLineRankings(w http.ResponseWriter, r *http.Request) {
-	gameID := r.URL.Query().Get("game_id")
-	appLineID := r.URL.Query().Get("app_line_id")
-	if gameID == "" || appLineID == "" {
-		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "game_id and app_line_id are required"})
-		return
-	}
-	if s.db != nil {
-		s.appLineRankingsFromDB(w, r, gameID, appLineID)
-		return
-	}
-	type rankingRow struct {
-		Rank       int     `json:"rank"`
-		BannerID   string  `json:"banner_id"`
-		Version    string  `json:"version"`
-		Phase      string  `json:"phase"`
-		Characters string  `json:"characters"`
-		StartsAt   string  `json:"starts_at"`
-		EndsAt     string  `json:"ends_at"`
-		Hours      float64 `json:"hours_above"`
-		DataStatus string  `json:"data_status"`
-		Source     string  `json:"source"`
-	}
-	rows := make([]rankingRow, 0)
-	for _, version := range versionFixtures {
-		var hours *float64
-		for _, observation := range version.AppHours {
-			if observation.AppID == appLineID {
-				hours = observation.Hours
-				break
-			}
-		}
-		if version.GameID != gameID || hours == nil {
-			continue
-		}
-		rows = append(rows, rankingRow{BannerID: version.ID, Version: version.Version, Phase: version.PhaseZh, Characters: version.CharactersZh, StartsAt: version.StartsAt, EndsAt: version.EndsAt, Hours: *hours, DataStatus: version.DataStatus, Source: version.Source})
-	}
-	sort.SliceStable(rows, func(i, j int) bool { return rows[i].Hours > rows[j].Hours })
-	for index := range rows {
-		rows[index].Rank = index + 1
-	}
-	writeJSON(w, http.StatusOK, map[string]any{"data": rows, "meta": responseMeta()})
-}
-
-func (s *Server) revenueFromDB(w http.ResponseWriter, r *http.Request, gameID, grain string) {
-	allowed := map[string]bool{"day": true, "month": true, "year": true, "version": true, "banner": true}
-	if !allowed[grain] {
-		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid grain"})
-		return
-	}
-	rows, err := s.db.Query(r.Context(), `
-		SELECT game_id, grain::text, to_char(period_start AT TIME ZONE 'UTC', 'YYYY-MM-DD'),
-		       (estimate_cny / 100000000.0)::float8,
-		       (p25_cny / 100000000.0)::float8,
-		       (p75_cny / 100000000.0)::float8,
-		       replace(confidence::text, 'B_PLUS', 'B+')
-		FROM revenue_estimates
-		WHERE ($1 = '' OR game_id = $1) AND grain = $2::estimate_grain
-		ORDER BY period_start`, gameID, grain)
-	if err != nil {
-		s.logger.Error("query revenue", "error", err)
-		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "revenue query failed"})
-		return
-	}
-	defer rows.Close()
-	data := make([]revenuePoint, 0)
-	for rows.Next() {
-		var point revenuePoint
-		if err := rows.Scan(&point.GameID, &point.Grain, &point.Period, &point.Estimate, &point.Low, &point.High, &point.Confidence); err != nil {
-			writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "revenue scan failed"})
-			return
-		}
-		data = append(data, point)
-	}
-	writeJSON(w, http.StatusOK, map[string]any{"data": data, "meta": legacyRevenueMeta()})
-}
-
-type appLineAPI struct {
-	AppID      string     `json:"app_id"`
-	NameZh     string     `json:"name_zh"`
-	NameEn     string     `json:"name_en"`
-	Hours      *float64   `json:"hours_above"`
-	DataStatus string     `json:"data_status"`
-	UpdatedAt  *time.Time `json:"updated_at"`
-}
-
-type versionAPI struct {
-	ID           string             `json:"id"`
-	GameID       string             `json:"game_id"`
-	Version      string             `json:"version"`
-	PhaseZh      string             `json:"phase_zh"`
-	PhaseEn      string             `json:"phase_en"`
-	CharactersZh string             `json:"characters_zh"`
-	CharactersEn string             `json:"characters_en"`
-	StartsAt     time.Time          `json:"starts_at"`
-	EndsAt       time.Time          `json:"ends_at"`
-	Estimate     *float64           `json:"estimate"`
-	P25          *float64           `json:"p25"`
-	P75          *float64           `json:"p75"`
-	Confidence   string             `json:"confidence"`
-	DataStatus   string             `json:"data_status"`
-	Ranks        map[string][2]*int `json:"ios_grossing_rank_range"`
-	AppHours     []appLineAPI       `json:"app_line_observations"`
-}
-
-func (s *Server) versionsFromDB(w http.ResponseWriter, r *http.Request, gameID string) {
-	rows, err := s.db.Query(r.Context(), `
-		SELECT b.id::text, v.game_id, v.version,
-		       coalesce(b.phase_zh, ''), coalesce(b.phase_en, ''),
-		       b.name_zh, b.name_en, b.starts_at, b.ends_at, b.data_status
-		FROM banners b
-		JOIN game_versions v ON v.id = b.version_id
-		WHERE ($1 = '' OR v.game_id = $1)
-		ORDER BY b.starts_at DESC`, gameID)
-	if err != nil {
-		s.logger.Error("query banners", "error", err)
-		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "banner query failed"})
-		return
-	}
-	defer rows.Close()
-	data := make([]versionAPI, 0)
-	for rows.Next() {
-		var item versionAPI
-		if err := rows.Scan(&item.ID, &item.GameID, &item.Version, &item.PhaseZh, &item.PhaseEn, &item.CharactersZh, &item.CharactersEn, &item.StartsAt, &item.EndsAt, &item.DataStatus); err != nil {
-			writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "banner scan failed"})
-			return
-		}
-		item.Confidence = "N/A"
-		item.Ranks = map[string][2]*int{"CN": {nil, nil}, "JP": {nil, nil}, "US": {nil, nil}, "KR": {nil, nil}}
-		rankRows, err := s.db.Query(r.Context(), `SELECT market, peak_rank, lowest_rank FROM banner_ios_rank_ranges WHERE banner_id=$1`, item.ID)
+	providerStatus := "not_configured"
+	if s.calendar != nil {
+		providerStatus = "connected"
+		items, err := s.calendar.List(r.Context(), gameID)
 		if err != nil {
-			writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "rank query failed"})
-			return
-		}
-		for rankRows.Next() {
-			var market string
-			var peak, low int
-			if err := rankRows.Scan(&market, &peak, &low); err != nil {
-				rankRows.Close()
-				writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "rank scan failed"})
-				return
+			providerStatus = "temporarily_unavailable"
+			s.logger.Warn("calendar provider refresh failed", "error", err)
+		} else {
+			byID := make(map[string]bool, len(rows))
+			for _, row := range rows {
+				byID[row.ID] = true
 			}
-			item.Ranks[market] = [2]*int{&peak, &low}
-		}
-		rankRows.Close()
-
-		appRows, err := s.db.Query(r.Context(), `
-			SELECT a.id, a.name_zh, a.name_en, r.hours_above::float8,
-			       coalesce(r.data_status, 'awaiting_feed'), r.data_updated_at
-			FROM app_lines a
-			LEFT JOIN banner_app_line_results r ON r.banner_id=$1 AND r.app_line_id=a.id
-			ORDER BY CASE a.id
-			  WHEN 'douyin' THEN 1 WHEN 'tencent_video' THEN 2 WHEN 'qq_music' THEN 3
-			  WHEN 'capcut_cn' THEN 4 WHEN 'netease_music' THEN 5
-			  WHEN 'baidu_netdisk' THEN 6 ELSE 7 END`, item.ID)
-		if err != nil {
-			writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "app-line query failed"})
-			return
-		}
-		for appRows.Next() {
-			var line appLineAPI
-			if err := appRows.Scan(&line.AppID, &line.NameZh, &line.NameEn, &line.Hours, &line.DataStatus, &line.UpdatedAt); err != nil {
-				appRows.Close()
-				writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "app-line scan failed"})
-				return
+			for _, item := range items {
+				if !byID[item.ID] {
+					rows = append(rows, calendarFixture(item))
+				}
 			}
-			item.AppHours = append(item.AppHours, line)
 		}
-		appRows.Close()
-		data = append(data, item)
 	}
-	writeJSON(w, http.StatusOK, map[string]any{"data": data, "meta": responseMeta()})
-}
-
-func (s *Server) appLineRankingsFromDB(w http.ResponseWriter, r *http.Request, gameID, appLineID string) {
-	rows, err := s.db.Query(r.Context(), `
-		SELECT b.id::text, v.version, coalesce(b.phase_zh, ''), b.name_zh,
-		       b.starts_at, b.ends_at, result.hours_above::float8,
-		       result.data_status, coalesce(result.source_note, '')
-		FROM banner_app_line_results result
-		JOIN banners b ON b.id=result.banner_id
-		JOIN game_versions v ON v.id=b.version_id
-		WHERE v.game_id=$1 AND result.app_line_id=$2
-		ORDER BY result.hours_above DESC, b.starts_at DESC`, gameID, appLineID)
-	if err != nil {
-		s.logger.Error("query app-line ranking", "error", err)
-		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "ranking query failed"})
-		return
-	}
-	defer rows.Close()
-	type row struct {
-		Rank       int       `json:"rank"`
-		BannerID   string    `json:"banner_id"`
-		Version    string    `json:"version"`
-		Phase      string    `json:"phase"`
-		Characters string    `json:"characters"`
-		StartsAt   time.Time `json:"starts_at"`
-		EndsAt     time.Time `json:"ends_at"`
-		Hours      float64   `json:"hours_above"`
-		DataStatus string    `json:"data_status"`
-		Source     string    `json:"source"`
-	}
-	data := make([]row, 0)
-	for rows.Next() {
-		var item row
-		if err := rows.Scan(&item.BannerID, &item.Version, &item.Phase, &item.Characters, &item.StartsAt, &item.EndsAt, &item.Hours, &item.DataStatus, &item.Source); err != nil {
-			writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "ranking scan failed"})
-			return
-		}
-		item.Rank = len(data) + 1
-		data = append(data, item)
-	}
-	writeJSON(w, http.StatusOK, map[string]any{"data": data, "meta": responseMeta()})
+	sort.SliceStable(rows, func(i, j int) bool { return rows[i].StartsAt > rows[j].StartsAt })
+	meta := responseMeta()
+	meta["calendar_provider"] = providerStatus
+	writeJSON(w, http.StatusOK, map[string]any{"data": rows, "meta": meta})
 }
 
 func (s *Server) methodology(w http.ResponseWriter, _ *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]any{
 		"data": map[string]any{
-			"version":  "2.0.0",
-			"formula":  "(licensed_store_baseline + china_android_multiplier * china_ios) * (1 + non_mobile_completion)",
-			"basis":    "gross_bookings_before_platform_fees",
+			"version":  "3.0.0",
+			"formula":  "mobile_iap = source_ios_android_ex_cn + source_ios_cn * (1 + 1.75)",
+			"basis":    "third_party_mobile_iap_estimate",
 			"excludes": []string{"advertising", "merchandise", "ip_licensing"},
 		},
 		"meta": responseMeta(),
-	})
-}
-
-func (s *Server) cors(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Access-Control-Allow-Origin", "*")
-		w.Header().Set("Access-Control-Allow-Headers", "Authorization, Content-Type")
-		if r.Method == http.MethodOptions {
-			w.WriteHeader(http.StatusNoContent)
-			return
-		}
-		next.ServeHTTP(w, r)
 	})
 }
 
@@ -354,19 +145,6 @@ func responseMeta() map[string]any {
 	}
 }
 
-// The original PostgreSQL schema stores estimates in CNY. Keep that legacy
-// endpoint correctly labelled instead of presenting those rows as the newer
-// public USD source used by the fixture/site API.
-func legacyRevenueMeta() map[string]any {
-	return map[string]any{
-		"currency":            "CNY",
-		"unit":                "hundred_million",
-		"basis":               "legacy_postgresql_model",
-		"data_status":         "licensed_feed_or_model_output",
-		"methodology_version": "2.0.0",
-	}
-}
-
 type gameFixture struct {
 	ID         string   `json:"id"`
 	NameZh     string   `json:"name_zh"`
@@ -383,6 +161,15 @@ var gameFixtures = []gameFixture{
 	{"wuwa", "鸣潮", "Wuthering Waves", "Kuro Games", []string{"ios", "android", "pc", "playstation"}, "SOURCE"},
 	{"endfield", "明日方舟：终末地", "Arknights: Endfield", "GRYPHLINE", []string{"ios", "android", "pc", "playstation"}, "SOURCE"},
 	{"nte", "异环", "Neverness to Everness", "Hotta Studio / Perfect World", []string{"ios", "android", "pc", "playstation"}, "SOURCE"},
+}
+
+func knownGame(gameID string) bool {
+	for _, game := range gameFixtures {
+		if game.ID == gameID {
+			return true
+		}
+	}
+	return false
 }
 
 type revenuePoint struct {
@@ -450,6 +237,7 @@ type versionFixture struct {
 	ID           string                      `json:"id"`
 	GameID       string                      `json:"game_id"`
 	Version      string                      `json:"version"`
+	PhaseIndex   int                         `json:"phase_index"`
 	PhaseZh      string                      `json:"phase_zh"`
 	PhaseEn      string                      `json:"phase_en"`
 	CharactersZh string                      `json:"characters_zh"`
@@ -464,6 +252,8 @@ type versionFixture struct {
 	AppHours     []fixtureAppLineObservation `json:"app_line_observations"`
 	DataStatus   string                      `json:"data_status"`
 	Source       string                      `json:"source"`
+	SourceURL    string                      `json:"source_url"`
+	SourceDate   string                      `json:"source_updated_at"`
 }
 
 type fixtureAppLineObservation struct {
@@ -477,8 +267,29 @@ type fixtureAppLineObservation struct {
 
 func number(value float64) *float64 { return &value }
 
+var appLineFixtures = []fixtureAppLineObservation{
+	{AppID: "douyin", NameZh: "抖音", NameEn: "Douyin", DataStatus: "awaiting_feed"},
+	{AppID: "tencent_video", NameZh: "腾讯视频", NameEn: "Tencent Video", DataStatus: "awaiting_feed"},
+	{AppID: "qq_music", NameZh: "QQ音乐", NameEn: "QQ Music", DataStatus: "awaiting_feed"},
+	{AppID: "capcut_cn", NameZh: "剪映", NameEn: "CapCut CN", DataStatus: "awaiting_feed"},
+	{AppID: "netease_music", NameZh: "网易云音乐", NameEn: "NetEase Cloud Music", DataStatus: "awaiting_feed"},
+	{AppID: "baidu_netdisk", NameZh: "百度网盘", NameEn: "Baidu Netdisk", DataStatus: "awaiting_feed"},
+	{AppID: "quark", NameZh: "夸克网盘", NameEn: "Quark", DataStatus: "awaiting_feed"},
+}
+
+func calendarFixture(item bannercalendar.Banner) versionFixture {
+	return versionFixture{
+		ID: item.ID, GameID: item.GameID, Version: item.Version, PhaseIndex: item.PhaseIndex,
+		PhaseZh: item.PhaseZh, PhaseEn: item.PhaseEn, CharactersZh: item.CharactersZh, CharactersEn: item.CharactersEn,
+		StartsAt: item.StartsAt, EndsAt: item.EndsAt, Confidence: "N/A",
+		Ranks:    map[string][2]*int{"CN": {nil, nil}, "JP": {nil, nil}, "US": {nil, nil}, "KR": {nil, nil}},
+		AppHours: append([]fixtureAppLineObservation(nil), appLineFixtures...), DataStatus: "public_calendar",
+		Source: "calendar_feed", SourceURL: item.SourceURL, SourceDate: item.SourceUpdatedAt,
+	}
+}
+
 var versionFixtures = []versionFixture{
-	{ID: "ww-24-cartethyia", GameID: "wuwa", Version: "2.4", PhaseZh: "卡提希娅卡池", PhaseEn: "Cartethyia banner", CharactersZh: "卡提希娅", CharactersEn: "Cartethyia", StartsAt: "2025-06-12", EndsAt: "2025-07-03", Confidence: "N/A", Ranks: map[string][2]*int{}, AppHours: []fixtureAppLineObservation{{AppID: "tencent_video", NameZh: "腾讯视频", NameEn: "Tencent Video", Hours: number(18), DataStatus: "verified_manual"}}, DataStatus: "verified_manual", Source: "product_owner_correction"},
-	{ID: "ww-31-aemeath", GameID: "wuwa", Version: "3.1", PhaseZh: "爱弥斯卡池", PhaseEn: "Aemeath banner", CharactersZh: "爱弥斯", CharactersEn: "Aemeath", StartsAt: "2026-02-05", EndsAt: "2026-02-26", Confidence: "N/A", Ranks: map[string][2]*int{}, AppHours: []fixtureAppLineObservation{{AppID: "tencent_video", NameZh: "腾讯视频", NameEn: "Tencent Video", Hours: number(15), DataStatus: "verified_manual"}}, DataStatus: "verified_manual", Source: "product_owner_correction"},
-	{ID: "hsr-32-anaxa", GameID: "hsr", Version: "3.2", PhaseZh: "下半卡池", PhaseEn: "Phase 2 banner", CharactersZh: "那刻夏", CharactersEn: "Anaxa", StartsAt: "2025-04-30", EndsAt: "2025-05-20", Confidence: "N/A", Ranks: map[string][2]*int{}, AppHours: []fixtureAppLineObservation{{AppID: "douyin", NameZh: "抖音", NameEn: "Douyin", Hours: number(0), DataStatus: "verified_manual"}}, DataStatus: "verified_manual", Source: "product_owner_correction"},
+	{ID: "ww-24-cartethyia", GameID: "wuwa", Version: "2.4", PhaseIndex: 1, PhaseZh: "上半", PhaseEn: "Phase 1", CharactersZh: "卡提希娅", CharactersEn: "Cartethyia", StartsAt: "2025-06-12", EndsAt: "2025-07-03", Confidence: "N/A", Ranks: map[string][2]*int{}, AppHours: []fixtureAppLineObservation{{AppID: "tencent_video", NameZh: "腾讯视频", NameEn: "Tencent Video", Hours: number(18), DataStatus: "verified_manual"}}, DataStatus: "verified_manual", Source: "product_owner_correction"},
+	{ID: "ww-31-aemeath", GameID: "wuwa", Version: "3.1", PhaseIndex: 1, PhaseZh: "上半", PhaseEn: "Phase 1", CharactersZh: "爱弥斯", CharactersEn: "Aemeath", StartsAt: "2026-02-05", EndsAt: "2026-02-26", Confidence: "N/A", Ranks: map[string][2]*int{}, AppHours: []fixtureAppLineObservation{{AppID: "tencent_video", NameZh: "腾讯视频", NameEn: "Tencent Video", Hours: number(15), DataStatus: "verified_manual"}}, DataStatus: "verified_manual", Source: "product_owner_correction"},
+	{ID: "hsr-32-anaxa", GameID: "hsr", Version: "3.2", PhaseIndex: 2, PhaseZh: "下半", PhaseEn: "Phase 2", CharactersZh: "那刻夏", CharactersEn: "Anaxa", StartsAt: "2025-04-30", EndsAt: "2025-05-20", Confidence: "N/A", Ranks: map[string][2]*int{}, AppHours: []fixtureAppLineObservation{{AppID: "douyin", NameZh: "抖音", NameEn: "Douyin", Hours: number(0), DataStatus: "verified_manual"}}, DataStatus: "verified_manual", Source: "product_owner_correction"},
 }

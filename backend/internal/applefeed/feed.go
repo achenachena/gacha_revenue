@@ -4,12 +4,15 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"sync"
 	"time"
 
 	"gacha-revenue/backend/internal/rankstore"
 )
+
+const maxResponseBytes = 2 << 20
 
 var GameStoreIDs = map[string]map[string]string{
 	"genshin":  {"CN": "1467190251", "JP": "1517783697", "US": "1517783697", "KR": "1517783697"},
@@ -102,12 +105,19 @@ func (c *Collector) collectMarket(ctx context.Context, market, country string) (
 	if response.StatusCode != http.StatusOK {
 		return rankstore.MarketSnapshot{}, fmt.Errorf("Apple %s feed returned HTTP %d", market, response.StatusCode)
 	}
+	body, err := io.ReadAll(io.LimitReader(response.Body, maxResponseBytes+1))
+	if err != nil {
+		return rankstore.MarketSnapshot{}, fmt.Errorf("read Apple %s feed: %w", market, err)
+	}
+	if len(body) > maxResponseBytes {
+		return rankstore.MarketSnapshot{}, fmt.Errorf("Apple %s feed exceeded %d bytes", market, maxResponseBytes)
+	}
 	var payload appleFeed
-	if err := json.NewDecoder(response.Body).Decode(&payload); err != nil {
+	if err := json.Unmarshal(body, &payload); err != nil {
 		return rankstore.MarketSnapshot{}, fmt.Errorf("decode Apple %s feed: %w", market, err)
 	}
-	if len(payload.Feed.Entries) == 0 {
-		return rankstore.MarketSnapshot{}, fmt.Errorf("Apple %s feed was empty", market)
+	if len(payload.Feed.Entries) == 0 || len(payload.Feed.Entries) > 100 {
+		return rankstore.MarketSnapshot{}, fmt.Errorf("Apple %s feed returned an invalid entry count", market)
 	}
 
 	ranks := make(map[string]int, len(payload.Feed.Entries))

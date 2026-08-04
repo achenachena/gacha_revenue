@@ -10,15 +10,18 @@ import (
 	"net/url"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/aws/aws-lambda-go/events"
 	"github.com/aws/aws-lambda-go/lambda"
 	awsconfig "github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
 
-	"gacha-revenue/backend/internal/config"
+	"gacha-revenue/backend/internal/bannercalendar"
 	"gacha-revenue/backend/internal/httpapi"
+	"gacha-revenue/backend/internal/rankfeed"
 	"gacha-revenue/backend/internal/rankstore"
+	"gacha-revenue/backend/internal/security"
 	"gacha-revenue/backend/internal/serverlessapi"
 )
 
@@ -30,8 +33,32 @@ func main() {
 	ctx := context.Background()
 	logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
 	tableName := os.Getenv("DYNAMODB_TABLE")
-	if tableName == "" {
-		logger.Error("DYNAMODB_TABLE is required")
+	proxyToken := os.Getenv("PROXY_TOKEN")
+	if tableName == "" || !security.ValidProxyToken(proxyToken) {
+		logger.Error("DYNAMODB_TABLE and a 32-256 byte PROXY_TOKEN are required")
+		os.Exit(1)
+	}
+	collectionStartedAt, err := time.Parse(time.RFC3339, os.Getenv("RANK_COLLECTION_STARTED_AT"))
+	if err != nil {
+		logger.Error("RANK_COLLECTION_STARTED_AT must be RFC3339", "error", err)
+		os.Exit(1)
+	}
+	providerHTTPClient := &http.Client{
+		Timeout:       15 * time.Second,
+		CheckRedirect: func(_ *http.Request, _ []*http.Request) error { return http.ErrUseLastResponse },
+	}
+	calendar, err := bannercalendar.New(
+		providerHTTPClient,
+		os.Getenv("CALENDAR_FEED_URL"),
+		os.Getenv("CALENDAR_FEED_TOKEN"),
+	)
+	if err != nil {
+		logger.Error("configure calendar feed", "error", err)
+		os.Exit(1)
+	}
+	history, err := rankfeed.New(providerHTTPClient, os.Getenv("RANK_HISTORY_FEED_URL"), os.Getenv("RANK_HISTORY_FEED_TOKEN"))
+	if err != nil {
+		logger.Error("configure rank history feed", "error", err)
 		os.Exit(1)
 	}
 	awsCfg, err := awsconfig.LoadDefaultConfig(ctx)
@@ -40,8 +67,9 @@ func main() {
 		os.Exit(1)
 	}
 	store := rankstore.New(dynamodb.NewFromConfig(awsCfg), tableName)
-	fallback := httpapi.New(config.Config{}, logger)
-	lambda.Start((&lambdaHandler{http: serverlessapi.New(store, fallback, logger)}).Invoke)
+	fallback := httpapi.New(logger, calendar)
+	api := serverlessapi.New(store, fallback, logger, serverlessapi.Options{CollectionStartedAt: collectionStartedAt, History: history})
+	lambda.Start((&lambdaHandler{http: security.RequireProxyToken(api, proxyToken)}).Invoke)
 }
 
 func (h *lambdaHandler) Invoke(ctx context.Context, event events.LambdaFunctionURLRequest) (events.LambdaFunctionURLResponse, error) {

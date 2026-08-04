@@ -43,17 +43,22 @@ var publicRevenueCache struct {
 	fetchedAt time.Time
 }
 
+var fixtureRevenueObservedAt = time.Date(2026, 8, 3, 0, 0, 0, 0, time.UTC)
+
 func (s *Server) publicRevenue(w http.ResponseWriter, r *http.Request) {
 	publicRevenueCache.RLock()
-	if len(publicRevenueCache.data) > 0 && time.Since(publicRevenueCache.fetchedAt) < 6*time.Hour {
-		data, fetchedAt := publicRevenueCache.data, publicRevenueCache.fetchedAt
+	staleData, staleFetchedAt := publicRevenueCache.data, publicRevenueCache.fetchedAt
+	if len(staleData) > 0 && time.Since(staleFetchedAt) < 6*time.Hour {
 		publicRevenueCache.RUnlock()
-		writePublicRevenue(w, data, fetchedAt, false)
+		writePublicRevenue(w, staleData, staleFetchedAt, false)
 		return
 	}
 	publicRevenueCache.RUnlock()
 
-	client := &http.Client{Timeout: 20 * time.Second}
+	client := &http.Client{
+		Timeout:       20 * time.Second,
+		CheckRedirect: func(_ *http.Request, _ []*http.Request) error { return http.ErrUseLastResponse },
+	}
 	type fetchResult struct {
 		game publicRevenueGame
 		err  error
@@ -73,7 +78,11 @@ func (s *Server) publicRevenue(w http.ResponseWriter, r *http.Request) {
 	for _, result := range results {
 		if result.err != nil {
 			s.logger.Warn("public revenue refresh failed", "game_id", result.game.GameID, "error", result.err)
-			writePublicRevenue(w, fixturePublicRevenue(), time.Now().UTC(), true)
+			if len(staleData) > 0 {
+				writePublicRevenue(w, staleData, staleFetchedAt, true)
+			} else {
+				writePublicRevenue(w, fixturePublicRevenue(), fixtureRevenueObservedAt, true)
+			}
 			return
 		}
 		data = append(data, result.game)
@@ -100,9 +109,12 @@ func fetchPublicRevenue(r *http.Request, client *http.Client, slug string) ([]pu
 	if response.StatusCode != http.StatusOK {
 		return nil, sourceURL, fmt.Errorf("source returned HTTP %d", response.StatusCode)
 	}
-	body, err := io.ReadAll(io.LimitReader(response.Body, 8<<20))
+	body, err := io.ReadAll(io.LimitReader(response.Body, (8<<20)+1))
 	if err != nil {
 		return nil, sourceURL, err
+	}
+	if len(body) > 8<<20 {
+		return nil, sourceURL, fmt.Errorf("source response exceeded 8 MiB")
 	}
 	history, err := parsePublicRevenueSource(string(body))
 	return history, sourceURL, err
@@ -162,92 +174,4 @@ func writePublicRevenue(w http.ResponseWriter, data []publicRevenueGame, fetched
 			"fallback_snapshot":        fallback,
 		},
 	})
-}
-
-func (s *Server) bannerMetrics(w http.ResponseWriter, r *http.Request) {
-	if s.db == nil {
-		writeJSON(w, http.StatusServiceUnavailable, map[string]string{"error": "rank database is unavailable"})
-		return
-	}
-	gameID := r.URL.Query().Get("game_id")
-	start, startErr := time.Parse("2006-01-02", r.URL.Query().Get("start"))
-	end, endErr := time.Parse("2006-01-02", r.URL.Query().Get("end"))
-	if gameID == "" || startErr != nil || endErr != nil || !end.After(start) {
-		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "valid game_id, start and end are required"})
-		return
-	}
-
-	rankRows, err := s.db.Query(r.Context(), `
-		WITH preferred AS (
-		  SELECT market, observed_hour, grossing_rank,
-		         row_number() OVER (
-		           PARTITION BY market, observed_hour
-		           ORDER BY CASE source WHEN 'authorized_rank_feed' THEN 1 WHEN 'apple_public_feed' THEN 2 ELSE 3 END
-		         ) AS precedence
-		  FROM ios_hourly_rank_snapshots
-		  WHERE subject_type='game' AND subject_id=$1 AND observed_hour >= $2 AND observed_hour < $3
-		)
-		SELECT market, min(grossing_rank), max(grossing_rank), count(*)
-		FROM preferred WHERE precedence=1
-		GROUP BY market ORDER BY market`, gameID, start, end)
-	if err != nil {
-		s.logger.Error("query banner metrics ranks", "error", err)
-		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "rank query failed"})
-		return
-	}
-	ranks := map[string]any{}
-	for rankRows.Next() {
-		var market string
-		var peak, lowest, observed int
-		if err := rankRows.Scan(&market, &peak, &lowest, &observed); err != nil {
-			rankRows.Close()
-			writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "rank scan failed"})
-			return
-		}
-		ranks[market] = map[string]any{"peak_rank": peak, "lowest_rank": lowest, "observed_hours": observed, "ranked_hours": observed, "lowest_is_beyond_feed": false, "feed_limit": 100}
-	}
-	rankRows.Close()
-
-	lineRows, err := s.db.Query(r.Context(), `
-		WITH paired AS (
-		  SELECT a.id, game_rank.observed_hour,
-		         game_rank.grossing_rank AS game_rank,
-		         app_rank.grossing_rank AS app_rank,
-		         row_number() OVER (
-		           PARTITION BY a.id, game_rank.observed_hour
-		           ORDER BY CASE game_rank.source WHEN 'authorized_rank_feed' THEN 1 WHEN 'apple_public_feed' THEN 2 ELSE 3 END
-		         ) AS precedence
-		  FROM app_lines a
-		  JOIN ios_hourly_rank_snapshots game_rank
-		    ON game_rank.subject_type='game' AND game_rank.subject_id=$1 AND game_rank.market='CN'
-		   AND game_rank.observed_hour >= $2 AND game_rank.observed_hour < $3
-		  JOIN ios_hourly_rank_snapshots app_rank
-		    ON app_rank.subject_type='app_line' AND app_rank.subject_id=a.id AND app_rank.market='CN'
-		   AND app_rank.observed_hour=game_rank.observed_hour AND app_rank.source=game_rank.source
-		)
-		SELECT a.id,
-		       count(*) FILTER (WHERE paired.game_rank < paired.app_rank),
-		       count(paired.observed_hour), max(paired.observed_hour)
-		FROM app_lines a
-		LEFT JOIN paired ON paired.id=a.id AND paired.precedence=1
-		GROUP BY a.id ORDER BY a.id`, gameID, start, end)
-	if err != nil {
-		s.logger.Error("query banner metrics app lines", "error", err)
-		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "app-line query failed"})
-		return
-	}
-	lines := make([]map[string]any, 0, 7)
-	for lineRows.Next() {
-		var appID string
-		var hours, observed int
-		var updatedAt *time.Time
-		if err := lineRows.Scan(&appID, &hours, &observed, &updatedAt); err != nil {
-			lineRows.Close()
-			writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "app-line scan failed"})
-			return
-		}
-		lines = append(lines, map[string]any{"app_id": appID, "hours_above": hours, "observed_hours": observed, "updated_at": updatedAt})
-	}
-	lineRows.Close()
-	writeJSON(w, http.StatusOK, map[string]any{"data": map[string]any{"ranks": ranks, "app_line_observations": lines, "source": "apple_public_feed", "phase_revenue": nil}, "meta": map[string]any{"game_id": gameID, "start": start, "end": end}})
 }
