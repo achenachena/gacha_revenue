@@ -194,9 +194,21 @@ function normalizeVersions(payload: VersionsResponse): VersionDetail[] {
   });
 }
 
-export function mergeRevenue(current: Game[], payload: PublicRevenueResponse, update: (game: Game, history: RevenueMonth[]) => Game) {
+export function mergeRevenue(
+  current: Game[],
+  payload: PublicRevenueResponse,
+  update: (game: Game, history: RevenueMonth[], period?: Pick<RevenueMonth, "year" | "month">) => Game,
+) {
+  const period = payload.data
+    ?.flatMap((item) => item.history)
+    .reduce<Pick<RevenueMonth, "year" | "month"> | undefined>((latest, item) => {
+      if (!latest || item.year > latest.year || (item.year === latest.year && item.month > latest.month)) {
+        return { year: item.year, month: item.month };
+      }
+      return latest;
+    }, undefined);
   return current.map((game) => {
     const replacement = payload.data?.find((item) => item.game_id === game.id);
-    return replacement?.history.length ? update(game, replacement.history) : game;
+    return replacement?.history.length ? update(game, replacement.history, period) : update(game, game.revenueHistory, period);
   });
 }

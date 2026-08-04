@@ -14,6 +14,12 @@ test("switches revenue grain and locale", async ({ page }) => {
   await expect(page.locator("main")).toHaveAttribute("data-hydrated", "true");
   await expect(page.getByRole("heading", { name: "2026 年 6 月移动端流水估算" })).toBeVisible();
   await expect(page.getByText("$128.9M")).toBeVisible();
+  const activeCard = page.locator(".game-card[aria-pressed='true']");
+  await expect(activeCard).toContainText("鸣潮");
+  await expect(activeCard).toContainText("$34.0M");
+  await expect(page.locator(".game-card").filter({ hasText: "异环" })).toContainText("$13.9M");
+
+  await page.locator(".game-card").filter({ hasText: "崩坏：星穹铁道" }).click();
   await expect(page.getByText("$28.5M").first()).toBeVisible();
   await expect(page.getByText("$58.1M").first()).toBeVisible();
   await page.getByRole("button", { name: "按年" }).click();
@@ -22,6 +28,28 @@ test("switches revenue grain and locale", async ({ page }) => {
   await page.getByRole("link", { name: "EN", exact: true }).click();
   await expect(page).toHaveURL(/\/en$/);
   await expect(page.getByRole("heading", { name: "June 2026 mobile revenue estimates" })).toBeVisible();
+});
+
+test("keeps overview text clear and lets users expand phase history", async ({ page }) => {
+  await page.goto("/zh-CN");
+  const activeCard = page.locator(".game-card[aria-pressed='true']");
+  const cardFoot = activeCard.locator(".card-foot");
+  const miniTrend = activeCard.locator(".mini-trend");
+  const [footBox, trendBox] = await Promise.all([cardFoot.boundingBox(), miniTrend.boundingBox()]);
+  expect(footBox).not.toBeNull();
+  expect(trendBox).not.toBeNull();
+  expect((footBox?.y ?? 0) + (footBox?.height ?? 0)).toBeLessThanOrEqual(trendBox?.y ?? 0);
+
+  await page.getByRole("button", { name: "按版本" }).click();
+  const range = page.getByLabel("版本显示范围");
+  await expect(range).toHaveValue("4");
+  await expect(page.getByTestId("trend-point")).toHaveCount(4);
+  await expect(page.getByText("3.3上", { exact: true })).toBeVisible();
+  await expect(page.getByText("3.4下", { exact: true })).toBeVisible();
+
+  await range.selectOption("all");
+  const allPointCount = await page.getByTestId("trend-point").count();
+  expect(allPointCount).toBeGreaterThan(4);
 });
 
 test("compares games and opens version intelligence", async ({ page }) => {
