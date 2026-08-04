@@ -75,6 +75,12 @@ func (h *lambdaHandler) Invoke(ctx context.Context, event events.LambdaFunctionU
 	}
 	headers := make(map[string]string, len(response.Header))
 	for key, values := range response.Header {
+		// Function URL CORS is configured at the AWS edge. Forwarding the
+		// application's CORS headers as well produces a duplicated, invalid
+		// Access-Control-Allow-Origin value in browsers.
+		if strings.HasPrefix(strings.ToLower(key), "access-control-") {
+			continue
+		}
 		if len(values) > 0 {
 			headers[key] = values[0]
 		}
