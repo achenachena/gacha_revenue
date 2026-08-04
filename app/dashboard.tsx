@@ -3,27 +3,26 @@
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import {
   appLines,
-  games,
-  revenueSource,
-  updateGameRevenue,
-  versionDetails,
+  gameVisuals,
   type Game,
   type GameId,
   type Locale,
   type AppLineId,
+  type MetricEvidence,
   type VersionDetail,
 } from "./data";
-import { historicalRevenueSource } from "./revenue-history";
 import {
   applyBannerMetrics,
   loadExchangeRate,
   loadBannerMetricSet,
   loadBannerMetrics,
+  loadMethodology,
   loadPublicRevenue,
   loadVersions,
-  mergeRevenue,
   type BannerMetricsData,
   type ExchangeRateData,
+  type MethodologyData,
+  type PublicRevenueData,
 } from "./api-client";
 import {
   buildMonthlyRevenueSeries,
@@ -34,23 +33,13 @@ import {
   highestYTDGameId,
   latestRevenuePeriod,
   sortVersions,
-  versionPhaseKey,
+  type RevenuePeriod,
   type VersionRange,
 } from "./revenue-model";
 
 type Period = "month" | "year" | "version";
 
 const subscribeToHydration = () => () => {};
-
-const defaultExchangeRate: ExchangeRateData = {
-  date: "2026-08-03",
-  base: "USD",
-  quote: "CNY",
-  rate: 6.7526,
-  provider: "European Central Bank via Frankfurter",
-  source_url: "https://api.frankfurter.dev/v2/rate/USD/CNY?providers=ECB",
-  fallback: true,
-};
 
 const copy = {
   "zh-CN": {
@@ -126,11 +115,15 @@ const copy = {
 	pendingCollection: "卡池尚未开始，开始后按小时自动更新",
 	collectionGap: "观察窗口内暂无可用快照",
 	observedCoverage: "已按小时自动观测",
+    historicalVideoSummary: "公开视频历史汇总核验（非原始小时快照）",
+    unverifiedBlank: "未能核验，留空",
     hours: "小时",
     rankNote: "峰值 = 观察窗口内最小名次；最低 = 最大可见名次。Apple 公共 feed 当前返回 Top 100，掉出范围时不会伪造精确名次。",
     appLineNote: "每个小时比较一次中国区畅销总榜；当游戏名次小于应用名次时，累计 1 小时。",
     characterNote: "每条记录按独立上半 / 下半开放窗口统计。0 小时只在已有观测时表示确实未超过；暂无覆盖表示采集启用前的历史小时仍需授权 API 回填，二者严格区分。",
     correctionSource: "已核验历史记录",
+    primaryEvidence: "全数据观察",
+    crossCheckEvidence: "黑衣侦探 / 复核来源",
     licensedSource: "授权排名 feed",
     appleSource: "Apple 畅销榜 RSS 自动观测",
     calendarSource: "卡池日历来源",
@@ -144,22 +137,6 @@ const copy = {
     versionAndBanner: "版本 / 卡池角色",
     noRankingData: "该游戏在此应用线下暂无已核验观测；不会用未知值参与排名。",
     methodologyTitle: "流水估算公式",
-    storeFormulaTitle: "月流水公开口径",
-    totalFormulaTitle: "中国安卓补全",
-    versionFormulaTitle: "上下半卡池归属",
-    hoursFormulaTitle: "应用线时长",
-    storeFormula: "M[g,m] = ST(iOS非中国) + ST(Android非中国) + CN[g,m]",
-    totalFormula: "CN[g,m] = ST(iOS中国) × (1 + 1.75)",
-    versionFormula: "R[g,p] = Σm M[g,m] × W[g,p,m] / W[g,m]",
-    hoursFormula: "H[g,v,a] = Σ 1(rank_g,τ < rank_a,τ) × Δτ",
-    definitions: [
-      ["M", "直接使用来源发布的美元移动端估算，不添加 PC、主机或官网直充。"],
-      ["1.75", "GachaRevenue 默认的中国 Android / 中国 iOS 倍率；它是公开源假设，不是审计事实。"],
-      ["W", "小时权重为各国 iOS 畅销名次的加权 rank^-0.85；月内观测覆盖不足 80% 时不输出卡池流水。"],
-      ["R[g,p]", "按上半 / 下半精确开放时间切分；跨月分别在各月内分配，避免平均摊平卡池爆发。"],
-      ["FX", "人民币仅用于展示：美元估算 × ECB 当日 USD/CNY 参考汇率；底层来源值仍以美元保存。"],
-    ],
-    excludes: "口径：第三方移动端 IAP 市场估算；不含 PC、主机、广告、电商周边与 IP 授权。",
     sources: "数据源说明",
     historicalSource: "GACHAREVENUE 历史数据",
     sourceChangelog: "来源更新记录",
@@ -242,11 +219,15 @@ const copy = {
 	pendingCollection: "Banner has not started; hourly updates begin automatically",
 	collectionGap: "No usable snapshot in this window",
 	observedCoverage: "Automatically observed hourly",
+    historicalVideoSummary: "Verified public-video historical summary (not raw hourly snapshots)",
+    unverifiedBlank: "Unverified; left blank",
     hours: "hours",
     rankNote: "Peak is the minimum rank and lowest is the worst visible rank. Apple's public feed currently returns the Top 100; exact ranks outside it are never invented.",
     appLineNote: "China overall-grossing ranks are compared hourly; one hour is added whenever the game rank is smaller than the app rank.",
     characterNote: "Each row uses the exact phase window. Zero only means genuinely never above when observations exist; no coverage means pre-collector history still needs licensed API backfill.",
     correctionSource: "Verified historical record",
+    primaryEvidence: "Full Data Observation",
+    crossCheckEvidence: "Black Detective / cross-check",
     licensedSource: "Licensed rank feed",
     appleSource: "Automated Apple grossing RSS",
     calendarSource: "Banner calendar source",
@@ -260,22 +241,6 @@ const copy = {
     versionAndBanner: "Version / character banner",
     noRankingData: "No verified observation for this game and app line; unknown values are excluded from ranking.",
     methodologyTitle: "Revenue estimation formulas",
-    storeFormulaTitle: "Published monthly basis",
-    totalFormulaTitle: "China Android completion",
-    versionFormulaTitle: "Phase attribution",
-    hoursFormulaTitle: "App-line hours",
-    storeFormula: "M[g,m] = ST(iOS ex-CN) + ST(Android ex-CN) + CN[g,m]",
-    totalFormula: "CN[g,m] = ST(iOS CN) × (1 + 1.75)",
-    versionFormula: "R[g,p] = Σm M[g,m] × W[g,p,m] / W[g,m]",
-    hoursFormula: "H[g,v,a] = Σ 1(rank_g,τ < rank_a,τ) × Δτ",
-    definitions: [
-      ["M", "Uses source-published USD mobile estimates directly; no second FX conversion or PC / console uplift."],
-      ["1.75", "GachaRevenue's default China Android / China iOS assumption, not audited revenue."],
-      ["W", "Uses market-weighted rank^-0.85 when hourly coverage is complete; otherwise uses the phase's exact overlap share of each published month."],
-      ["R[g,p]", "Uses exact phase timestamps and allocates each overlapping month separately instead of averaging banner spikes."],
-      ["FX", "Chinese display only: USD estimate × the ECB daily USD/CNY reference rate; source values remain stored in USD."],
-    ],
-    excludes: "Basis: third-party mobile IAP estimates; excludes PC, console, ads, merchandise, and IP licensing.",
     sources: "Source note",
     historicalSource: "GACHAREVENUE history",
     sourceChangelog: "Source changelog",
@@ -288,7 +253,7 @@ const copy = {
 } as const;
 
 function formatMoney(value: number | null, locale: Locale, exchangeRate: number) {
-  if (value === null) return "—";
+  if (value === null || (locale === "zh-CN" && exchangeRate <= 0)) return "—";
   return locale === "zh-CN" ? `¥${((value * exchangeRate) / 100).toFixed(2)}亿` : `$${value.toFixed(1)}M`;
 }
 
@@ -445,11 +410,50 @@ const marketNames: Record<"CN" | "JP" | "US" | "KR", Record<Locale, string>> = {
   KR: { "zh-CN": "韩国", en: "South Korea" },
 };
 
+const loadingGames = (Object.entries(gameVisuals) as Array<[GameId, (typeof gameVisuals)[GameId]]>).map(([id, visual]): Game => ({
+  id,
+  sourceSlug: "",
+  launchDate: "",
+  shortName: visual.shortName,
+  name: { "zh-CN": "", en: "" },
+  publisher: "",
+  color: visual.color,
+  pale: visual.pale,
+  currentMonth: null,
+  currentMonthRange: null,
+  ytd: null,
+  change: null,
+  confidence: "N/A",
+  yearly: [],
+  monthly: [],
+  revenueHistory: [],
+  sourceUrl: "",
+  sourceFetchedAt: "",
+  sourceStatus: "loading",
+}));
+
+function EvidenceLinks({ evidence, locale, primaryLabel, crossCheckLabel }: {
+  evidence: MetricEvidence;
+  locale: Locale;
+  primaryLabel: string;
+  crossCheckLabel: string;
+}) {
+  return (
+    <span className="evidence-links">
+      <a href={evidence.primaryUrl} target="_blank" rel="noreferrer">{primaryLabel} ↗</a>
+      <a href={evidence.crossCheckUrl} target="_blank" rel="noreferrer">{crossCheckLabel} ↗</a>
+      <small>{evidence.note[locale]}</small>
+    </span>
+  );
+}
+
 export default function Dashboard({ locale }: { locale: Locale }) {
   const t = copy[locale];
   const hydrated = useSyncExternalStore(subscribeToHydration, () => true, () => false);
-  const [gameData, setGameData] = useState<Game[]>(games);
-  const [selectedGame, setSelectedGame] = useState<GameId>(() => highestYTDGameId(games));
+  const [gameData, setGameData] = useState<Game[]>(loadingGames);
+  const [selectedGame, setSelectedGame] = useState<GameId>("genshin");
+  const [revenuePeriod, setRevenuePeriod] = useState<RevenuePeriod | null>(null);
+  const [revenueTotals, setRevenueTotals] = useState<PublicRevenueData["totals"]>({ latest: 0, ytd: 0, coveredGames: 0, games: loadingGames.length });
   const userSelectedGame = useRef(false);
   const [period, setPeriod] = useState<Period>("month");
   const [versionRange, setVersionRange] = useState<(VersionRange & { gameId: GameId }) | null>(null);
@@ -458,18 +462,20 @@ export default function Dashboard({ locale }: { locale: Locale }) {
   const [selectedVersionId, setSelectedVersionId] = useState("hsr-44-p1");
   const [rankingGame, setRankingGame] = useState<GameId>("wuwa");
   const [rankingApp, setRankingApp] = useState<AppLineId>("tencent_video");
-  const [versionCatalog, setVersionCatalog] = useState<VersionDetail[]>(versionDetails);
+  const [versionCatalog, setVersionCatalog] = useState<VersionDetail[]>([]);
   const [metricsByVersion, setMetricsByVersion] = useState<Record<string, BannerMetricsData>>({});
-  const [exchangeRate, setExchangeRate] = useState<ExchangeRateData>(defaultExchangeRate);
+  const [exchangeRate, setExchangeRate] = useState<ExchangeRateData | null>(null);
+  const [methodology, setMethodology] = useState<MethodologyData | null>(null);
 
   useEffect(() => {
     const controller = new AbortController();
     loadPublicRevenue(controller.signal)
       .then((payload) => {
-        if (!payload.data?.length) return;
-        const merged = mergeRevenue(games, payload, updateGameRevenue);
-        setGameData(merged);
-        if (!userSelectedGame.current) setSelectedGame(highestYTDGameId(merged));
+        if (!payload.games.length) return;
+        setGameData(payload.games);
+        setRevenuePeriod(payload.latestPeriod);
+        setRevenueTotals(payload.totals);
+        if (!userSelectedGame.current) setSelectedGame(highestYTDGameId(payload.games));
       })
       .catch((error: unknown) => {
         if (error instanceof DOMException && error.name === "AbortError") return;
@@ -493,15 +499,26 @@ export default function Dashboard({ locale }: { locale: Locale }) {
 
   useEffect(() => {
     const controller = new AbortController();
+    loadMethodology(controller.signal)
+      .then((value) => {
+        if (value) setMethodology(value);
+      })
+      .catch((error: unknown) => {
+        if (error instanceof DOMException && error.name === "AbortError") return;
+        console.error("Unable to load backend methodology", error);
+      });
+    return () => controller.abort();
+  }, []);
+
+  useEffect(() => {
+    const controller = new AbortController();
     loadVersions(controller.signal)
       .then((normalized) => {
         if (normalized.length) {
-          setVersionCatalog((current) => {
-            const byPhase = new Map(normalized.map((item) => [versionPhaseKey(item), item]));
-            const merged = current.map((item) => byPhase.get(versionPhaseKey(item)) ?? item);
-            const existing = new Set(merged.map(versionPhaseKey));
-            return [...merged, ...normalized.filter((item) => !existing.has(versionPhaseKey(item)))];
-          });
+          setVersionCatalog(normalized);
+          setSelectedVersionId((current) => normalized.some((item) => item.id === current)
+            ? current
+            : normalized.filter((item) => item.gameId === "hsr").sort((a, b) => sortVersions(b, a))[0]?.id ?? "");
         }
       })
       .catch((error: unknown) => {
@@ -568,7 +585,8 @@ export default function Dashboard({ locale }: { locale: Locale }) {
   );
 
   const activeGame = gameData.find((game) => game.id === selectedGame) ?? gameData[0];
-  const sourcePeriod = latestRevenuePeriod(gameData);
+  const displayExchangeRate = locale === "zh-CN" ? exchangeRate?.rate ?? 0 : 1;
+  const sourcePeriod = revenuePeriod ?? latestRevenuePeriod(gameData);
   const sourceYear = sourcePeriod?.year ?? new Date().getUTCFullYear();
   const sourceMonth = sourcePeriod?.month ?? 1;
   const sourceMonthName = locale === "zh-CN"
@@ -604,18 +622,20 @@ export default function Dashboard({ locale }: { locale: Locale }) {
   const selectedVersion = visibleVersions.find((version) => version.id === selectedVersionId) ?? visibleVersions[0];
   const comparisonGames = gameData.filter((game) => compareIds.includes(game.id) && game.ytd !== null);
   const compareTotal = comparisonGames.reduce((sum, game) => sum + (game.ytd ?? 0), 0);
-  const monthlyTotal = gameData.reduce((sum, game) => sum + (game.currentMonth ?? 0), 0);
-  const ytdTotal = gameData.reduce((sum, game) => sum + (game.ytd ?? 0), 0);
-  const modelledGameCount = gameData.filter((game) => game.currentMonth !== null).length;
+  const monthlyTotal = revenueTotals.latest;
+  const ytdTotal = revenueTotals.ytd;
+  const modelledGameCount = revenueTotals.coveredGames;
   const coverageLabel = (version: VersionDetail) => {
     switch (version.coverageStatus) {
       case "historical_provider_required": return t.historicalRequired;
       case "pending_collection": return t.pendingCollection;
       case "collection_gap": return t.collectionGap;
       case "observed": return t.observedCoverage;
+      case "verified_historical_summary": return t.historicalVideoSummary;
       default: return t.awaitingFeed;
     }
   };
+  const missingMetricLabel = (version: VersionDetail) => version.coverageStatus === "verified_historical_summary" ? t.unverifiedBlank : coverageLabel(version);
   const versionSourceLabel = (version: VersionDetail) => {
     if (version.dataStatus === "licensed_feed") return t.licensedSource;
     if (version.dataStatus === "apple_public_feed") return t.appleSource;
@@ -670,8 +690,8 @@ export default function Dashboard({ locale }: { locale: Locale }) {
     };
   }, [trend]);
   const chartValues = useMemo(
-    () => trend.values.map((value) => value === null ? null : displayValue(value, locale, exchangeRate.rate)),
-    [exchangeRate.rate, locale, trend.values],
+    () => trend.values.map((value) => value === null ? null : displayValue(value, locale, displayExchangeRate)),
+    [displayExchangeRate, locale, trend.values],
   );
 
   const setRangeBoundary = (boundary: "startId" | "endId", id: string) => {
@@ -750,12 +770,12 @@ export default function Dashboard({ locale }: { locale: Locale }) {
           <p className="section-kicker">OVERVIEW · {t.update}</p>
           <h1>{overviewTitle}</h1>
           <p>{t.overviewUnit}</p>
-          <p className="overview-source-note">{sourceDelayMessage} {locale === "zh-CN" && `${t.fxNote}：${exchangeRate.rate.toFixed(4)}（${exchangeRate.date}${exchangeRate.fallback ? "，缓存值" : ""}）。`}</p>
+          <p className="overview-source-note">{sourceDelayMessage} {locale === "zh-CN" && exchangeRate && `${t.fxNote}：${exchangeRate.rate.toFixed(4)}（${exchangeRate.date}${exchangeRate.fallback ? "，缓存值" : ""}）。`}</p>
         </div>
         <div className="overview-kpis">
-          <div><span>{ytdLabel} {locale === "zh-CN" ? "合计" : "total"}</span><strong>{formatMoney(ytdTotal, locale, exchangeRate.rate)}</strong></div>
-          <div><span>{monthTotalLabel}</span><strong>{formatMoney(monthlyTotal, locale, exchangeRate.rate)}</strong></div>
-          <div><span>{t.observed}</span><strong>{modelledGameCount} / {gameData.length}</strong></div>
+          <div><span>{ytdLabel} {locale === "zh-CN" ? "合计" : "total"}</span><strong>{formatMoney(ytdTotal, locale, displayExchangeRate)}</strong></div>
+          <div><span>{monthTotalLabel}</span><strong>{formatMoney(monthlyTotal, locale, displayExchangeRate)}</strong></div>
+          <div><span>{t.observed}</span><strong>{modelledGameCount} / {revenueTotals.games}</strong></div>
         </div>
       </section>
 
@@ -783,11 +803,11 @@ export default function Dashboard({ locale }: { locale: Locale }) {
               ) : (
                 <>
                   <div className="card-money">
-                    <strong>{formatMoney(game.ytd, locale, exchangeRate.rate)}</strong>
+                    <strong>{formatMoney(game.ytd, locale, displayExchangeRate)}</strong>
                     <span>{ytdLabel}</span>
                   </div>
                   <div className="card-foot">
-                    <span>{currentMonthLabel} <b>{formatMoney(game.currentMonth, locale, exchangeRate.rate)}</b></span>
+                    <span>{currentMonthLabel} <b>{formatMoney(game.currentMonth, locale, displayExchangeRate)}</b></span>
                     <span className={game.change && game.change > 0 ? "positive" : "negative"}>{game.change === null ? "—" : `${game.change > 0 ? "+" : ""}${game.change.toFixed(1)}%`}</span>
                   </div>
                   <MiniTrend values={game.monthly} color={game.color} />
@@ -859,9 +879,9 @@ export default function Dashboard({ locale }: { locale: Locale }) {
             ) : <div className="empty-chart">{t.notLive}</div>}
           </div>
           <aside className="trend-stats">
-            <div><span>{t.peak}</span><strong>{formatMoney(stats.peak, locale, exchangeRate.rate)}</strong></div>
-            <div><span>{t.average}</span><strong>{formatMoney(stats.average, locale, exchangeRate.rate)}</strong></div>
-            <div><span>{t.latest}</span><strong>{formatMoney(stats.latest, locale, exchangeRate.rate)}</strong></div>
+            <div><span>{t.peak}</span><strong>{formatMoney(stats.peak, locale, displayExchangeRate)}</strong></div>
+            <div><span>{t.average}</span><strong>{formatMoney(stats.average, locale, displayExchangeRate)}</strong></div>
+            <div><span>{t.latest}</span><strong>{formatMoney(stats.latest, locale, displayExchangeRate)}</strong></div>
             <p><i style={{ background: activeGame.color }} />{activeGame.name[locale]} · {period === "version" ? t.versionAxis : `${activeGame.launchDate.slice(0, 7)}—${sourceYear}-${String(sourceMonth).padStart(2, "0")}`}</p>
           </aside>
         </div>
@@ -885,7 +905,7 @@ export default function Dashboard({ locale }: { locale: Locale }) {
               <span className="compare-rank">0{index + 1}</span>
               <div className="compare-game"><GameMark game={game} small /><strong>{game.name[locale]}</strong></div>
               <div className="compare-bar-track"><span style={{ width: `${((game.ytd ?? 0) / Math.max(...comparisonGames.map((item) => item.ytd ?? 0), 1)) * 100}%`, background: game.color }} /></div>
-              <div className="compare-value"><strong>{formatMoney(game.ytd, locale, exchangeRate.rate)}</strong><small>{t.ytdEstimate}</small></div>
+              <div className="compare-value"><strong>{formatMoney(game.ytd, locale, displayExchangeRate)}</strong><small>{t.ytdEstimate}</small></div>
               <div className="compare-share"><strong>{compareTotal ? (((game.ytd ?? 0) / compareTotal) * 100).toFixed(1) : 0}%</strong><small>{t.share}</small></div>
             </div>
           ))}
@@ -930,9 +950,9 @@ export default function Dashboard({ locale }: { locale: Locale }) {
                 <strong>UP · {selectedVersion.characters[locale]}</strong>
                 <small>{gameData.find((game) => game.id === selectedVersion.gameId)?.name[locale]} · {selectedVersion.version} · {selectedVersion.phase[locale]}</small>
               </div>
-              <div><span>{t.dateWindow}</span><strong>{selectedVersion.date ? <>{selectedVersion.date}<i>→</i>{selectedVersion.endDate}</> : t.calendarPending}</strong><small>{selectedVersion.windowHours ? `${selectedVersion.observedHours} / ${selectedVersion.windowHours} ${t.hours} · ` : ""}{coverageLabel(selectedVersion)}</small></div>
+              <div><span>{t.dateWindow}</span><strong>{selectedVersion.date ? <>{selectedVersion.date}<i>→</i>{selectedVersion.endDate}</> : t.calendarPending}</strong><small>{selectedVersion.observedHours ? `${selectedVersion.observedHours} / ${selectedVersion.windowHours} ${t.hours} · ` : ""}{coverageLabel(selectedVersion)}</small></div>
               <div><span>{t.estimateBasis}</span><strong>{selectedVersion.scope[locale]}</strong><small>{selectedVersion.sourceUrl ? <a href={selectedVersion.sourceUrl} target="_blank" rel="noreferrer">{t.calendarSource} ↗</a> : t.calendarPending}{selectedVersion.sourceUpdatedAt && ` · ${selectedVersion.sourceUpdatedAt}`}</small></div>
-              <div className="version-money"><span>{t.versionEstimate}</span><strong>{formatMoney(selectedVersion.revenue, locale, exchangeRate.rate)}</strong><small>{versionSourceLabel(selectedVersion)}{selectedVersion.windowHours ? ` · ${selectedVersion.observedHours}/${selectedVersion.windowHours}h` : ""}</small></div>
+              <div className="version-money"><span>{t.versionEstimate}</span><strong>{formatMoney(selectedVersion.revenue, locale, displayExchangeRate)}</strong><small>{versionSourceLabel(selectedVersion)}{selectedVersion.observedHours ? ` · ${selectedVersion.observedHours}/${selectedVersion.windowHours}h` : ""}</small></div>
             </div>
 
             <div className="intelligence-grid">
@@ -943,12 +963,22 @@ export default function Dashboard({ locale }: { locale: Locale }) {
                     <thead><tr><th>{t.region}</th><th>{t.peakRank}</th><th>{t.lowRank}</th><th>{t.rankMeaning}</th></tr></thead>
                     <tbody>
                       {(Object.entries(selectedVersion.ranks) as Array<["CN" | "JP" | "US" | "KR", [number | null, number | null]]>).map(([country, rank]) => (
-                        <tr key={country}><td><b>{country}</b>{marketNames[country][locale]}</td><td><strong>{rank[0] === null ? "—" : `#${rank[0]}`}</strong><small>{rank[0] === null ? coverageLabel(selectedVersion) : t.peakMeaning}</small></td><td><strong>{rank[1] === null ? "—" : `#${rank[1]}`}</strong><small>{rank[1] === null ? coverageLabel(selectedVersion) : t.lowMeaning}</small></td><td>{selectedVersion.date || t.calendarPending}<br />{selectedVersion.endDate}</td></tr>
+                        <tr key={country}><td><b>{country}</b>{marketNames[country][locale]}</td><td><strong>{rank[0] === null ? "—" : `#${rank[0]}`}</strong><small>{rank[0] === null ? missingMetricLabel(selectedVersion) : t.peakMeaning}</small></td><td><strong>{rank[1] === null ? "—" : `#${rank[1]}`}</strong><small>{rank[1] === null ? missingMetricLabel(selectedVersion) : t.lowMeaning}</small></td><td>{selectedVersion.date || t.calendarPending}<br />{selectedVersion.endDate}</td></tr>
                       ))}
                     </tbody>
                   </table>
                 </div>
-                <p className="table-note">{t.rankNote}</p>
+                <p className="table-note">
+                  {t.rankNote}
+                  {selectedVersion.rankEvidence && (
+                    <EvidenceLinks
+                      evidence={selectedVersion.rankEvidence}
+                      locale={locale}
+                      primaryLabel={t.primaryEvidence}
+                      crossCheckLabel={t.crossCheckEvidence}
+                    />
+                  )}
+                </p>
               </section>
 
               <section className="app-line-section">
@@ -962,9 +992,17 @@ export default function Dashboard({ locale }: { locale: Locale }) {
                         return (
                           <tr key={item.appId}>
                             <td><strong>{item.app[locale]}</strong></td>
-                            <td><span className={`line-result ${known && (item.hours ?? 0) > 0 ? "yes" : "no"}`}>{!known ? coverageLabel(selectedVersion) : (item.hours ?? 0) > 0 ? t.exceeded : t.noHours}</span></td>
+                            <td><span className={`line-result ${known && (item.hours ?? 0) > 0 ? "yes" : "no"}`}>{!known ? missingMetricLabel(selectedVersion) : (item.hours ?? 0) > 0 ? t.exceeded : t.noHours}</span></td>
                             <td><div className="hours-cell"><i><b style={{ width: known ? `${((item.hours ?? 0) / maxAppHours) * 100}%` : "0%" }} /></i><strong>{known ? `${item.hours} ${t.hours}` : "—"}</strong></div></td>
-                            <td><span className="source-cell">{item.source === "licensed_feed" ? t.licensedSource : item.source === "apple_public_feed" ? t.appleSource : item.source === "verified_manual" ? t.correctionSource : coverageLabel(selectedVersion)}{item.updatedAt && <small>{item.updatedAt}</small>}</span></td>
+                            <td>
+                              <span className="source-cell">
+                                {item.source === "licensed_feed" ? t.licensedSource : item.source === "apple_public_feed" ? t.appleSource : item.source === "verified_manual" ? t.correctionSource : missingMetricLabel(selectedVersion)}
+                                {item.updatedAt && <small>{item.updatedAt}</small>}
+                                {item.evidence && (
+                                  <EvidenceLinks evidence={item.evidence} locale={locale} primaryLabel={t.primaryEvidence} crossCheckLabel={t.crossCheckEvidence} />
+                                )}
+                              </span>
+                            </td>
                           </tr>
                         );
                       })}
@@ -991,7 +1029,7 @@ export default function Dashboard({ locale }: { locale: Locale }) {
               <table className="banner-ranking-table">
                 <thead><tr><th>{t.rankingPosition}</th><th>{t.versionAndBanner}</th><th>{t.dateWindow}</th><th>{t.hoursAbove}</th><th>{t.source}</th></tr></thead>
                 <tbody>{bannerRanking.map(({ version, observation }, index) => (
-                  <tr key={version.id}><td><strong>{`#${index + 1}`}</strong></td><td><b>{`${version.version} · ${version.phase[locale]} · UP ${version.characters[locale]}`}</b></td><td>{version.date}<i>→</i>{version.endDate}</td><td><strong>{`${observation.hours} ${t.hours}`}</strong></td><td><span className="source-cell">{observation.source === "licensed_feed" ? t.licensedSource : observation.source === "apple_public_feed" ? t.appleSource : t.correctionSource}{observation.updatedAt && <small>{observation.updatedAt}</small>}</span></td></tr>
+                  <tr key={version.id}><td><strong>{`#${index + 1}`}</strong></td><td><b>{`${version.version} · ${version.phase[locale]} · UP ${version.characters[locale]}`}</b></td><td>{version.date}<i>→</i>{version.endDate}</td><td><strong>{`${observation.hours} ${t.hours}`}</strong></td><td><span className="source-cell">{observation.source === "licensed_feed" ? t.licensedSource : observation.source === "apple_public_feed" ? t.appleSource : t.correctionSource}{observation.updatedAt && <small>{observation.updatedAt}</small>}{observation.evidence && <EvidenceLinks evidence={observation.evidence} locale={locale} primaryLabel={t.primaryEvidence} crossCheckLabel={t.crossCheckEvidence} />}</span></td></tr>
                 ))}</tbody>
               </table>
             </div>
@@ -1000,20 +1038,15 @@ export default function Dashboard({ locale }: { locale: Locale }) {
       </section>
 
       <section className="methodology" id="methodology">
-        <div className="method-heading"><p className="section-kicker">04 · FORMULA</p><h2>{t.methodologyTitle}</h2><p>{t.excludes}</p></div>
+        <div className="method-heading"><p className="section-kicker">04 · FORMULA</p><h2>{t.methodologyTitle}</h2><p>{methodology?.excludes[locale]}</p></div>
         <div className="formula-grid">
-          {[
-            [t.storeFormulaTitle, t.storeFormula],
-            [t.totalFormulaTitle, t.totalFormula],
-            [t.versionFormulaTitle, t.versionFormula],
-            [t.hoursFormulaTitle, t.hoursFormula],
-          ].map(([title, formula], index) => (
-            <div className="formula-row" key={title}><span>0{index + 1}</span><div><strong>{title}</strong><code>{formula}</code></div></div>
+          {methodology?.formulas.map((formula, index) => (
+            <div className="formula-row" key={formula.id}><span>0{index + 1}</span><div><strong>{formula.title[locale]}</strong><code>{formula.expression}</code></div></div>
           ))}
         </div>
         <div className="formula-definitions">
-          {t.definitions.map(([symbol, definition]) => <div key={symbol}><code>{symbol}</code><p>{definition}</p></div>)}
-          <div className="source-links"><strong>{t.sources}</strong><a href={revenueSource.url} target="_blank" rel="noreferrer">GachaDash ↗</a><a href={historicalRevenueSource.url} target="_blank" rel="noreferrer">{t.historicalSource} ↗</a><a href={historicalRevenueSource.changelogUrl} target="_blank" rel="noreferrer">{t.sourceChangelog} ↗</a><a href="https://sensortower.com/product/mobile-app/app-performance-insights" target="_blank" rel="noreferrer">Sensor Tower ↗</a><a href="https://itunes.apple.com/cn/rss/topgrossingapplications/limit=100/json" target="_blank" rel="noreferrer">Apple Top Grossing RSS ↗</a><a href={exchangeRate.source_url} target="_blank" rel="noreferrer">ECB / Frankfurter FX ↗</a></div>
+          {methodology?.definitions.map((definition) => <div key={definition.symbol}><code>{definition.symbol}</code><p>{definition.text[locale]}</p></div>)}
+          <div className="source-links"><strong>{t.sources}</strong>{activeGame.sourceUrl && <a href={activeGame.sourceUrl} target="_blank" rel="noreferrer">{t.historicalSource} ↗</a>}{methodology?.sources.map((source) => <a key={source.id} href={source.url} target="_blank" rel="noreferrer">{source.label} ↗</a>)}{exchangeRate && <a href={exchangeRate.source_url} target="_blank" rel="noreferrer">ECB / Frankfurter FX ↗</a>}</div>
           <p className="source-note">{t.sourceNote}</p>
         </div>
       </section>

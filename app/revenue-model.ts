@@ -37,31 +37,6 @@ export function highestYTDGameId(games: Game[]): GameId {
   }, games[0]).id;
 }
 
-function utcDate(value: string) {
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return Number.NaN;
-  return new Date(`${value}T00:00:00Z`).getTime();
-}
-
-export function estimatePhaseRevenue(version: VersionDetail, history: RevenueMonth[]): number | null {
-  if (version.revenue !== null) return version.revenue;
-  const phaseStart = utcDate(version.date);
-  const phaseEnd = utcDate(version.endDate);
-  if (!Number.isFinite(phaseStart) || !Number.isFinite(phaseEnd) || phaseEnd <= phaseStart) return null;
-  let estimate = 0;
-  let covered = false;
-
-  for (const item of history) {
-    const monthStart = Date.UTC(item.year, item.month - 1, 1);
-    const monthEnd = Date.UTC(item.year, item.month, 1);
-    const overlap = Math.max(0, Math.min(phaseEnd, monthEnd) - Math.max(phaseStart, monthStart));
-    if (!overlap) continue;
-    covered = true;
-    estimate += item.value * (overlap / (monthEnd - monthStart));
-  }
-
-  return covered ? estimate : null;
-}
-
 function phaseLabel(version: VersionDetail, locale: Locale) {
   const phase = version.phaseIndex === 1
     ? locale === "zh-CN" ? "上" : "P1"
@@ -89,6 +64,9 @@ export function buildMonthlyRevenueSeries(
   latest: RevenuePeriod,
 ): RevenueSeries {
   const [launchYear, launchMonth] = game.launchDate.split("-").map(Number);
+  if (!Number.isInteger(launchYear) || !Number.isInteger(launchMonth) || launchYear < 2010 || launchMonth < 1 || launchMonth > 12) {
+    return { values: [], labels: [], available: 0, covered: 0 };
+  }
   const history = new Map(game.revenueHistory.map((item) => [`${item.year}-${item.month}`, item.value]));
   const values: Array<number | null> = [];
   const labels: string[] = [];
@@ -110,23 +88,23 @@ export function buildYearlyRevenueSeries(
   locale: Locale,
 ): RevenueSeries {
   const launchYear = Number(game.launchDate.slice(0, 4));
-  const launchMonth = Number(game.launchDate.slice(5, 7));
+  if (!Number.isInteger(launchYear) || launchYear < 2010) {
+    return { values: [], labels: [], available: 0, covered: 0 };
+  }
+  const yearly = new Map(game.yearly.map((item) => [item.year, item]));
   const values: Array<number | null> = [];
   const labels: string[] = [];
   for (let year = launchYear; year <= latest.year; year++) {
-    const firstMonth = year === launchYear ? launchMonth : 1;
-    const lastMonth = year === latest.year ? latest.month : 12;
-    const months = game.revenueHistory.filter((item) => item.year === year && item.month >= firstMonth && item.month <= lastMonth);
-    const complete = firstMonth === 1 && lastMonth === 12 && months.length === 12;
-    values.push(months.length ? months.reduce((sum, item) => sum + item.value, 0) : null);
-    const partial = months.length > 0 && !complete;
+    const summary = yearly.get(year);
+    values.push(summary?.value ?? null);
+    const partial = summary !== undefined && !summary.complete;
     labels.push(
       partial
         ? locale === "zh-CN"
-          ? year === latest.year && lastMonth < 12
-            ? `${year}（截至${lastMonth}月）`
+          ? year === latest.year && latest.month < 12
+            ? `${year}（截至${latest.month}月）`
             : `${year}（部分）`
-          : year === latest.year && lastMonth < 12
+          : year === latest.year && latest.month < 12
             ? `${year} YTD`
             : `${year} partial`
         : `${year}`,
@@ -151,7 +129,7 @@ export function buildVersionRangeOptions(
       id: version.id,
       label: `${phaseLabel(version, locale)} · UP ${version.characters[locale]}`,
       date: version.date,
-      estimable: estimatePhaseRevenue(version, game.revenueHistory) !== null,
+      estimable: version.revenue !== null,
     }));
 }
 
@@ -178,7 +156,7 @@ export function buildVersionRevenueSeries(
   const first = Math.max(0, Math.min(startIndex < 0 ? 0 : startIndex, endIndex < 0 ? allVersions.length - 1 : endIndex));
   const last = Math.max(startIndex < 0 ? 0 : startIndex, endIndex < 0 ? allVersions.length - 1 : endIndex);
   const selectedVersions = allVersions.slice(first, last + 1);
-  const points = selectedVersions.map((version) => ({ version, value: estimatePhaseRevenue(version, game.revenueHistory) }));
+  const points = selectedVersions.map((version) => ({ version, value: version.revenue }));
 
   return {
     values: points.map((point) => point.value),

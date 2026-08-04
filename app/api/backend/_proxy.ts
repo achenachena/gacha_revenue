@@ -4,6 +4,7 @@ const allowedGames = new Set(["genshin", "hsr", "zzz", "wuwa", "endfield", "nte"
 const policies = {
   "public-revenue": { revalidate: 21_600 },
   "exchange-rate": { revalidate: 43_200 },
+  methodology: { revalidate: 86_400 },
   versions: { revalidate: 60 },
   "banner-metrics": { revalidate: 300 },
 } as const;
@@ -28,7 +29,7 @@ function isISODate(value: string | null): value is string {
 }
 
 function validatedQuery(endpoint: BackendEndpoint, searchParams: URLSearchParams): URLSearchParams | null {
-  if (endpoint === "public-revenue" || endpoint === "exchange-rate") {
+  if (endpoint === "public-revenue" || endpoint === "exchange-rate" || endpoint === "methodology") {
     return searchParams.size === 0 ? new URLSearchParams() : null;
   }
   if (endpoint === "versions") {
