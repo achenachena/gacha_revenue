@@ -2,8 +2,25 @@ export type Locale = "zh-CN" | "en";
 
 export type GameId = "genshin" | "hsr" | "zzz" | "wuwa" | "endfield" | "nte";
 
-export type RevenueMonth = { year: number; month: number; value: number };
-export type RevenueYear = { year: number; value: number; months: number; complete: boolean };
+export type MarketCoverage = "complete" | "partial" | "mixed";
+export type RevenueScope = "combined_mobile_estimate" | "global_mobile_excluding_china" | "mixed";
+export type RevenueMonth = {
+  year: number;
+  month: number;
+  value: number;
+  marketCoverage: MarketCoverage;
+  scope: RevenueScope;
+  sourceId?: string;
+  sourceUrl?: string;
+};
+export type RevenueYear = {
+  year: number;
+  value: number;
+  months: number;
+  complete: boolean;
+  marketCoverage: MarketCoverage;
+  scopes: RevenueScope[];
+};
 
 export type Game = {
   id: GameId;
@@ -77,6 +94,8 @@ export type VersionDetail = {
   revenueRange: [number | null, number | null];
   revenueCoverage: number;
   revenueFormula: string;
+  revenueMarketCoverage: MarketCoverage;
+  revenueScope: RevenueScope;
   confidence: "A" | "B+" | "B" | "MODEL" | "N/A";
   windowHours: number;
   observedHours: number;

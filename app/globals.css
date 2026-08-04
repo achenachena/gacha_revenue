@@ -759,121 +759,6 @@ main {
   margin-right: 6px;
 }
 
-.selected-count {
-  border: 1px solid var(--line);
-  border-radius: 99px;
-  padding: 7px 11px;
-  color: var(--muted);
-  font-family: var(--font-geist-mono), monospace;
-  font-size: 9px;
-}
-
-.game-toggles {
-  display: flex;
-  gap: 7px;
-  flex-wrap: wrap;
-  padding: 18px 0;
-}
-
-.game-toggles button {
-  border: 1px solid var(--line);
-  border-radius: 99px;
-  background: white;
-  color: var(--muted);
-  padding: 7px 12px;
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
-  cursor: pointer;
-  font-size: 10px;
-}
-
-.game-toggles button span {
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-  filter: grayscale(1);
-  opacity: 0.35;
-}
-
-.game-toggles button.active {
-  border-color: var(--game-color);
-  color: var(--ink);
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--game-color), transparent 78%);
-}
-
-.game-toggles button.active span {
-  filter: none;
-  opacity: 1;
-}
-
-.compare-bars {
-  border-top: 1px solid var(--soft-line);
-}
-
-.compare-row {
-  display: grid;
-  grid-template-columns: 38px 205px minmax(160px, 1fr) 140px 110px;
-  gap: 18px;
-  align-items: center;
-  min-height: 73px;
-  border-bottom: 1px solid var(--soft-line);
-}
-
-.compare-rank {
-  color: #babcb5;
-  font-family: var(--font-geist-mono), monospace;
-  font-size: 10px;
-}
-
-.compare-game {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  min-width: 0;
-}
-
-.compare-game strong {
-  font-size: 11px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.compare-bar-track {
-  height: 10px;
-  background: #f0f0eb;
-  overflow: hidden;
-}
-
-.compare-bar-track span {
-  display: block;
-  height: 100%;
-  min-width: 3px;
-}
-
-.compare-value,
-.compare-share {
-  display: flex;
-  flex-direction: column;
-}
-
-.compare-value strong {
-  font-size: 15px;
-}
-
-.compare-share strong {
-  font-family: var(--font-geist-mono), monospace;
-  font-size: 11px;
-}
-
-.compare-value small,
-.compare-share small {
-  color: var(--subtle);
-  font-size: 8px;
-  margin-top: 3px;
-}
-
 .panel-heading select {
   min-width: 145px;
   border: 1px solid var(--line);
@@ -1412,7 +1297,6 @@ footer a { margin-left: auto; font-family: var(--font-geist-mono), monospace; co
 @media (max-width: 1180px) {
   .site-header nav { display: none; }
   .game-grid { grid-template-columns: repeat(3, 1fr); }
-  .compare-row { grid-template-columns: 32px 180px minmax(130px, 1fr) 125px 90px; gap: 12px; }
   .version-summary { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .version-summary > div:nth-child(2) { border-right: 0; }
   .version-summary > div:nth-child(-n+2) { border-bottom: 1px solid var(--soft-line); }
@@ -1428,8 +1312,6 @@ footer a { margin-left: auto; font-family: var(--font-geist-mono), monospace; co
   .trend-layout { grid-template-columns: 1fr; }
   .trend-stats { border-left: 0; border-top: 1px solid var(--soft-line); padding: 8px 0 0; display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
   .trend-stats p { display: none; }
-  .compare-row { grid-template-columns: 28px minmax(140px, 0.8fr) minmax(150px, 1fr) 120px; }
-  .compare-share { display: none; }
   .methodology { grid-template-columns: 1fr; gap: 32px; padding: 38px 34px; }
   .ranking-heading { align-items: flex-start; flex-direction: column; }
   .ranking-controls { width: 100%; }
@@ -1468,11 +1350,6 @@ footer a { margin-left: auto; font-family: var(--font-geist-mono), monospace; co
   .axis-tick { font-size: 8px; }
   .trend-stats { gap: 7px; }
   .trend-stats strong { font-size: 14px; }
-  .game-toggles { flex-wrap: nowrap; overflow-x: auto; padding-bottom: 14px; }
-  .game-toggles button { flex: none; }
-  .compare-row { grid-template-columns: 24px minmax(125px, 1fr) 90px; min-height: 65px; }
-  .compare-bar-track { display: none; }
-  .compare-value { text-align: right; }
   .version-selectors { grid-template-columns: 1fr; padding: 14px; }
   .version-summary { grid-template-columns: 1fr; }
   .version-summary > div { min-height: 82px; border-right: 0; border-bottom: 1px solid var(--soft-line); }

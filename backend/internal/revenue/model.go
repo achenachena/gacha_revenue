@@ -11,15 +11,25 @@ const (
 	Unit                     = "million"
 	Basis                    = "mobile_iap_ios_android"
 	ChinaAndroidMultiplier   = 1.75
-	MethodologyVersion       = "4.0.0"
+	MethodologyVersion       = "4.1.0"
 	VersionAllocationFormula = "sum(month_revenue * overlap_hours / month_hours)"
 	MaxMonthlyUSDMillions    = 10_000.0
+	MarketCoverageComplete   = "complete"
+	MarketCoveragePartial    = "partial"
+	MarketCoverageMixed      = "mixed"
+	ScopeCombinedMobile      = "combined_mobile_estimate"
+	ScopeGlobalExcludingCN   = "global_mobile_excluding_china"
+	ScopeMixed               = "mixed"
 )
 
 type Month struct {
-	Year  int     `json:"year"`
-	Month int     `json:"month"`
-	Value float64 `json:"value"`
+	Year           int     `json:"year"`
+	Month          int     `json:"month"`
+	Value          float64 `json:"value"`
+	MarketCoverage string  `json:"market_coverage"`
+	Scope          string  `json:"scope"`
+	SourceID       string  `json:"source_id,omitempty"`
+	SourceURL      string  `json:"source_url,omitempty"`
 }
 
 type GameDefinition struct {
@@ -46,10 +56,12 @@ type Period struct {
 }
 
 type AnnualSummary struct {
-	Year     int     `json:"year"`
-	Value    float64 `json:"value"`
-	Months   int     `json:"months"`
-	Complete bool    `json:"complete"`
+	Year           int      `json:"year"`
+	Value          float64  `json:"value"`
+	Months         int      `json:"months"`
+	Complete       bool     `json:"complete"`
+	MarketCoverage string   `json:"market_coverage"`
+	Scopes         []string `json:"scopes"`
 }
 
 type GameSummary struct {
@@ -70,6 +82,8 @@ type PhaseEstimate struct {
 	Coverage       float64  `json:"coverage"`
 	CoveredHours   int      `json:"covered_hours"`
 	WindowHours    int      `json:"window_hours"`
+	MarketCoverage string   `json:"market_coverage"`
+	Scope          string   `json:"scope"`
 	Formula        string   `json:"formula"`
 	SourceCurrency string   `json:"source_currency"`
 	SourceUnit     string   `json:"source_unit"`
@@ -122,9 +136,12 @@ func Methodology() MethodologyDocument {
 			{Symbol: "overlap", TextZh: "每个卡池按其与各自然月重叠的准确小时数分配月流水；跨月分别计算。", TextEn: "Allocates each monthly estimate by the banner's exact overlapping hours; cross-month windows are calculated month by month."},
 			{Symbol: "H", TextZh: "仅累计双方在同一小时都有中国区 iOS 畅销总榜观测且游戏名次更高的小时。", TextEn: "Counts only hours where both China iOS grossing ranks are observed and the game ranks higher."},
 			{Symbol: "FX", TextZh: "人民币只用于展示：美元估算乘以 ECB 每日 USD/CNY 参考汇率；底层值保持美元。", TextEn: "CNY is display-only: USD estimates are multiplied by the ECB daily USD/CNY reference rate; canonical values remain USD."},
+			{Symbol: "scope", TextZh: "标记为部分口径的历史值只覆盖海外移动端（不含中国），不会与完整口径合并成同一条连续趋势。", TextEn: "Historical points marked partial cover global mobile excluding China and are not presented as a continuous like-for-like series with complete-market points."},
 		},
 		Sources: []MethodologySource{
 			{ID: "sensor_tower", Label: "Sensor Tower", URL: "https://sensortower.com/product/mobile-app/app-performance-insights"},
+			{ID: "gacha_revenue", Label: "GACHAREVENUE", URL: "https://revenue.ennead.cc/revenue"},
+			{ID: "gacha_dash", Label: "GachaDash", URL: "https://www.gachadash.com/revenue"},
 			{ID: "apple_rss", Label: "Apple Top Grossing RSS", URL: "https://itunes.apple.com/cn/rss/topgrossingapplications/limit=100/json"},
 		},
 	}
@@ -137,6 +154,7 @@ func Merge(histories ...[]Month) []Month {
 			if item.Year < 2010 || item.Month < 1 || item.Month > 12 || item.Value <= 0 || item.Value > MaxMonthlyUSDMillions {
 				continue
 			}
+			item = normalizeMonth(item)
 			byMonth[item.Year*100+item.Month] = item
 		}
 	}
@@ -220,6 +238,8 @@ func EstimateWindow(history []Month, startsAt, endsAt string) PhaseEstimate {
 		byMonth[item.Year*100+item.Month] = item
 	}
 	estimate, coveredHours := 0.0, 0
+	marketCoverages := make(map[string]bool)
+	scopes := make(map[string]bool)
 	monthStart := time.Date(start.Year(), start.Month(), 1, 0, 0, 0, 0, time.UTC)
 	for monthStart.Before(end) {
 		monthEnd := monthStart.AddDate(0, 1, 0)
@@ -227,9 +247,12 @@ func EstimateWindow(history []Month, startsAt, endsAt string) PhaseEstimate {
 		overlapEnd := minTime(end, monthEnd)
 		if overlapEnd.After(overlapStart) {
 			if item, ok := byMonth[monthStart.Year()*100+int(monthStart.Month())]; ok {
+				item = normalizeMonth(item)
 				hours := int(overlapEnd.Sub(overlapStart).Hours())
 				coveredHours += hours
 				estimate += item.Value * overlapEnd.Sub(overlapStart).Hours() / monthEnd.Sub(monthStart).Hours()
+				marketCoverages[item.MarketCoverage] = true
+				scopes[item.Scope] = true
 			}
 		}
 		monthStart = monthEnd
@@ -238,6 +261,8 @@ func EstimateWindow(history []Month, startsAt, endsAt string) PhaseEstimate {
 	result.Coverage = float64(coveredHours) / float64(windowHours)
 	if coveredHours > 0 {
 		result.Estimate = &estimate
+		result.MarketCoverage = singleOrMixed(marketCoverages, MarketCoverageMixed)
+		result.Scope = singleOrMixed(scopes, ScopeMixed)
 	}
 	return result
 }
@@ -256,11 +281,21 @@ func annualSummaries(history []Month) []AnnualSummary {
 	for _, year := range years {
 		value := 0.0
 		months := make(map[int]bool, len(byYear[year]))
+		marketCoverages := make(map[string]bool)
+		scopes := make(map[string]bool)
 		for _, item := range byYear[year] {
+			item = normalizeMonth(item)
 			value += item.Value
 			months[item.Month] = true
+			marketCoverages[item.MarketCoverage] = true
+			scopes[item.Scope] = true
 		}
-		result = append(result, AnnualSummary{Year: year, Value: value, Months: len(months), Complete: len(months) == 12})
+		marketCoverage := singleOrMixed(marketCoverages, MarketCoverageMixed)
+		result = append(result, AnnualSummary{
+			Year: year, Value: value, Months: len(months),
+			Complete:       len(months) == 12 && marketCoverage == MarketCoverageComplete,
+			MarketCoverage: marketCoverage, Scopes: sortedKeys(scopes),
+		})
 	}
 	return result
 }
@@ -281,9 +316,45 @@ func Validate(history GameHistory) error {
 		if seen[key] {
 			return fmt.Errorf("duplicate revenue month %d-%02d", item.Year, item.Month)
 		}
+		normalized := normalizeMonth(item)
+		if normalized.MarketCoverage != MarketCoverageComplete && normalized.MarketCoverage != MarketCoveragePartial {
+			return fmt.Errorf("invalid market coverage %q", item.MarketCoverage)
+		}
+		if normalized.Scope != ScopeCombinedMobile && normalized.Scope != ScopeGlobalExcludingCN {
+			return fmt.Errorf("invalid revenue scope %q", item.Scope)
+		}
 		seen[key] = true
 	}
 	return nil
+}
+
+func normalizeMonth(item Month) Month {
+	if item.MarketCoverage == "" {
+		item.MarketCoverage = MarketCoverageComplete
+	}
+	if item.Scope == "" {
+		item.Scope = ScopeCombinedMobile
+	}
+	return item
+}
+
+func singleOrMixed(values map[string]bool, mixed string) string {
+	if len(values) != 1 {
+		return mixed
+	}
+	for value := range values {
+		return value
+	}
+	return ""
+}
+
+func sortedKeys(values map[string]bool) []string {
+	result := make([]string, 0, len(values))
+	for value := range values {
+		result = append(result, value)
+	}
+	sort.Strings(result)
+	return result
 }
 
 func minTime(a, b time.Time) time.Time {

@@ -1,4 +1,4 @@
-import type { Game, GameId, Locale, RevenueMonth, VersionDetail } from "./data";
+import type { Game, GameId, Locale, MarketCoverage, RevenueMonth, VersionDetail } from "./data";
 
 export type RevenuePeriod = Pick<RevenueMonth, "year" | "month">;
 export type VersionRange = { startId: string; endId: string };
@@ -13,6 +13,7 @@ export type VersionRangeOption = {
 export type RevenueSeries = {
   values: Array<number | null>;
   labels: string[];
+  marketCoverage: Array<MarketCoverage | null>;
   available: number;
   covered: number;
 };
@@ -65,13 +66,16 @@ export function buildMonthlyRevenueSeries(
 ): RevenueSeries {
   const [launchYear, launchMonth] = game.launchDate.split("-").map(Number);
   if (!Number.isInteger(launchYear) || !Number.isInteger(launchMonth) || launchYear < 2010 || launchMonth < 1 || launchMonth > 12) {
-    return { values: [], labels: [], available: 0, covered: 0 };
+    return { values: [], labels: [], marketCoverage: [], available: 0, covered: 0 };
   }
-  const history = new Map(game.revenueHistory.map((item) => [`${item.year}-${item.month}`, item.value]));
+  const history = new Map(game.revenueHistory.map((item) => [`${item.year}-${item.month}`, item]));
   const values: Array<number | null> = [];
   const labels: string[] = [];
+  const marketCoverage: Array<MarketCoverage | null> = [];
   for (let year = launchYear, month = launchMonth; year < latest.year || year === latest.year && month <= latest.month;) {
-    values.push(history.get(`${year}-${month}`) ?? null);
+    const point = history.get(`${year}-${month}`);
+    values.push(point?.value ?? null);
+    marketCoverage.push(point?.marketCoverage ?? null);
     labels.push(`${year}-${String(month).padStart(2, "0")}`);
     month++;
     if (month === 13) {
@@ -79,7 +83,7 @@ export function buildMonthlyRevenueSeries(
       month = 1;
     }
   }
-  return { values, labels, available: values.length, covered: values.filter((value) => value !== null).length };
+  return { values, labels, marketCoverage, available: values.length, covered: values.filter((value) => value !== null).length };
 }
 
 export function buildYearlyRevenueSeries(
@@ -89,14 +93,16 @@ export function buildYearlyRevenueSeries(
 ): RevenueSeries {
   const launchYear = Number(game.launchDate.slice(0, 4));
   if (!Number.isInteger(launchYear) || launchYear < 2010) {
-    return { values: [], labels: [], available: 0, covered: 0 };
+    return { values: [], labels: [], marketCoverage: [], available: 0, covered: 0 };
   }
   const yearly = new Map(game.yearly.map((item) => [item.year, item]));
   const values: Array<number | null> = [];
   const labels: string[] = [];
+  const marketCoverage: Array<MarketCoverage | null> = [];
   for (let year = launchYear; year <= latest.year; year++) {
     const summary = yearly.get(year);
     values.push(summary?.value ?? null);
+    marketCoverage.push(summary?.marketCoverage ?? null);
     const partial = summary !== undefined && !summary.complete;
     labels.push(
       partial
@@ -110,7 +116,7 @@ export function buildYearlyRevenueSeries(
         : `${year}`,
     );
   }
-  return { values, labels, available: values.length, covered: values.filter((value) => value !== null).length };
+  return { values, labels, marketCoverage, available: values.length, covered: values.filter((value) => value !== null).length };
 }
 
 export function buildVersionRangeOptions(
@@ -161,6 +167,7 @@ export function buildVersionRevenueSeries(
   return {
     values: points.map((point) => point.value),
     labels: points.map((point) => phaseLabel(point.version, locale)),
+    marketCoverage: points.map((point) => point.value === null ? null : point.version.revenueMarketCoverage),
     available: allVersions.length,
     selected: selectedVersions.length,
     estimable: points.filter((point) => point.value !== null).length,

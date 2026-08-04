@@ -29,9 +29,12 @@ test("switches revenue grain and locale", async ({ page }) => {
   await page.locator(".game-card").filter({ hasText: "崩坏：星穹铁道" }).click();
   await expect(page.getByText("¥12.57亿").first()).toBeVisible();
   await expect(page.getByText("3.92", { exact: true }).first()).toBeVisible();
+  await expect(page.locator(".chart-dot[data-coverage='partial']")).toHaveCount(9);
+  await expect(page.locator("#compare")).toHaveCount(0);
   await expect(page.locator(".line-chart text").filter({ hasText: "2024-01" })).toHaveCount(1);
   await expect(page.getByText("6.99", { exact: true }).first()).toBeAttached();
   await page.getByRole("button", { name: "按年" }).click();
+  await expect(page.getByText("2023（部分）", { exact: true })).toBeAttached();
   await expect(page.getByText("2024", { exact: true })).toBeAttached();
   await expect(page.getByText("2025", { exact: true })).toBeAttached();
   await expect(page.getByText("2026（截至6月）", { exact: true })).toBeAttached();
@@ -81,7 +84,7 @@ test("keeps overview text clear and lets users expand phase history", async ({ p
   await expect(page.locator(".line-chart text").filter({ hasText: "6.7下" })).toHaveCount(1);
 });
 
-test("compares games and opens version intelligence", async ({ page }) => {
+test("opens launch-to-present version intelligence", async ({ page }) => {
   await page.goto("/zh-CN");
   await expect(page.locator("main")).toHaveAttribute("data-hydrated", "true");
   const bannerSelect = page.getByLabel("选择版本 / 卡池角色");

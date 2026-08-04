@@ -7,6 +7,7 @@ import {
   type Game,
   type GameId,
   type Locale,
+  type MarketCoverage,
   type AppLineId,
   type MetricEvidence,
   type VersionDetail,
@@ -43,8 +44,8 @@ const subscribeToHydration = () => () => {};
 
 const copy = {
   "zh-CN": {
-    nav: ["总览", "趋势", "对比", "版本与角色", "估算公式"],
-    navIds: ["overview", "trend", "compare", "versions", "methodology"],
+    nav: ["总览", "趋势", "版本与角色", "估算公式"],
+    navIds: ["overview", "trend", "versions", "methodology"],
     brand: "二游流水观察",
     brandSub: "GACHA REVENUE ESTIMATES",
     dataBadge: "月流水来自公开源 · 榜单按小时自动观测",
@@ -69,6 +70,7 @@ const copy = {
     calendarCoverageNote: "版本目录已覆盖开服至今；没有可靠卡池日期或流水的历史期次会明确留空。",
     monthCoverageNote: "开服至今共 {available} 个月；当前可靠来源覆盖 {covered} 个月，缺失月份保留为空。横向滚动可查看完整历史。",
     yearCoverageNote: "开服至今共 {available} 个年度节点；标注“部分”的年份只有部分月份来源值。",
+    partialScopeNote: "虚线历史值只覆盖海外移动端（不含中国），不能与完整市场口径直接比较；没有可靠逐月来源的区间保持空白。",
     firstPeriod: "查看开服",
     latestPeriod: "查看最新",
     calendarPending: "卡池日期待补充",
@@ -81,11 +83,6 @@ const copy = {
     peak: "期间最高",
     average: "期间均值",
     latest: "最新一期",
-    compareTitle: "游戏间流水比较",
-    compareSub: "统一采用同一公开移动端口径比较；不再混入自定义 PC / 主机系数",
-    ytdEstimate: "YTD 估算",
-    share: "入选游戏占比",
-    selected: "已选择",
     versionTitle: "版本 / 卡池角色观测",
     versionSub: "下拉选择每个版本的独立上半 / 下半卡池；卡池日历与榜单观测分别标注来源",
     selectGame: "选择游戏",
@@ -147,8 +144,8 @@ const copy = {
     footerNote: "Sensor Tower 公开汇总估算 · Apple 榜单自动观测",
   },
   en: {
-    nav: ["Overview", "Trend", "Compare", "Versions & banners", "Formula"],
-    navIds: ["overview", "trend", "compare", "versions", "methodology"],
+    nav: ["Overview", "Trend", "Versions & banners", "Formula"],
+    navIds: ["overview", "trend", "versions", "methodology"],
     brand: "GACHA REVENUE TRACKER",
     brandSub: "二游流水观察",
     dataBadge: "PUBLIC MONTHLY SOURCE · HOURLY APPLE RANKS",
@@ -173,6 +170,7 @@ const copy = {
     calendarCoverageNote: "The phase catalog now spans launch to present; historical dates and revenue without a reliable source remain explicitly blank.",
     monthCoverageNote: "{available} months from launch to present; the reliable source currently covers {covered}. Missing months remain blank. Scroll horizontally for the full history.",
     yearCoverageNote: "{available} annual nodes from launch to present; years marked partial contain only some sourced months.",
+    partialScopeNote: "Dashed historical values cover global mobile excluding China and are not directly comparable with complete-market estimates. Periods without reliable monthly sources remain blank.",
     firstPeriod: "Go to launch",
     latestPeriod: "Go to latest",
     calendarPending: "banner dates pending",
@@ -185,11 +183,6 @@ const copy = {
     peak: "Period high",
     average: "Period average",
     latest: "Latest",
-    compareTitle: "Cross-game comparison",
-    compareSub: "Like-for-like comparison using one public mobile-only basis, without invented PC or console multipliers",
-    ytdEstimate: "YTD estimate",
-    share: "Selected share",
-    selected: "selected",
     versionTitle: "Version / character-banner observations",
     versionSub: "Select the exact first/second phase for each version; calendar and rank sources are tracked separately",
     selectGame: "Select game",
@@ -296,6 +289,7 @@ function niceAxisMax(maxValue: number) {
 function LineChart({
   values,
   labels,
+  marketCoverage,
   color,
   locale,
   xAxisTitle,
@@ -303,6 +297,7 @@ function LineChart({
 }: {
   values: Array<number | null>;
   labels: string[];
+  marketCoverage: Array<MarketCoverage | null>;
   color: string;
   locale: Locale;
   xAxisTitle: string;
@@ -322,14 +317,16 @@ function LineChart({
     y: value === null ? null : margin.top + (1 - value / yMax) * plotHeight,
     value,
     label: labels[index],
+    marketCoverage: marketCoverage[index],
   }));
   const segments: typeof points[] = [];
   let segment: typeof points = [];
   for (const point of points) {
-    if (point.value === null) {
+    if (point.value === null || segment.length && point.marketCoverage !== segment[0].marketCoverage) {
       if (segment.length) segments.push(segment);
       segment = [];
-    } else {
+    }
+    if (point.value !== null) {
       segment.push(point);
     }
   }
@@ -375,7 +372,8 @@ function LineChart({
             className="chart-line"
             points={items.map((point) => `${point.x},${point.y}`).join(" ")}
             fill="none"
-            stroke={color}
+            stroke={items[0].marketCoverage === "complete" ? color : "#8b8f88"}
+            strokeDasharray={items[0].marketCoverage === "complete" ? undefined : "8 6"}
           />
         ))}
         {points.map((point) => (
@@ -388,7 +386,7 @@ function LineChart({
               </circle>
             ) : (
               <g data-testid="trend-point">
-                <circle className="chart-dot" cx={point.x} cy={point.y} r="5" fill="#fff" stroke={color}>
+                <circle className="chart-dot" data-coverage={point.marketCoverage ?? "unknown"} cx={point.x} cy={point.y} r="5" fill="#fff" stroke={point.marketCoverage === "complete" ? color : "#8b8f88"}>
                   <title>{`${point.label}: ${formatChartMoney(point.value, locale)}`}</title>
                 </circle>
                 <text className="chart-value-label" x={point.x} y={Math.max(point.y - 12, 31)} textAnchor="middle">{point.value.toFixed(2)}</text>
@@ -457,7 +455,6 @@ export default function Dashboard({ locale }: { locale: Locale }) {
   const userSelectedGame = useRef(false);
   const [period, setPeriod] = useState<Period>("month");
   const [versionRange, setVersionRange] = useState<(VersionRange & { gameId: GameId }) | null>(null);
-  const [compareIds, setCompareIds] = useState<GameId[]>(["genshin", "hsr", "zzz", "wuwa"]);
   const [versionGame, setVersionGame] = useState<GameId>("hsr");
   const [selectedVersionId, setSelectedVersionId] = useState("hsr-44-p1");
   const [rankingGame, setRankingGame] = useState<GameId>("wuwa");
@@ -620,8 +617,6 @@ export default function Dashboard({ locale }: { locale: Locale }) {
     return [...groups.entries()];
   }, [visibleVersions]);
   const selectedVersion = visibleVersions.find((version) => version.id === selectedVersionId) ?? visibleVersions[0];
-  const comparisonGames = gameData.filter((game) => compareIds.includes(game.id) && game.ytd !== null);
-  const compareTotal = comparisonGames.reduce((sum, game) => sum + (game.ytd ?? 0), 0);
   const monthlyTotal = revenueTotals.latest;
   const ytdTotal = revenueTotals.ytd;
   const modelledGameCount = revenueTotals.coveredGames;
@@ -668,20 +663,25 @@ export default function Dashboard({ locale }: { locale: Locale }) {
 
   const trend = useMemo(() => {
     if (period === "year") {
-      return { values: yearlySeries.values, labels: yearlySeries.labels, xAxis: t.yearAxis };
+      return { values: yearlySeries.values, labels: yearlySeries.labels, marketCoverage: yearlySeries.marketCoverage, xAxis: t.yearAxis };
     }
     if (period === "version") {
       return {
         values: versionSeries.values,
         labels: versionSeries.labels,
+        marketCoverage: versionSeries.marketCoverage,
         xAxis: t.versionAxis,
       };
     }
-    return { values: monthlySeries.values, labels: monthlySeries.labels, xAxis: t.monthAxis };
-  }, [monthlySeries.labels, monthlySeries.values, period, t.monthAxis, t.versionAxis, t.yearAxis, versionSeries.labels, versionSeries.values, yearlySeries.labels, yearlySeries.values]);
+    return { values: monthlySeries.values, labels: monthlySeries.labels, marketCoverage: monthlySeries.marketCoverage, xAxis: t.monthAxis };
+  }, [monthlySeries, period, t.monthAxis, t.versionAxis, t.yearAxis, versionSeries, yearlySeries]);
 
   const stats = useMemo(() => {
-    const populated = trend.values.filter((value): value is number => value !== null && value > 0);
+    const points = trend.values.flatMap((value, index) => value !== null && value > 0
+      ? [{ value, coverage: trend.marketCoverage[index] }]
+      : []);
+    const complete = points.filter((point) => point.coverage === "complete");
+    const populated = (complete.length ? complete : points).map((point) => point.value);
     if (!populated.length) return { peak: null, average: null, latest: null };
     return {
       peak: Math.max(...populated),
@@ -732,13 +732,6 @@ export default function Dashboard({ locale }: { locale: Locale }) {
         .sort((a, b) => (b.observation.hours ?? 0) - (a.observation.hours ?? 0)),
     [rankingApp, rankingGame, versionsData],
   );
-
-  const toggleCompare = (id: GameId) => {
-    setCompareIds((current) => {
-      if (current.includes(id)) return current.length <= 2 ? current : current.filter((gameId) => gameId !== id);
-      return [...current, id];
-    });
-  };
 
   const changeVersionGame = (gameId: GameId) => {
     setVersionGame(gameId);
@@ -873,9 +866,10 @@ export default function Dashboard({ locale }: { locale: Locale }) {
                 : period === "month"
                   ? t.monthCoverageNote.replace("{available}", String(monthlySeries.available)).replace("{covered}", String(monthlySeries.covered))
                   : t.yearCoverageNote.replace("{available}", String(yearlySeries.available))}
+              {trend.marketCoverage.some((coverage) => coverage === "partial" || coverage === "mixed") && <> {t.partialScopeNote}</>}
             </p>
             {trend.values.length && trend.values.some((value) => value !== null && value > 0) ? (
-              <LineChart values={chartValues} labels={trend.labels} color={activeGame.color} locale={locale} xAxisTitle={trend.xAxis} unit={t.unit} />
+              <LineChart values={chartValues} labels={trend.labels} marketCoverage={trend.marketCoverage} color={activeGame.color} locale={locale} xAxisTitle={trend.xAxis} unit={t.unit} />
             ) : <div className="empty-chart">{t.notLive}</div>}
           </div>
           <aside className="trend-stats">
@@ -887,34 +881,9 @@ export default function Dashboard({ locale }: { locale: Locale }) {
         </div>
       </section>
 
-      <section className="panel comparison-panel" id="compare">
-        <div className="panel-heading">
-          <div><p className="section-kicker">02 · COMPARE</p><h2>{t.compareTitle}</h2><p>{t.compareSub}</p></div>
-          <span className="selected-count">{compareIds.length} {t.selected}</span>
-        </div>
-        <div className="game-toggles">
-          {gameData.map((game) => (
-            <button key={game.id} className={compareIds.includes(game.id) ? "active" : ""} onClick={() => toggleCompare(game.id)} aria-pressed={compareIds.includes(game.id)} style={{ "--game-color": game.color } as React.CSSProperties}>
-              <span style={{ background: game.color }} />{game.name[locale]}
-            </button>
-          ))}
-        </div>
-        <div className="compare-bars">
-          {[...comparisonGames].sort((a, b) => (b.ytd ?? 0) - (a.ytd ?? 0)).map((game, index) => (
-            <div className="compare-row" key={game.id}>
-              <span className="compare-rank">0{index + 1}</span>
-              <div className="compare-game"><GameMark game={game} small /><strong>{game.name[locale]}</strong></div>
-              <div className="compare-bar-track"><span style={{ width: `${((game.ytd ?? 0) / Math.max(...comparisonGames.map((item) => item.ytd ?? 0), 1)) * 100}%`, background: game.color }} /></div>
-              <div className="compare-value"><strong>{formatMoney(game.ytd, locale, displayExchangeRate)}</strong><small>{t.ytdEstimate}</small></div>
-              <div className="compare-share"><strong>{compareTotal ? (((game.ytd ?? 0) / compareTotal) * 100).toFixed(1) : 0}%</strong><small>{t.share}</small></div>
-            </div>
-          ))}
-        </div>
-      </section>
-
       <section className="panel versions-panel" id="versions">
         <div className="panel-heading">
-          <div><p className="section-kicker">03 · VERSION / BANNER</p><h2>{t.versionTitle}</h2><p>{t.versionSub}</p></div>
+          <div><p className="section-kicker">02 · VERSION / BANNER</p><h2>{t.versionTitle}</h2><p>{t.versionSub}</p></div>
           <div className="verified-only-badge">✓ {t.dataBadge}</div>
         </div>
 
@@ -1038,7 +1007,7 @@ export default function Dashboard({ locale }: { locale: Locale }) {
       </section>
 
       <section className="methodology" id="methodology">
-        <div className="method-heading"><p className="section-kicker">04 · FORMULA</p><h2>{t.methodologyTitle}</h2><p>{methodology?.excludes[locale]}</p></div>
+        <div className="method-heading"><p className="section-kicker">03 · FORMULA</p><h2>{t.methodologyTitle}</h2><p>{methodology?.excludes[locale]}</p></div>
         <div className="formula-grid">
           {methodology?.formulas.map((formula, index) => (
             <div className="formula-row" key={formula.id}><span>0{index + 1}</span><div><strong>{formula.title[locale]}</strong><code>{formula.expression}</code></div></div>

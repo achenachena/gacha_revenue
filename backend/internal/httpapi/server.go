@@ -76,14 +76,22 @@ func (s *Server) revenue(w http.ResponseWriter, r *http.Request) {
 		}
 		if grain == "month" {
 			for _, month := range history.History {
-				rows = append(rows, revenuePoint{GameID: history.GameID, Grain: grain, Period: time.Date(month.Year, time.Month(month.Month), 1, 0, 0, 0, 0, time.UTC).Format("2006-01-02"), Estimate: month.Value, Confidence: "SOURCE"})
+				rows = append(rows, revenuePoint{
+					GameID: history.GameID, Grain: grain,
+					Period:   time.Date(month.Year, time.Month(month.Month), 1, 0, 0, 0, 0, time.UTC).Format("2006-01-02"),
+					Estimate: month.Value, Confidence: "SOURCE", MarketCoverage: month.MarketCoverage, Scope: month.Scope,
+				})
 			}
 			continue
 		}
 		if grain == "year" {
 			definition, _ := revenue.Definition(history.GameID)
 			for _, annual := range revenue.Summarize(definition, history, period).Yearly {
-				rows = append(rows, revenuePoint{GameID: history.GameID, Grain: grain, Period: time.Date(annual.Year, 1, 1, 0, 0, 0, 0, time.UTC).Format("2006-01-02"), Estimate: annual.Value, Confidence: "SOURCE"})
+				rows = append(rows, revenuePoint{
+					GameID: history.GameID, Grain: grain, Period: time.Date(annual.Year, 1, 1, 0, 0, 0, 0, time.UTC).Format("2006-01-02"),
+					Estimate: annual.Value, Confidence: "SOURCE", MarketCoverage: annual.MarketCoverage,
+					Scope: singleScope(annual.Scopes),
+				})
 			}
 			continue
 		}
@@ -95,7 +103,7 @@ func (s *Server) revenue(w http.ResponseWriter, r *http.Request) {
 			if estimate.Estimate == nil {
 				continue
 			}
-			rows = append(rows, revenuePoint{GameID: history.GameID, Grain: grain, Period: version.StartsAt, Estimate: *estimate.Estimate, Confidence: "MODEL"})
+			rows = append(rows, revenuePoint{GameID: history.GameID, Grain: grain, Period: version.StartsAt, Estimate: *estimate.Estimate, Confidence: "MODEL", MarketCoverage: estimate.MarketCoverage, Scope: estimate.Scope})
 		}
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"data": rows, "meta": responseMeta()})
@@ -121,15 +129,11 @@ func (s *Server) versions(w http.ResponseWriter, r *http.Request) {
 			providerStatus = "temporarily_unavailable"
 			s.logger.Warn("calendar provider refresh failed", "error", err)
 		} else {
-			byID := make(map[string]bool, len(rows))
-			for _, row := range rows {
-				byID[row.ID] = true
-			}
+			updates := make([]versionFixture, 0, len(items))
 			for _, item := range items {
-				if !byID[item.ID] {
-					rows = append(rows, calendarFixture(item))
-				}
+				updates = append(updates, calendarFixture(item))
 			}
+			rows = versioncatalog.Merge(rows, updates)
 		}
 	}
 	sort.SliceStable(rows, func(i, j int) bool { return rows[i].StartsAt > rows[j].StartsAt })
@@ -147,6 +151,8 @@ func (s *Server) versions(w http.ResponseWriter, r *http.Request) {
 		rows[index].RevenueCoveredHours = estimate.CoveredHours
 		rows[index].WindowHours = estimate.WindowHours
 		rows[index].RevenueFormula = estimate.Formula
+		rows[index].RevenueMarketCoverage = estimate.MarketCoverage
+		rows[index].RevenueScope = estimate.Scope
 		if estimate.Estimate != nil {
 			rows[index].Confidence = "MODEL"
 		}
@@ -209,13 +215,22 @@ func knownGame(gameID string) bool {
 }
 
 type revenuePoint struct {
-	GameID     string   `json:"game_id"`
-	Grain      string   `json:"grain"`
-	Period     string   `json:"period"`
-	Estimate   float64  `json:"estimate"`
-	Low        *float64 `json:"p25"`
-	High       *float64 `json:"p75"`
-	Confidence string   `json:"confidence"`
+	GameID         string   `json:"game_id"`
+	Grain          string   `json:"grain"`
+	Period         string   `json:"period"`
+	Estimate       float64  `json:"estimate"`
+	Low            *float64 `json:"p25"`
+	High           *float64 `json:"p75"`
+	Confidence     string   `json:"confidence"`
+	MarketCoverage string   `json:"market_coverage"`
+	Scope          string   `json:"scope"`
+}
+
+func singleScope(scopes []string) string {
+	if len(scopes) == 1 {
+		return scopes[0]
+	}
+	return revenue.ScopeMixed
 }
 
 type versionFixture = versioncatalog.Version

@@ -25,3 +25,29 @@ func TestEstimateWindowAllocatesEachMonthByExactOverlap(t *testing.T) {
 		t.Fatalf("unexpected phase estimate: %+v", estimate)
 	}
 }
+
+func TestPartialMarketHistoryRemainsExplicitThroughAnnualAndPhaseAggregates(t *testing.T) {
+	history := []Month{
+		{Year: 2023, Month: 11, Value: 19, MarketCoverage: MarketCoveragePartial, Scope: ScopeGlobalExcludingCN},
+		{Year: 2023, Month: 12, Value: 28, MarketCoverage: MarketCoveragePartial, Scope: ScopeGlobalExcludingCN},
+	}
+	summary := Summarize(GameDefinition{ID: "hsr"}, GameHistory{GameID: "hsr", History: history}, &Period{Year: 2023, Month: 12})
+	if len(summary.Yearly) != 1 || summary.Yearly[0].Complete || summary.Yearly[0].MarketCoverage != MarketCoveragePartial || len(summary.Yearly[0].Scopes) != 1 || summary.Yearly[0].Scopes[0] != ScopeGlobalExcludingCN {
+		t.Fatalf("unexpected annual scope: %+v", summary.Yearly)
+	}
+	estimate := EstimateWindow(history, "2023-11-15", "2023-12-15")
+	if estimate.Estimate == nil || estimate.MarketCoverage != MarketCoveragePartial || estimate.Scope != ScopeGlobalExcludingCN {
+		t.Fatalf("unexpected phase scope: %+v", estimate)
+	}
+}
+
+func TestMixedMarketPhaseIsNotMislabelledComplete(t *testing.T) {
+	history := []Month{
+		{Year: 2023, Month: 12, Value: 28, MarketCoverage: MarketCoveragePartial, Scope: ScopeGlobalExcludingCN},
+		{Year: 2024, Month: 1, Value: 47.5},
+	}
+	estimate := EstimateWindow(history, "2023-12-20", "2024-01-10")
+	if estimate.MarketCoverage != MarketCoverageMixed || estimate.Scope != ScopeMixed {
+		t.Fatalf("expected mixed coverage, got %+v", estimate)
+	}
+}

@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Gacha Revenue Tracker API
-  version: 4.0.0
+  version: 4.1.0
   description: |
     Public-source mobile IAP estimates and hourly iOS rank observations.
     Values are third-party market estimates, not publisher-reported revenue.
@@ -100,13 +100,7 @@ paths:
                         publisher: {type: string}
                         history:
                           type: array
-                          items:
-                            type: object
-                            required: [year, month, value]
-                            properties:
-                              year: {type: integer}
-                              month: {type: integer, minimum: 1, maximum: 12}
-                              value: {type: number, description: USD millions}
+                          items: {$ref: '#/components/schemas/RevenueMonth'}
                         source_url: {type: string, format: uri}
                         source_fetched_at: {type: string, format: date-time}
                         source_status: {type: string}
@@ -237,22 +231,30 @@ components:
           items: {type: string}
     RevenueMonth:
       type: object
-      required: [year, month, value]
+      required: [year, month, value, market_coverage, scope]
       properties:
         year: {type: integer}
         month: {type: integer, minimum: 1, maximum: 12}
         value: {type: number, description: USD millions}
+        market_coverage: {$ref: '#/components/schemas/MarketCoverage'}
+        scope: {$ref: '#/components/schemas/RevenueScope'}
+        source_id: {type: string}
+        source_url: {type: string, format: uri}
     AnnualRevenue:
       type: object
-      required: [year, value, months, complete]
+      required: [year, value, months, complete, market_coverage, scopes]
       properties:
         year: {type: integer}
         value: {type: number, description: USD millions}
         months: {type: integer, minimum: 1, maximum: 12}
         complete: {type: boolean}
+        market_coverage: {$ref: '#/components/schemas/MarketCoverage'}
+        scopes:
+          type: array
+          items: {$ref: '#/components/schemas/RevenueScope'}
     RevenuePoint:
       type: object
-      required: [game_id, grain, period, estimate, p25, p75, confidence]
+      required: [game_id, grain, period, estimate, p25, p75, confidence, market_coverage, scope]
       properties:
         game_id: {type: string}
         grain: {type: string, enum: [month, year, version]}
@@ -261,6 +263,14 @@ components:
         p25: {type: [number, 'null']}
         p75: {type: [number, 'null']}
         confidence: {type: string}
+        market_coverage: {$ref: '#/components/schemas/MarketCoverage'}
+        scope: {$ref: '#/components/schemas/RevenueScope'}
+    MarketCoverage:
+      type: string
+      enum: [complete, partial, mixed]
+    RevenueScope:
+      type: string
+      enum: [combined_mobile_estimate, global_mobile_excluding_china, mixed]
     ExchangeRate:
       type: object
       required: [date, base, quote, rate, provider, source_url]
@@ -293,6 +303,8 @@ components:
         revenue_covered_hours: {type: integer, minimum: 0}
         window_hours: {type: integer, minimum: 0}
         revenue_formula: {type: string}
+        revenue_market_coverage: {$ref: '#/components/schemas/MarketCoverage'}
+        revenue_scope: {$ref: '#/components/schemas/RevenueScope'}
         coverage_status: {type: string}
         observed_hours: {type: integer, minimum: 0}
         collection_started_at: {type: [string, 'null'], format: date-time}

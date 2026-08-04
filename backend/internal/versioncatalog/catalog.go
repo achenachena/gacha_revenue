@@ -3,37 +3,40 @@ package versioncatalog
 import (
 	_ "embed"
 	"encoding/json"
+	"fmt"
 )
 
 type Version struct {
-	ID                  string               `json:"id"`
-	GameID              string               `json:"game_id"`
-	Version             string               `json:"version"`
-	PhaseIndex          int                  `json:"phase_index"`
-	PhaseZh             string               `json:"phase_zh"`
-	PhaseEn             string               `json:"phase_en"`
-	CharactersZh        string               `json:"characters_zh"`
-	CharactersEn        string               `json:"characters_en"`
-	StartsAt            string               `json:"starts_at"`
-	EndsAt              string               `json:"ends_at"`
-	Estimate            *float64             `json:"estimate"`
-	P25                 *float64             `json:"p25"`
-	P75                 *float64             `json:"p75"`
-	Confidence          string               `json:"confidence"`
-	RevenueCoverage     float64              `json:"revenue_coverage"`
-	RevenueCoveredHours int                  `json:"revenue_covered_hours"`
-	WindowHours         int                  `json:"window_hours"`
-	RevenueFormula      string               `json:"revenue_formula"`
-	CoverageStatus      string               `json:"coverage_status"`
-	ObservedHours       int                  `json:"observed_hours"`
-	CollectionStartedAt *string              `json:"collection_started_at"`
-	Ranks               map[string][2]*int   `json:"ios_grossing_rank_range"`
-	RankEvidence        *MetricEvidence      `json:"rank_evidence"`
-	AppHours            []AppLineObservation `json:"app_line_observations"`
-	DataStatus          string               `json:"data_status"`
-	Source              string               `json:"source"`
-	SourceURL           string               `json:"source_url"`
-	SourceDate          string               `json:"source_updated_at"`
+	ID                    string               `json:"id"`
+	GameID                string               `json:"game_id"`
+	Version               string               `json:"version"`
+	PhaseIndex            int                  `json:"phase_index"`
+	PhaseZh               string               `json:"phase_zh"`
+	PhaseEn               string               `json:"phase_en"`
+	CharactersZh          string               `json:"characters_zh"`
+	CharactersEn          string               `json:"characters_en"`
+	StartsAt              string               `json:"starts_at"`
+	EndsAt                string               `json:"ends_at"`
+	Estimate              *float64             `json:"estimate"`
+	P25                   *float64             `json:"p25"`
+	P75                   *float64             `json:"p75"`
+	Confidence            string               `json:"confidence"`
+	RevenueCoverage       float64              `json:"revenue_coverage"`
+	RevenueCoveredHours   int                  `json:"revenue_covered_hours"`
+	WindowHours           int                  `json:"window_hours"`
+	RevenueFormula        string               `json:"revenue_formula"`
+	RevenueMarketCoverage string               `json:"revenue_market_coverage,omitempty"`
+	RevenueScope          string               `json:"revenue_scope,omitempty"`
+	CoverageStatus        string               `json:"coverage_status"`
+	ObservedHours         int                  `json:"observed_hours"`
+	CollectionStartedAt   *string              `json:"collection_started_at"`
+	Ranks                 map[string][2]*int   `json:"ios_grossing_rank_range"`
+	RankEvidence          *MetricEvidence      `json:"rank_evidence"`
+	AppHours              []AppLineObservation `json:"app_line_observations"`
+	DataStatus            string               `json:"data_status"`
+	Source                string               `json:"source"`
+	SourceURL             string               `json:"source_url"`
+	SourceDate            string               `json:"source_updated_at"`
 }
 
 type AppLineObservation struct {
@@ -78,6 +81,71 @@ func List() []Version {
 
 func DefaultAppLines() []AppLineObservation {
 	return append([]AppLineObservation(nil), defaultAppLines...)
+}
+
+// Merge enriches the embedded owner-controlled catalog with a provider feed.
+// Owner corrections and observations remain authoritative; provider rows may
+// update calendar/character metadata and add previously unseen phases.
+func Merge(base, updates []Version) []Version {
+	result := make([]Version, len(base))
+	byID := make(map[string]int, len(base))
+	byPhase := make(map[string]int, len(base))
+	for index, version := range base {
+		result[index] = clone(version)
+		byID[version.ID] = index
+		byPhase[phaseKey(version)] = index
+	}
+	for _, update := range updates {
+		index, exists := byID[update.ID]
+		if !exists {
+			index, exists = byPhase[phaseKey(update)]
+		}
+		if !exists {
+			result = append(result, clone(update))
+			byID[update.ID] = len(result) - 1
+			byPhase[phaseKey(update)] = len(result) - 1
+			continue
+		}
+		enrichCalendar(&result[index], update)
+	}
+	return result
+}
+
+func phaseKey(version Version) string {
+	return fmt.Sprintf("%s:%s:%d", version.GameID, version.Version, version.PhaseIndex)
+}
+
+func enrichCalendar(target *Version, update Version) {
+	if update.PhaseZh != "" {
+		target.PhaseZh = update.PhaseZh
+	}
+	if update.PhaseEn != "" {
+		target.PhaseEn = update.PhaseEn
+	}
+	if update.CharactersZh != "" {
+		target.CharactersZh = update.CharactersZh
+	}
+	if update.CharactersEn != "" {
+		target.CharactersEn = update.CharactersEn
+	}
+	if update.StartsAt != "" {
+		target.StartsAt = update.StartsAt
+	}
+	if update.EndsAt != "" {
+		target.EndsAt = update.EndsAt
+	}
+	if update.Source != "" {
+		target.Source = update.Source
+	}
+	if update.SourceURL != "" {
+		target.SourceURL = update.SourceURL
+	}
+	if update.SourceDate != "" {
+		target.SourceDate = update.SourceDate
+	}
+	if update.DataStatus != "" {
+		target.DataStatus = update.DataStatus
+	}
 }
 
 func load() []Version {

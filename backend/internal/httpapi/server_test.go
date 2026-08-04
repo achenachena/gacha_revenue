@@ -112,8 +112,8 @@ func TestRevenueReturnsLabelledPublicSourceSnapshot(t *testing.T) {
 	if err := json.NewDecoder(bytes.NewReader(recorder.Body.Bytes())).Decode(&payload); err != nil {
 		t.Fatal(err)
 	}
-	if len(payload.Data) != 119 {
-		t.Fatalf("expected 119 monthly source points, got %d", len(payload.Data))
+	if len(payload.Data) != 141 {
+		t.Fatalf("expected 141 monthly source points, got %d", len(payload.Data))
 	}
 	if payload.Meta["data_status"] != "public_source_snapshot_with_automatic_rank_observations" {
 		t.Fatalf("unexpected data status: %v", payload.Meta["data_status"])
@@ -134,22 +134,27 @@ func TestRevenueIncludesReliablePreJuly2025History(t *testing.T) {
 	if err := json.NewDecoder(bytes.NewReader(recorder.Body.Bytes())).Decode(&payload); err != nil {
 		t.Fatal(err)
 	}
-	want := map[string]float64{
-		"genshin/2024-01-01": 99.25,
-		"hsr/2025-04-01":     103.45,
-		"zzz/2024-07-01":     99.75,
-		"wuwa/2024-05-01":    25.75,
+	want := map[string]struct {
+		value    float64
+		coverage string
+	}{
+		"genshin/2022-12-01": {68, revenue.MarketCoveragePartial},
+		"hsr/2023-04-01":     {20, revenue.MarketCoveragePartial},
+		"genshin/2024-01-01": {99.25, revenue.MarketCoverageComplete},
+		"hsr/2025-04-01":     {103.45, revenue.MarketCoverageComplete},
+		"zzz/2024-07-01":     {99.75, revenue.MarketCoverageComplete},
+		"wuwa/2024-05-01":    {25.75, revenue.MarketCoverageComplete},
 	}
 	for _, point := range payload.Data {
 		key := point.GameID + "/" + point.Period
 		if expected, ok := want[key]; ok {
-			if point.Estimate != expected {
+			if point.Estimate != expected.value || point.MarketCoverage != expected.coverage {
 				t.Fatalf("unexpected estimate for %s: got %v want %v", key, point.Estimate, expected)
 			}
 			delete(want, key)
 		}
-		if (point.GameID == "genshin" || point.GameID == "hsr") && point.Period < "2024-01-01" {
-			t.Fatalf("incomplete pre-2024 regional total must not be published: %+v", point)
+		if (point.GameID == "genshin" || point.GameID == "hsr") && point.Period < "2024-01-01" && (point.MarketCoverage != revenue.MarketCoveragePartial || point.Scope != revenue.ScopeGlobalExcludingCN) {
+			t.Fatalf("pre-2024 value must be explicitly labelled as partial ex-China history: %+v", point)
 		}
 	}
 	if len(want) != 0 {
