@@ -201,6 +201,9 @@ func TestPublicRevenueReturnsBackendAggregatesAtAlignedLatestPeriod(t *testing.T
 		if game.ID != "hsr" {
 			continue
 		}
+		if game.GameID != game.ID {
+			t.Fatalf("expected backward-compatible game_id alias, got %+v", game)
+		}
 		if game.Latest == nil || game.Latest.Value != 60 || game.YTD == nil || math.Abs(*game.YTD-247.7675) > 0.000001 || game.ChangePercent == nil || *game.ChangePercent != 100 {
 			t.Fatalf("unexpected backend aggregate: %+v", game)
 		}

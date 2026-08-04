@@ -89,9 +89,10 @@ paths:
                     type: array
                     items:
                       type: object
-                      required: [id, source_slug, launch_date, name_zh, name_en, publisher, history, source_url, source_fetched_at, source_status, yearly]
+                      required: [id, game_id, source_slug, launch_date, name_zh, name_en, publisher, history, source_url, source_fetched_at, source_status, yearly]
                       properties:
                         id: {type: string}
+                        game_id: {type: string, description: Backward-compatible alias of id}
                         source_slug: {type: string}
                         launch_date: {type: string, format: date}
                         name_zh: {type: string}

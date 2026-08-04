@@ -54,6 +54,7 @@ type AnnualSummary struct {
 
 type GameSummary struct {
 	GameDefinition
+	GameID          string          `json:"game_id"`
 	History         []Month         `json:"history"`
 	SourceURL       string          `json:"source_url"`
 	SourceFetchedAt time.Time       `json:"source_fetched_at"`
@@ -166,6 +167,7 @@ func Summarize(definition GameDefinition, source GameHistory, period *Period) Ga
 	history := Merge(source.History)
 	result := GameSummary{
 		GameDefinition:  definition,
+		GameID:          definition.ID,
 		History:         history,
 		SourceURL:       source.SourceURL,
 		SourceFetchedAt: source.SourceFetchedAt,
