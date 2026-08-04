@@ -2,6 +2,7 @@ package httpapi
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"io"
 	"log/slog"
@@ -9,6 +10,43 @@ import (
 	"net/http/httptest"
 	"testing"
 )
+
+type exchangeRateRoundTripFunc func(*http.Request) (*http.Response, error)
+
+func (function exchangeRateRoundTripFunc) Do(request *http.Request) (*http.Response, error) {
+	return function(request)
+}
+
+func TestFetchExchangeRateUsesECBDailyReferenceRate(t *testing.T) {
+	client := exchangeRateRoundTripFunc(func(request *http.Request) (*http.Response, error) {
+		if request.URL.String() != exchangeRateSourceURL {
+			t.Fatalf("unexpected exchange-rate URL: %s", request.URL)
+		}
+		return &http.Response{
+			StatusCode: http.StatusOK,
+			Body:       io.NopCloser(bytes.NewBufferString(`{"date":"2026-08-03","base":"USD","quote":"CNY","rate":6.7526}`)),
+		}, nil
+	})
+	rate, err := fetchExchangeRate(context.Background(), client)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if rate.Rate != 6.7526 || rate.Date != "2026-08-03" || rate.Provider != "European Central Bank via Frankfurter" {
+		t.Fatalf("unexpected exchange rate: %+v", rate)
+	}
+}
+
+func TestFetchExchangeRateRejectsImplausibleValues(t *testing.T) {
+	client := exchangeRateRoundTripFunc(func(*http.Request) (*http.Response, error) {
+		return &http.Response{
+			StatusCode: http.StatusOK,
+			Body:       io.NopCloser(bytes.NewBufferString(`{"date":"2026-08-03","base":"USD","quote":"CNY","rate":999}`)),
+		}, nil
+	})
+	if _, err := fetchExchangeRate(context.Background(), client); err == nil {
+		t.Fatal("expected implausible exchange rate to be rejected")
+	}
+}
 
 func TestGamesIncludesEstimateMetadata(t *testing.T) {
 	request := httptest.NewRequest(http.MethodGet, "/v1/games", nil)

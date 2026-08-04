@@ -81,6 +81,9 @@ jobs:
           curl --fail --show-error --silent --retry 6 --retry-all-errors --retry-delay 5 "${API_URL}healthz"
           curl --fail --show-error --silent --retry 3 --retry-all-errors --retry-delay 3 \
             --header "X-Backend-Token: ${BACKEND_PROXY_TOKEN}" \
+            "${API_URL}v1/exchange-rate"
+          curl --fail --show-error --silent --retry 3 --retry-all-errors --retry-delay 3 \
+            --header "X-Backend-Token: ${BACKEND_PROXY_TOKEN}" \
             "${API_URL}v1/banner-metrics?game_id=hsr&start=2026-08-01&end=2026-08-03"
 
       - name: Diagnose API Lambda after failed verification

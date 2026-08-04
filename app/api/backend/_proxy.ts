@@ -3,6 +3,7 @@ import type { NextRequest } from "next/server";
 const allowedGames = new Set(["genshin", "hsr", "zzz", "wuwa", "endfield", "nte"]);
 const policies = {
   "public-revenue": { revalidate: 21_600 },
+  "exchange-rate": { revalidate: 43_200 },
   versions: { revalidate: 60 },
   "banner-metrics": { revalidate: 300 },
 } as const;
@@ -27,7 +28,9 @@ function isISODate(value: string | null): value is string {
 }
 
 function validatedQuery(endpoint: BackendEndpoint, searchParams: URLSearchParams): URLSearchParams | null {
-  if (endpoint === "public-revenue") return searchParams.size === 0 ? new URLSearchParams() : null;
+  if (endpoint === "public-revenue" || endpoint === "exchange-rate") {
+    return searchParams.size === 0 ? new URLSearchParams() : null;
+  }
   if (endpoint === "versions") {
     if ([...searchParams.keys()].some((key) => key !== "game_id")) return null;
     if (searchParams.getAll("game_id").length > 1) return null;

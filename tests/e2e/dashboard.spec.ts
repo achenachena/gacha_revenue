@@ -3,6 +3,10 @@ import { expect, test } from "@playwright/test";
 test("exposes only the explicit validated backend proxy routes", async ({ request }) => {
   const unconfigured = await request.get("/api/backend/versions");
   expect(unconfigured.status()).toBe(503);
+  const exchangeRate = await request.get("/api/backend/exchange-rate");
+  expect(exchangeRate.status()).toBe(503);
+  const invalidExchangeRate = await request.get("/api/backend/exchange-rate?base=EUR");
+  expect(invalidExchangeRate.status()).toBe(400);
   const invalid = await request.get("/api/backend/banner-metrics?game_id=hsr&start=bad&end=2026-08-05");
   expect(invalid.status()).toBe(400);
   const unknown = await request.get("/api/backend/unknown");
@@ -12,22 +16,24 @@ test("exposes only the explicit validated backend proxy routes", async ({ reques
 test("switches revenue grain and locale", async ({ page }) => {
   await page.goto("/zh-CN");
   await expect(page.locator("main")).toHaveAttribute("data-hydrated", "true");
-  await expect(page.getByRole("heading", { name: "2026 年 6 月移动端流水估算" })).toBeVisible();
-  await expect(page.getByText("$128.9M")).toBeVisible();
+  await expect(page.getByRole("heading", { name: "2026 年累计移动端流水估算（截至 6 月）" })).toBeVisible();
+  await expect(page.getByText("¥57.50亿")).toBeVisible();
+  await expect(page.getByText(/2026 年 7 月公开源尚未发布/)).toBeVisible();
   const activeCard = page.locator(".game-card[aria-pressed='true']");
-  await expect(activeCard).toContainText("鸣潮");
-  await expect(activeCard).toContainText("$34.0M");
-  await expect(page.locator(".game-card").filter({ hasText: "异环" })).toContainText("$13.9M");
+  await expect(activeCard).toContainText("原神");
+  await expect(activeCard).toContainText("¥18.67亿");
+  await expect(page.locator(".game-card").filter({ hasText: "异环" })).toContainText("¥2.99亿");
 
   await page.locator(".game-card").filter({ hasText: "崩坏：星穹铁道" }).click();
-  await expect(page.getByText("$28.5M").first()).toBeVisible();
-  await expect(page.getByText("$58.1M").first()).toBeVisible();
+  await expect(page.getByText("¥12.57亿").first()).toBeVisible();
+  await expect(page.getByText("3.92", { exact: true }).first()).toBeVisible();
   await page.getByRole("button", { name: "按年" }).click();
   await expect(page.getByText("2025", { exact: true })).toBeVisible();
   await expect(page.getByText("2026 YTD").first()).toBeVisible();
   await page.getByRole("link", { name: "EN", exact: true }).click();
   await expect(page).toHaveURL(/\/en$/);
-  await expect(page.getByRole("heading", { name: "June 2026 mobile revenue estimates" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "2026 YTD mobile revenue estimates (through June)" })).toBeVisible();
+  await expect(page.locator(".game-card[aria-pressed='true']")).toContainText("$276.5M");
 });
 
 test("keeps overview text clear and lets users expand phase history", async ({ page }) => {
@@ -41,15 +47,21 @@ test("keeps overview text clear and lets users expand phase history", async ({ p
   expect((footBox?.y ?? 0) + (footBox?.height ?? 0)).toBeLessThanOrEqual(trendBox?.y ?? 0);
 
   await page.getByRole("button", { name: "按版本" }).click();
-  const range = page.getByLabel("版本显示范围");
-  await expect(range).toHaveValue("4");
+  const start = page.getByLabel("起始小版本");
+  const end = page.getByLabel("结束小版本");
+  await expect(start).toHaveValue("gi-65-p1");
+  await expect(end).toHaveValue("gi-66-p2");
   await expect(page.getByTestId("trend-point")).toHaveCount(4);
-  await expect(page.getByText("3.3上", { exact: true })).toBeVisible();
-  await expect(page.getByText("3.4下", { exact: true })).toBeVisible();
+  await expect(page.getByText("6.5上", { exact: true })).toBeVisible();
+  await expect(page.getByText("6.6下", { exact: true })).toBeVisible();
 
-  await range.selectOption("all");
-  const allPointCount = await page.getByTestId("trend-point").count();
-  expect(allPointCount).toBeGreaterThan(4);
+  await start.selectOption("gi-63-p1");
+  await end.selectOption("gi-66-p2");
+  await expect(page.getByTestId("trend-point")).toHaveCount(8);
+  await page.getByRole("button", { name: "当前数据源首期至今" }).click();
+  await expect(start).toHaveValue("gi-63-p1");
+  await expect(end).toHaveValue("gi-67-p2");
+  await expect(page.getByText(/已选 10 个小版本，其中 8 个有月流水覆盖/)).toBeVisible();
 });
 
 test("compares games and opens version intelligence", async ({ page }) => {

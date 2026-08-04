@@ -27,6 +27,7 @@ func New(logger *slog.Logger, calendar Calendar) http.Handler {
 	mux.HandleFunc("GET /healthz", server.health)
 	mux.HandleFunc("GET /v1/games", server.games)
 	mux.HandleFunc("GET /v1/public-revenue", server.publicRevenue)
+	mux.HandleFunc("GET /v1/exchange-rate", server.exchangeRate)
 	mux.HandleFunc("GET /v1/revenue", server.revenue)
 	mux.HandleFunc("GET /v1/versions", server.versions)
 	mux.HandleFunc("GET /v1/methodology", server.methodology)

@@ -216,10 +216,17 @@ main {
   letter-spacing: -0.035em;
 }
 
-.overview-heading > p:last-child {
+.overview-heading > p:not(.section-kicker) {
   margin: 7px 0 0;
   color: var(--muted);
   font-size: 11px;
+}
+
+.overview-heading .overview-source-note {
+  max-width: 720px;
+  color: var(--subtle);
+  font-size: 9px;
+  line-height: 1.5;
 }
 
 .overview-kpis {
@@ -490,6 +497,8 @@ main {
 .trend-controls {
   display: flex;
   align-items: flex-end;
+  justify-content: flex-end;
+  flex-wrap: wrap;
   gap: 10px;
 }
 
@@ -497,15 +506,32 @@ main {
   display: flex;
   flex-direction: column;
   gap: 4px;
+  min-width: min(680px, 66vw);
 }
 
-.version-range-control span {
+.version-range-control > span,
+.version-range-control label > span {
   color: var(--subtle);
   font-size: 8px;
 }
 
+.version-range-fields {
+  display: grid;
+  grid-template-columns: minmax(190px, 1fr) minmax(190px, 1fr) auto;
+  align-items: end;
+  gap: 7px;
+}
+
+.version-range-fields label {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 3px;
+}
+
 .version-range-control select {
-  min-width: 184px;
+  width: 100%;
+  min-width: 0;
   height: 35px;
   border: 1px solid var(--line);
   border-radius: 4px;
@@ -514,6 +540,22 @@ main {
   padding: 0 28px 0 10px;
   font-size: 10px;
 }
+
+.version-range-fields button {
+  height: 35px;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  background: var(--white);
+  color: var(--ink);
+  padding: 0 12px;
+  font-size: 9px;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.version-range-fields button:hover { border-color: var(--green); color: var(--green); }
+.version-range-fields button:disabled { opacity: 0.5; cursor: not-allowed; }
+.version-range-control > small { color: var(--subtle); font-size: 8px; }
 
 .trend-layout {
   display: grid;
@@ -1324,6 +1366,8 @@ footer a { margin-left: auto; font-family: var(--font-geist-mono), monospace; co
   .period-switch { width: 100%; }
   .period-switch button { flex: 1; }
   .trend-controls { width: 100%; align-items: stretch; flex-direction: column; }
+  .version-range-control { min-width: 0; width: 100%; }
+  .version-range-fields { grid-template-columns: 1fr; }
   .version-range-control select { width: 100%; }
   .line-chart { min-height: 255px; margin-left: -12px; margin-right: -5px; width: calc(100% + 17px); }
   .line-chart svg { min-height: 250px; }
