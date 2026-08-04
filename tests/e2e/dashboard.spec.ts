@@ -35,3 +35,70 @@ test("compares games and opens version intelligence", async ({ page }) => {
   await expect(rankingRows.nth(1)).toContainText("3.1 · 上半 · UP 爱弥斯");
   await expect(rankingRows.nth(1)).toContainText("15 小时");
 });
+
+test("adds a provider banner to the automatic per-game ranking", async ({ page }) => {
+  await page.route("**/api/backend/public-revenue", (route) =>
+    route.fulfill({ json: { data: [], meta: { fetched_at: "2026-08-03T12:00:00Z" } } }),
+  );
+  await page.route("**/api/backend/versions", (route) =>
+    route.fulfill({
+      json: {
+        data: [{
+          id: "wuwa-provider-p1",
+          game_id: "wuwa",
+          version: "3.6",
+          phase_index: 1,
+          phase_zh: "上半",
+          phase_en: "Phase 1",
+          characters_zh: "自动卡池角色",
+          characters_en: "Automatic banner character",
+          starts_at: "2026-08-01",
+          ends_at: "2026-08-22",
+          estimate: null,
+          p25: null,
+          p75: null,
+          confidence: "N/A",
+          data_status: "public_calendar",
+          source_url: "https://example.com/calendar",
+          source_updated_at: "2026-08-03",
+          ios_grossing_rank_range: { CN: [null, null], JP: [null, null], US: [null, null], KR: [null, null] },
+          app_line_observations: [{
+            app_id: "tencent_video",
+            name_zh: "腾讯视频",
+            name_en: "Tencent Video",
+            hours_above: null,
+            data_status: "awaiting_feed",
+            updated_at: null,
+          }],
+        }],
+        meta: { calendar_provider: "connected" },
+      },
+    }),
+  );
+  await page.route("**/api/backend/banner-metrics?*", (route) => {
+    const providerWindow = new URL(route.request().url()).searchParams.get("start") === "2026-08-01";
+    route.fulfill({
+      json: {
+        data: {
+          ranks: {},
+          app_line_observations: [{
+            app_id: "tencent_video",
+            hours_above: providerWindow ? 22 : 0,
+            observed_hours: providerWindow ? 48 : 0,
+            updated_at: providerWindow ? "2026-08-03T11:00:00Z" : null,
+          }],
+          source: "apple_public_feed",
+          coverage_status: providerWindow ? "observed" : "historical_provider_required",
+          collection_started_at: "2026-08-01T00:00:00Z",
+          phase_revenue: null,
+        },
+      },
+    });
+  });
+
+  await page.goto("/zh-CN");
+  const firstRankingRow = page.locator(".banner-ranking-table tbody tr").first();
+  await expect(firstRankingRow).toContainText("3.6 · 上半 · UP 自动卡池角色");
+  await expect(firstRankingRow).toContainText("22 小时");
+  await expect(firstRankingRow).toContainText("Apple 畅销榜 RSS 自动观测");
+});

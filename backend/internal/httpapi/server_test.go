@@ -8,14 +8,12 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
-
-	"gacha-revenue/backend/internal/config"
 )
 
 func TestGamesIncludesEstimateMetadata(t *testing.T) {
 	request := httptest.NewRequest(http.MethodGet, "/v1/games", nil)
 	recorder := httptest.NewRecorder()
-	New(config.Config{}, slog.New(slog.NewTextHandler(io.Discard, nil))).ServeHTTP(recorder, request)
+	New(slog.New(slog.NewTextHandler(io.Discard, nil)), nil).ServeHTTP(recorder, request)
 	if recorder.Code != http.StatusOK {
 		t.Fatalf("expected 200, got %d", recorder.Code)
 	}
@@ -37,7 +35,7 @@ func TestGamesIncludesEstimateMetadata(t *testing.T) {
 func TestRevenueReturnsLabelledPublicSourceSnapshot(t *testing.T) {
 	request := httptest.NewRequest(http.MethodGet, "/v1/revenue?grain=month", nil)
 	recorder := httptest.NewRecorder()
-	New(config.Config{}, slog.New(slog.NewTextHandler(io.Discard, nil))).ServeHTTP(recorder, request)
+	New(slog.New(slog.NewTextHandler(io.Discard, nil)), nil).ServeHTTP(recorder, request)
 	var payload struct {
 		Data []revenuePoint `json:"data"`
 		Meta map[string]any `json:"meta"`
@@ -68,39 +66,37 @@ func TestParsePublicRevenueSourceUsesPublishedTotals(t *testing.T) {
 	}
 }
 
-func TestAppLineRankingUsesOnlyKnownObservations(t *testing.T) {
-	request := httptest.NewRequest(http.MethodGet, "/v1/app-line-rankings?game_id=wuwa&app_line_id=tencent_video", nil)
+func TestVersionsPreserveOwnerCorrectionsWithoutInventingUnknownHours(t *testing.T) {
+	request := httptest.NewRequest(http.MethodGet, "/v1/versions?game_id=wuwa", nil)
 	recorder := httptest.NewRecorder()
-	New(config.Config{}, slog.New(slog.NewTextHandler(io.Discard, nil))).ServeHTTP(recorder, request)
+	New(slog.New(slog.NewTextHandler(io.Discard, nil)), nil).ServeHTTP(recorder, request)
 	var payload struct {
-		Data []struct {
-			Rank       int     `json:"rank"`
-			Characters string  `json:"characters"`
-			Hours      float64 `json:"hours_above"`
-		} `json:"data"`
+		Data []versionFixture `json:"data"`
 	}
 	if err := json.NewDecoder(bytes.NewReader(recorder.Body.Bytes())).Decode(&payload); err != nil {
 		t.Fatal(err)
 	}
-	if len(payload.Data) != 2 || payload.Data[0].Characters != "卡提希娅" || payload.Data[0].Hours != 18 || payload.Data[1].Characters != "爱弥斯" || payload.Data[1].Hours != 15 {
-		t.Fatalf("unexpected verified ranking: %+v", payload.Data)
+	if len(payload.Data) != 2 || payload.Data[0].CharactersZh != "爱弥斯" || payload.Data[1].CharactersZh != "卡提希娅" {
+		t.Fatalf("unexpected version corrections: %+v", payload.Data)
+	}
+	for _, version := range payload.Data {
+		if len(version.AppHours) != 1 || version.AppHours[0].Hours == nil {
+			t.Fatalf("expected only the supplied correction to be known: %+v", version)
+		}
 	}
 }
 
 func TestAnaxaDidNotExceedDouyin(t *testing.T) {
-	request := httptest.NewRequest(http.MethodGet, "/v1/app-line-rankings?game_id=hsr&app_line_id=douyin", nil)
+	request := httptest.NewRequest(http.MethodGet, "/v1/versions?game_id=hsr", nil)
 	recorder := httptest.NewRecorder()
-	New(config.Config{}, slog.New(slog.NewTextHandler(io.Discard, nil))).ServeHTTP(recorder, request)
+	New(slog.New(slog.NewTextHandler(io.Discard, nil)), nil).ServeHTTP(recorder, request)
 	var payload struct {
-		Data []struct {
-			Characters string  `json:"characters"`
-			Hours      float64 `json:"hours_above"`
-		} `json:"data"`
+		Data []versionFixture `json:"data"`
 	}
 	if err := json.NewDecoder(bytes.NewReader(recorder.Body.Bytes())).Decode(&payload); err != nil {
 		t.Fatal(err)
 	}
-	if len(payload.Data) != 1 || payload.Data[0].Characters != "那刻夏" || payload.Data[0].Hours != 0 {
+	if len(payload.Data) != 1 || payload.Data[0].CharactersZh != "那刻夏" || payload.Data[0].AppHours[0].Hours == nil || *payload.Data[0].AppHours[0].Hours != 0 {
 		t.Fatalf("unexpected Anaxa correction: %+v", payload.Data)
 	}
 }

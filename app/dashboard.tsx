@@ -11,10 +11,17 @@ import {
   type GameId,
   type Locale,
   type AppLineId,
-  type DataStatus,
-  type RevenueMonth,
   type VersionDetail,
 } from "./data";
+import {
+  applyBannerMetrics,
+  loadBannerMetricSet,
+  loadBannerMetrics,
+  loadPublicRevenue,
+  loadVersions,
+  mergeRevenue,
+  type BannerMetricsData,
+} from "./api-client";
 
 type Period = "month" | "year" | "version";
 
@@ -82,6 +89,10 @@ const copy = {
     exceeded: "超过",
     noHours: "未超过",
     awaitingFeed: "暂无覆盖",
+	historicalRequired: "采集启用前，需授权历史小时榜回填",
+	pendingCollection: "卡池尚未开始，开始后按小时自动更新",
+	collectionGap: "观察窗口内暂无可用快照",
+	observedCoverage: "已按小时自动观测",
     hours: "小时",
     rankNote: "峰值 = 观察窗口内最小名次；最低 = 最大可见名次。Apple 公共 feed 当前返回 Top 100，掉出范围时不会伪造精确名次。",
     appLineNote: "每个小时比较一次中国区畅销总榜；当游戏名次小于应用名次时，累计 1 小时。",
@@ -181,6 +192,10 @@ const copy = {
     exceeded: "Above",
     noHours: "Never above",
     awaitingFeed: "No coverage",
+	historicalRequired: "Before collection started; licensed hourly history is required",
+	pendingCollection: "Banner has not started; hourly updates begin automatically",
+	collectionGap: "No usable snapshot in this window",
+	observedCoverage: "Automatically observed hourly",
     hours: "hours",
     rankNote: "Peak is the minimum rank and lowest is the worst visible rank. Apple's public feed currently returns the Top 100; exact ranks outside it are never invented.",
     appLineNote: "China overall-grossing ranks are compared hourly; one hour is added whenever the game rank is smaller than the app rank.",
@@ -323,99 +338,8 @@ const marketNames: Record<"CN" | "JP" | "US" | "KR", Record<Locale, string>> = {
   KR: { "zh-CN": "韩国", en: "South Korea" },
 };
 
-type VersionsResponse = {
-  data?: Array<{
-    id: string;
-    game_id: GameId;
-    version: string;
-    phase_zh: string;
-    phase_en: string;
-    characters_zh: string;
-    characters_en: string;
-    starts_at: string;
-    ends_at: string;
-    estimate: number | null;
-    p25: number | null;
-    p75: number | null;
-    confidence: VersionDetail["confidence"];
-    data_status: DataStatus;
-    ios_grossing_rank_range: VersionDetail["ranks"];
-    app_line_observations: Array<{
-      app_id: AppLineId;
-      name_zh: string;
-      name_en: string;
-      hours_above: number | null;
-      data_status: DataStatus;
-      updated_at: string | null;
-    }>;
-  }>;
-};
-
-type PublicRevenueResponse = {
-  data?: Array<{ game_id: GameId; history: RevenueMonth[]; source_url: string }>;
-  meta?: { fetched_at: string };
-};
-
-type BannerMetricsResponse = {
-  data?: {
-    ranks: Partial<Record<"CN" | "JP" | "US" | "KR", {
-      peak_rank: number | null;
-      lowest_rank: number | null;
-      observed_hours: number;
-      ranked_hours: number;
-      lowest_is_beyond_feed: boolean;
-      feed_limit: number;
-    }>>;
-    app_line_observations: Array<{
-      app_id: AppLineId;
-      hours_above: number;
-      observed_hours: number;
-      updated_at: string | null;
-    }>;
-    source: "apple_public_feed";
-    phase_revenue: { estimate: number | null; coverage: number; formula: string; threshold: number } | null;
-  };
-};
-
-type BannerMetricsResult = BannerMetricsResponse | null;
-
-function normalizeVersions(payload: VersionsResponse): VersionDetail[] {
-  return (payload.data ?? []).map((item) => {
-    const startsAt = new Date(item.starts_at);
-    const endsAt = new Date(item.ends_at);
-    return {
-      id: item.id,
-      gameId: item.game_id,
-      version: item.version,
-      phaseIndex: 1,
-      phase: { "zh-CN": item.phase_zh, en: item.phase_en },
-      date: item.starts_at.slice(0, 10),
-      endDate: item.ends_at.slice(0, 10),
-      characters: { "zh-CN": item.characters_zh, en: item.characters_en },
-      scope: { "zh-CN": "角色卡池窗口", en: "Character banner window" },
-      revenue: item.estimate,
-      revenueRange: [item.p25, item.p75],
-      confidence: item.confidence,
-      windowHours: Math.max(0, Math.round((endsAt.getTime() - startsAt.getTime()) / 3_600_000)),
-      observedHours: item.data_status === "awaiting_feed" ? 0 : Math.max(0, Math.round((endsAt.getTime() - startsAt.getTime()) / 3_600_000)),
-      dataStatus: item.data_status,
-      sourceUrl: "",
-      sourceUpdatedAt: item.starts_at.slice(0, 10),
-      ranks: item.ios_grossing_rank_range,
-      appHours: item.app_line_observations.map((line) => ({
-        appId: line.app_id,
-        app: { "zh-CN": line.name_zh, en: line.name_en },
-        hours: line.hours_above,
-        source: line.data_status,
-        updatedAt: line.updated_at?.slice(0, 10) ?? null,
-      })),
-    };
-  });
-}
-
 export default function Dashboard({ locale }: { locale: Locale }) {
   const t = copy[locale];
-  const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL?.replace(/\/$/, "") ?? "";
   const hydrated = useSyncExternalStore(subscribeToHydration, () => true, () => false);
   const [gameData, setGameData] = useState<Game[]>(games);
   const [selectedGame, setSelectedGame] = useState<GameId>("hsr");
@@ -425,42 +349,29 @@ export default function Dashboard({ locale }: { locale: Locale }) {
   const [selectedVersionId, setSelectedVersionId] = useState("hsr-44-p1");
   const [rankingGame, setRankingGame] = useState<GameId>("wuwa");
   const [rankingApp, setRankingApp] = useState<AppLineId>("tencent_video");
-  const [versionsData, setVersionsData] = useState<VersionDetail[]>(versionDetails);
+  const [versionCatalog, setVersionCatalog] = useState<VersionDetail[]>(versionDetails);
+  const [metricsByVersion, setMetricsByVersion] = useState<Record<string, BannerMetricsData>>({});
 
   useEffect(() => {
-    if (!apiBase) return;
     const controller = new AbortController();
-    fetch(`${apiBase}/public-revenue`, { signal: controller.signal })
-      .then((response) => {
-        if (!response.ok) throw new Error(`public revenue API returned ${response.status}`);
-        return response.json() as Promise<PublicRevenueResponse>;
-      })
+    loadPublicRevenue(controller.signal)
       .then((payload) => {
         if (!payload.data?.length) return;
-        setGameData((current) => current.map((game) => {
-          const update = payload.data?.find((item) => item.game_id === game.id);
-          return update?.history.length ? updateGameRevenue(game, update.history) : game;
-        }));
+        setGameData((current) => mergeRevenue(current, payload, updateGameRevenue));
       })
       .catch((error: unknown) => {
         if (error instanceof DOMException && error.name === "AbortError") return;
         console.error("Unable to refresh public revenue source", error);
       });
     return () => controller.abort();
-  }, [apiBase]);
+  }, []);
 
   useEffect(() => {
-    if (!apiBase) return;
     const controller = new AbortController();
-    fetch(`${apiBase}/versions`, { signal: controller.signal })
-      .then((response) => {
-        if (!response.ok) throw new Error(`versions API returned ${response.status}`);
-        return response.json() as Promise<VersionsResponse>;
-      })
-      .then((payload) => {
-        const normalized = normalizeVersions(payload);
+    loadVersions(controller.signal)
+      .then((normalized) => {
         if (normalized.length) {
-          setVersionsData((current) => {
+          setVersionCatalog((current) => {
             const byWindow = new Map(normalized.map((item) => [`${item.gameId}:${item.version}:${item.date}:${item.endDate}`, item]));
             const merged = current.map((item) => byWindow.get(`${item.gameId}:${item.version}:${item.date}:${item.endDate}`) ?? item);
             const existing = new Set(merged.map((item) => `${item.gameId}:${item.version}:${item.date}:${item.endDate}`));
@@ -473,59 +384,59 @@ export default function Dashboard({ locale }: { locale: Locale }) {
         console.error("Unable to load authorized version data", error);
       });
     return () => controller.abort();
-  }, [apiBase]);
+  }, []);
+
+  const metricTarget = versionCatalog.find((item) => item.id === selectedVersionId);
+  const metricWindow = metricTarget ? `${metricTarget.gameId}|${metricTarget.date}|${metricTarget.endDate}` : "";
 
   useEffect(() => {
-    if (!apiBase) return;
-    const metricTarget = versionDetails.find((item) => item.id === selectedVersionId);
-    if (!metricTarget) return;
+    if (!metricWindow) return;
+    const [gameId, date, endDate] = metricWindow.split("|") as [GameId, string, string];
     const controller = new AbortController();
-    const query = new URLSearchParams({ game_id: metricTarget.gameId, start: metricTarget.date, end: metricTarget.endDate });
-    fetch(`${apiBase}/banner-metrics?${query}`, { signal: controller.signal })
-      .then((response) => {
-        if (response.status === 503) return null;
-        if (!response.ok) throw new Error(`banner metrics API returned ${response.status}`);
-        return response.json() as Promise<BannerMetricsResult>;
-      })
+    loadBannerMetrics({ gameId, date, endDate }, controller.signal)
       .then((payload) => {
-        const metrics = payload?.data;
+        const metrics = payload.data;
         if (!metrics) return;
-        const observedHours = Math.max(
-          0,
-          ...Object.values(metrics.ranks).map((item) => Number(item?.observed_hours ?? 0)),
-          ...metrics.app_line_observations.map((item) => Number(item.observed_hours ?? 0)),
-        );
-        if (!observedHours) return;
-        setVersionsData((current) => current.map((version) => {
-          if (version.id !== metricTarget.id) return version;
-          const ranks = { ...version.ranks };
-          for (const market of ["CN", "JP", "US", "KR"] as const) {
-            const row = metrics.ranks[market];
-            if (row?.observed_hours) ranks[market] = [row.peak_rank, row.lowest_rank];
-          }
-          const appHours = version.appHours.map((line) => {
-            const row = metrics.app_line_observations.find((item) => item.app_id === line.appId);
-            if (!row?.observed_hours) return line;
-            return { ...line, hours: Number(row.hours_above), source: "apple_public_feed" as const, updatedAt: row.updated_at?.slice(0, 10) ?? null };
-          });
-          const phaseEstimate = metrics.phase_revenue?.estimate ?? null;
-          return {
-            ...version,
-            ranks,
-            appHours,
-            observedHours,
-            revenue: phaseEstimate,
-            confidence: phaseEstimate === null ? "N/A" : "B",
-            dataStatus: "apple_public_feed",
-          };
-        }));
+        setMetricsByVersion((current) => ({ ...current, [selectedVersionId]: metrics }));
       })
       .catch((error: unknown) => {
         if (error instanceof DOMException && error.name === "AbortError") return;
         console.error("Unable to load automatic Apple rank observations", error);
       });
     return () => controller.abort();
-  }, [apiBase, selectedVersionId]);
+  }, [selectedVersionId, metricWindow]);
+
+  const rankingTargets = useMemo(
+    () => versionCatalog.filter((version) => version.gameId === rankingGame),
+    [rankingGame, versionCatalog],
+  );
+  useEffect(() => {
+    if (!rankingTargets.length) return;
+    const controller = new AbortController();
+    const refresh = () =>
+      loadBannerMetricSet(rankingTargets, controller.signal).then((results) => {
+        if (!results.size || controller.signal.aborted) return;
+        setMetricsByVersion((current) => {
+          const next = { ...current };
+          for (const [id, metrics] of results) next[id] = metrics;
+          return next;
+        });
+      });
+    void refresh();
+    const timer = window.setInterval(refresh, 60 * 60 * 1000);
+    return () => {
+      controller.abort();
+      window.clearInterval(timer);
+    };
+  }, [rankingTargets]);
+
+  const versionsData = useMemo(
+    () => versionCatalog.map((version) => {
+      const metrics = metricsByVersion[version.id];
+      return metrics ? applyBannerMetrics(version, metrics) : version;
+    }),
+    [metricsByVersion, versionCatalog],
+  );
 
   const activeGame = gameData.find((game) => game.id === selectedGame) ?? gameData[0];
   const selectedVersion = versionsData.find((version) => version.id === selectedVersionId);
@@ -535,6 +446,21 @@ export default function Dashboard({ locale }: { locale: Locale }) {
   const monthlyTotal = gameData.reduce((sum, game) => sum + (game.currentMonth ?? 0), 0);
   const ytdTotal = gameData.reduce((sum, game) => sum + (game.ytd ?? 0), 0);
   const modelledGameCount = gameData.filter((game) => game.currentMonth !== null).length;
+  const coverageLabel = (version: VersionDetail) => {
+    switch (version.coverageStatus) {
+      case "historical_provider_required": return t.historicalRequired;
+      case "pending_collection": return t.pendingCollection;
+      case "collection_gap": return t.collectionGap;
+      case "observed": return t.observedCoverage;
+      default: return t.awaitingFeed;
+    }
+  };
+  const versionSourceLabel = (version: VersionDetail) => {
+    if (version.dataStatus === "licensed_feed") return t.licensedSource;
+    if (version.dataStatus === "apple_public_feed") return t.appleSource;
+    if (version.dataStatus === "verified_manual") return t.correctionSource;
+    return coverageLabel(version);
+  };
 
   const trend = useMemo(() => {
     if (period === "year") {
@@ -743,9 +669,9 @@ export default function Dashboard({ locale }: { locale: Locale }) {
                 <strong>UP · {selectedVersion.characters[locale]}</strong>
                 <small>{gameData.find((game) => game.id === selectedVersion.gameId)?.name[locale]} · {selectedVersion.version} · {selectedVersion.phase[locale]}</small>
               </div>
-              <div><span>{t.dateWindow}</span><strong>{selectedVersion.date}<i>→</i>{selectedVersion.endDate}</strong><small>{selectedVersion.observedHours} / {selectedVersion.windowHours} {t.hours}</small></div>
-              <div><span>{t.estimateBasis}</span><strong>{selectedVersion.scope[locale]}</strong><small><a href={selectedVersion.sourceUrl} target="_blank" rel="noreferrer">{t.calendarSource} ↗</a> · {selectedVersion.sourceUpdatedAt}</small></div>
-              <div className="version-money"><span>{t.versionEstimate}</span><strong>{formatMoney(selectedVersion.revenue, locale)}</strong><small>{selectedVersion.dataStatus === "verified_manual" ? t.correctionSource : t.appleSource} · {selectedVersion.observedHours}/{selectedVersion.windowHours}h</small></div>
+              <div><span>{t.dateWindow}</span><strong>{selectedVersion.date}<i>→</i>{selectedVersion.endDate}</strong><small>{selectedVersion.observedHours} / {selectedVersion.windowHours} {t.hours} · {coverageLabel(selectedVersion)}</small></div>
+              <div><span>{t.estimateBasis}</span><strong>{selectedVersion.scope[locale]}</strong><small>{selectedVersion.sourceUrl ? <a href={selectedVersion.sourceUrl} target="_blank" rel="noreferrer">{t.calendarSource} ↗</a> : t.calendarSource} · {selectedVersion.sourceUpdatedAt}</small></div>
+              <div className="version-money"><span>{t.versionEstimate}</span><strong>{formatMoney(selectedVersion.revenue, locale)}</strong><small>{versionSourceLabel(selectedVersion)} · {selectedVersion.observedHours}/{selectedVersion.windowHours}h</small></div>
             </div>
 
             <div className="intelligence-grid">
@@ -756,7 +682,7 @@ export default function Dashboard({ locale }: { locale: Locale }) {
                     <thead><tr><th>{t.region}</th><th>{t.peakRank}</th><th>{t.lowRank}</th><th>{t.rankMeaning}</th></tr></thead>
                     <tbody>
                       {(Object.entries(selectedVersion.ranks) as Array<["CN" | "JP" | "US" | "KR", [number | null, number | null]]>).map(([country, rank]) => (
-                        <tr key={country}><td><b>{country}</b>{marketNames[country][locale]}</td><td><strong>{rank[0] === null ? "—" : `#${rank[0]}`}</strong><small>{rank[0] === null ? t.awaitingFeed : t.peakMeaning}</small></td><td><strong>{rank[1] === null ? "—" : `#${rank[1]}`}</strong><small>{rank[1] === null ? t.awaitingFeed : t.lowMeaning}</small></td><td>{selectedVersion.date}<br />{selectedVersion.endDate}</td></tr>
+                        <tr key={country}><td><b>{country}</b>{marketNames[country][locale]}</td><td><strong>{rank[0] === null ? "—" : `#${rank[0]}`}</strong><small>{rank[0] === null ? coverageLabel(selectedVersion) : t.peakMeaning}</small></td><td><strong>{rank[1] === null ? "—" : `#${rank[1]}`}</strong><small>{rank[1] === null ? coverageLabel(selectedVersion) : t.lowMeaning}</small></td><td>{selectedVersion.date}<br />{selectedVersion.endDate}</td></tr>
                       ))}
                     </tbody>
                   </table>
@@ -775,9 +701,9 @@ export default function Dashboard({ locale }: { locale: Locale }) {
                         return (
                           <tr key={item.appId}>
                             <td><strong>{item.app[locale]}</strong></td>
-                            <td><span className={`line-result ${known && (item.hours ?? 0) > 0 ? "yes" : "no"}`}>{!known ? t.awaitingFeed : (item.hours ?? 0) > 0 ? t.exceeded : t.noHours}</span></td>
+                            <td><span className={`line-result ${known && (item.hours ?? 0) > 0 ? "yes" : "no"}`}>{!known ? coverageLabel(selectedVersion) : (item.hours ?? 0) > 0 ? t.exceeded : t.noHours}</span></td>
                             <td><div className="hours-cell"><i><b style={{ width: known ? `${((item.hours ?? 0) / maxAppHours) * 100}%` : "0%" }} /></i><strong>{known ? `${item.hours} ${t.hours}` : "—"}</strong></div></td>
-                            <td><span className="source-cell">{item.source === "licensed_feed" ? t.licensedSource : item.source === "apple_public_feed" ? t.appleSource : item.source === "verified_manual" ? t.correctionSource : t.awaitingFeed}{item.updatedAt && <small>{item.updatedAt}</small>}</span></td>
+                            <td><span className="source-cell">{item.source === "licensed_feed" ? t.licensedSource : item.source === "apple_public_feed" ? t.appleSource : item.source === "verified_manual" ? t.correctionSource : coverageLabel(selectedVersion)}{item.updatedAt && <small>{item.updatedAt}</small>}</span></td>
                           </tr>
                         );
                       })}

@@ -1,57 +1,104 @@
 # 二游流水观察 / Gacha Revenue Tracker
 
-中英双语的二游移动端流水、上下半卡池与 iOS 畅销榜观察站。覆盖原神、崩坏：星穹铁道、绝区零、鸣潮、明日方舟：终末地和异环（Neverness to Everness）。网站与 API 都是公开读取，不包含登录功能。
+中英双语的二游移动端流水、独立卡池窗口与 iOS 畅销榜观察站。覆盖原神、崩坏：星穹铁道、绝区零、鸣潮、明日方舟：终末地和异环。网站公开读取，不含登录功能。
 
-## 数据口径
+## 数据边界
 
-月流水直接使用 [GachaDash](https://www.gachadash.com/revenue) / GachaRevenue 发布的 Sensor Tower 汇总估算，保留来源的美元百万单位：
+月流水采用 GachaDash / GachaRevenue 发布的 Sensor Tower 移动端估算，保留来源的美元百万单位：
 
 ```text
 月移动端流水 = 海外 iOS + 海外 Android + 中国 iOS × (1 + 1.75)
 ```
 
 - 仅含移动端 IAP，不含 PC、主机、官网直充、广告、周边或 IP 授权。
-- `1.75` 是公开源使用的中国 Android / 中国 iOS 默认假设，不是审计值。
-- Go API 每六小时检查六个游戏的公开月度序列；来源临时不可用时明确标记 `fallback_snapshot=true`，不会生成插值。
-- 第三方估算无法等同发行商真实收入。本站保证来源、口径与计算可追溯，不把市场估算称为审计收入。
+- `1.75` 是来源采用的中国 Android / 中国 iOS 假设，不是发行商披露或审计结果。
+- 上游不可用时只返回明确标记的最后快照，不插值、不把市场估算写成真实流水。
 
-卡池流水只在小时榜单覆盖达到 80% 后计算：
+应用线时长按小时计算：
 
 ```text
-小时权重 W(h) = Σ market_weight × rank(h)^-0.85
-卡池流水 R(phase) = Σ month_revenue × W(phase ∩ month) / W(month)
+H[g,p,a] = Σ 1(rank_game(g,t) < rank_app(a,t)) × 1 hour
 ```
 
-每个月单独归属，跨月不重复计算；覆盖不足返回 `null`，不会把月流水平均摊给上下半。
+Apple 公共榜当前只提供 Top 100。若游戏在榜、应用掉出 Top 100，可以确定游戏超过应用；若游戏掉榜、应用在榜，可以确定没有超过；两者都掉榜时该小时记为未知，不伪造精确名次。
 
-## 自动榜单观测
+## 为什么历史时长会为空
 
-生产链路为：
+Apple 榜单是实时快照，不提供过去任意小时的回放。本站从 `2026-08-04T02:00:00Z` 开始自动采集，因此更早的卡池只能由具有历史小时榜权限的七麦、Sensor Tower 或其他授权供应商回填。页面会区分：
+
+- `observed`：已有自动小时观测；
+- `historical_provider_required`：窗口早于采集启用时间，需要授权历史 feed；
+- `pending_collection`：卡池尚未开始；
+- `collection_gap`：应当采集但窗口内没有可用快照。
+
+空值不会被当作 `0 小时`。只有在存在可判定观测时，`0` 才表示确实没有超过。
+
+## 自动更新架构
 
 ```text
 EventBridge Scheduler → Go collector Lambda → DynamoDB 小时快照
-Vercel Next.js 前端 ──→ Go API Lambda Function URL ────────────↗
+授权历史榜 adapter ────────────────────────────────┐
+自动卡池日历 adapter ───────────────→ Go API Lambda │
+浏览器 → Vercel 同源只读代理 ───────────────────────┘
 ```
 
-Go collector Lambda 每小时读取 Apple 公开 Top Grossing RSS（CN / JP / US / KR；接口当前返回 Top 100），记录：
+- Apple CN / JP / US / KR 畅销榜每小时第 8 分钟采集一次；采集对象按游戏，不依赖当前卡池日历。
+- 卡池 feed 和 Vercel 代理各缓存 1 分钟。新卡池进入 feed 后通常在 2 分钟内自动出现在下拉栏；即使日历稍晚发布，此前已经采集的游戏小时榜仍可按窗口重新聚合。
+- 授权历史 feed 只在查询早于本站采集起点的窗口时调用，并与 DynamoDB 实时快照按小时合并。
+- 未配置商业供应商时，实时采集仍会继续，但历史数据无法免费回溯。代码不会抓取登录页面、绕过付费权限或把密钥写入仓库。
 
-- 每个独立上半 / 下半窗口的四区峰值与最低可见名次；
-- 中国区游戏超过抖音、腾讯视频、QQ 音乐、剪映、网易云音乐、百度网盘、夸克的小时数；
-- 同一小时 `rank_game < rank_app` 时累计一小时；不在 Top 100 可见范围时不伪造精确名次。
+供应商只需一次性适配成以下规范，之后不需要逐卡池手工更新。完整字段由 Go 类型校验，所有 URL 必须为 HTTPS，响应分别限制为 1 MiB / 2 MiB。
 
-Apple 公共 feed 只能从采集启用时开始积累，也不提供卡池日历。历史回填与未来卡池自动建档仍需合法购买的七麦、Sensor Tower 或其他授权 feed；免费 AWS 服务本身不能免费获得这些商业数据。当前卡池日历来自仓库中的公开日历快照，小时榜单从部署成功后自动积累。
+卡池 feed：
 
-## 本地运行
+```json
+{
+  "data": [{
+    "id": "hsr-44-p1",
+    "game_id": "hsr",
+    "version": "4.4",
+    "phase_index": 1,
+    "phase_zh": "上半",
+    "phase_en": "Phase 1",
+    "characters_zh": "角色 A、角色 B",
+    "characters_en": "Character A, Character B",
+    "starts_at": "2026-07-15",
+    "ends_at": "2026-08-05",
+    "source_url": "https://provider.example/source",
+    "source_updated_at": "2026-07-15"
+  }]
+}
+```
+
+历史小时榜 feed 接收 `game_id`、`start`、`end` 查询参数（UTC RFC3339），返回与 `rankstore.Snapshot` 相同的小时数组：
+
+```json
+{
+  "data": [{
+    "observed_hour": "2026-04-22T01:00:00Z",
+    "markets": {
+      "CN": {
+        "games": {"hsr": 2},
+        "app_lines": {"tencent_video": 4}
+      }
+    }
+  }]
+}
+```
+
+## 本地开发
 
 ```bash
 npm ci
+cp .env.example .env.local
 npm run dev
 ```
 
-后端依赖由 Docker Compose 启动：
+`.env.local` 使用两个仅服务端变量，绝不能加 `NEXT_PUBLIC_` 前缀：
 
-```bash
-docker compose up --build
+```text
+BACKEND_API_BASE_URL=https://<function-id>.lambda-url.ap-northeast-1.on.aws/v1
+BACKEND_PROXY_TOKEN=<与 AWS Lambda 相同的随机值>
 ```
 
 验证：
@@ -65,33 +112,29 @@ bash -n infra/serverless/deploy.sh
 jq empty infra/serverless/*.json
 ```
 
-## Vercel 前端
+## 部署配置
 
-标准 Next.js 项目，生产构建为 `npm run build`。AWS API 可用后，在 Vercel 项目的 Production / Preview 环境设置：
+Vercel Production / Preview：
 
-```text
-NEXT_PUBLIC_API_BASE_URL=https://<function-id>.lambda-url.ap-northeast-1.on.aws/v1
-```
+| 名称 | 类型 | 必需 | 说明 |
+|---|---|---:|---|
+| `BACKEND_API_BASE_URL` | server-only env | 是 | Lambda `/v1` 地址 |
+| `BACKEND_PROXY_TOKEN` | sensitive env | 是 | 至少 32 字节；建议 64 个随机十六进制字符，与 GitHub secret 相同 |
 
-然后重新部署。未设置时，前端会使用仓库中最后一次同来源快照，不会请求未部署的 API。
+GitHub `production` environment：
 
-## AWS 后端
+| 名称 | 类型 | 必需 | 说明 |
+|---|---|---:|---|
+| `AWS_DEPLOY_ROLE_ARN` | variable | 是 | GitHub OIDC 部署角色 |
+| `AWS_REGION` | variable | 是 | 当前为 `ap-northeast-1` |
+| `BACKEND_PROXY_TOKEN` | secret | 是 | 写入 Lambda 环境，不输出到日志 |
+| `CALENDAR_FEED_URL` | variable | 否 | 标准化自动卡池 feed |
+| `CALENDAR_FEED_TOKEN` | secret | 否 | 卡池 feed Bearer token |
+| `RANK_HISTORY_FEED_URL` | variable | 否 | 标准化授权历史小时榜 feed |
+| `RANK_HISTORY_FEED_TOKEN` | secret | 否 | 历史榜 Bearer token |
 
-生产后端是无 VPC 的免费额度友好架构：
+浏览器只能访问 Vercel 的 `/api/backend/*` allowlist。Vercel 在服务端添加代理 token；Lambda `/v1/*` 使用恒定时间比较拒绝无 token 请求，`/healthz` 仅返回无敏感信息。生产仓库不保存 AWS access key、供应商 token 或 Vercel token。
 
-- 两个 ARM64 Go Lambda：公开只读 API 与每小时榜单采集器；当账号并发配额允许时分别限制并发为 2 和 1（新账号配额不足时部署日志会明确提示）。
-- 一个 DynamoDB Standard 表，固定 `5 RCU / 5 WCU`，数据保留 13 个月后由 TTL 清理。
-- 一个 EventBridge Scheduler，每小时第 8 分钟采集 Apple CN / JP / US / KR Top Grossing。
-- Lambda Function URL 直接提供 GET API；CloudWatch 日志只保留 7 天。
-- 不创建 VPC、NAT、ECS、RDS、ElastiCache、ALB、ECR、S3、API Gateway、Route 53 或 Secrets Manager。
+AWS 使用两个 ARM64 Lambda、一个 DynamoDB 表和一个 EventBridge Scheduler；不创建 VPC、NAT、ECS、RDS、Redis、ALB、ECR、S3 或 API Gateway。免费计划仍需配置预算告警，并关注 AWS credits 与计划到期时间。
 
-GitHub Actions 的 `Deploy free AWS backend` workflow 使用 GitHub OIDC，不保存长期 AWS access key。仓库 `production` environment 只需要：
-
-| Variable | 内容 |
-|---|---|
-| `AWS_DEPLOY_ROLE_ARN` | `arn:aws:iam::597994428399:role/gacha-revenue-free-github-deploy` |
-| `AWS_REGION` | `ap-northeast-1` |
-
-角色使用 [GitHub OIDC Trust policy](infra/serverless/github-oidc-trust-policy.json) 中经过实际 token 验证的不可变仓库 ID，只允许本仓库的 `production` environment；同时附加 [最小部署权限](infra/serverless/github-deploy-policy.json)。触发 workflow 后会幂等创建或更新所有资源、立即采集一轮数据，并在 Summary 输出 Function URL。
-
-“Free plan / 免费额度”仍不是无限期免计费承诺：需要保持 AWS 预算告警开启，并关注账号的 credits 与 Free plan 到期日。部署脚本把资源规格锁定在上述范围，也不授予 GitHub 删除资源或创建其他 AWS 服务的权限。
+安全问题请按 [SECURITY.md](SECURITY.md) 私下报告。

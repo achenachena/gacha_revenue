@@ -194,6 +194,7 @@ export type AppLineId =
   | "quark";
 
 export type DataStatus = "verified_manual" | "licensed_feed" | "apple_public_feed" | "public_calendar" | "awaiting_feed";
+export type CoverageStatus = "unknown" | "observed" | "historical_provider_required" | "pending_collection" | "collection_gap";
 
 export type AppLineObservation = {
   appId: AppLineId;
@@ -218,6 +219,8 @@ export type VersionDetail = {
   confidence: "A" | "B+" | "B" | "N/A";
   windowHours: number;
   observedHours: number;
+  coverageStatus: CoverageStatus;
+  collectionStartedAt: string | null;
   dataStatus: DataStatus;
   sourceUrl: string;
   sourceUpdatedAt: string;
@@ -281,6 +284,8 @@ function banner(seed: BannerSeed): VersionDetail {
     confidence: "N/A",
     windowHours: Math.max(0, Math.round((end - start) / 3_600_000)),
     observedHours: known ? Math.max(0, Math.round((end - start) / 3_600_000)) : 0,
+    coverageStatus: known ? "observed" : "unknown",
+    collectionStartedAt: null,
     dataStatus: known ? "verified_manual" : "public_calendar",
     sourceUrl: seed.sourceUrl,
     sourceUpdatedAt: seed.sourceUpdatedAt,

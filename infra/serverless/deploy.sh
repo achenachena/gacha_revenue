@@ -4,6 +4,17 @@ set -euo pipefail
 : "${AWS_REGION:?AWS_REGION is required}"
 : "${API_ZIP:?API_ZIP is required}"
 : "${COLLECTOR_ZIP:?COLLECTOR_ZIP is required}"
+: "${BACKEND_PROXY_TOKEN:?BACKEND_PROXY_TOKEN is required}"
+if (( ${#BACKEND_PROXY_TOKEN} < 32 || ${#BACKEND_PROXY_TOKEN} > 256 )); then
+  printf '%s\n' "BACKEND_PROXY_TOKEN must contain 32-256 bytes" >&2
+  exit 1
+fi
+
+RANK_COLLECTION_STARTED_AT="${RANK_COLLECTION_STARTED_AT:-2026-08-04T02:00:00Z}"
+CALENDAR_FEED_URL="${CALENDAR_FEED_URL:-}"
+CALENDAR_FEED_TOKEN="${CALENDAR_FEED_TOKEN:-}"
+RANK_HISTORY_FEED_URL="${RANK_HISTORY_FEED_URL:-}"
+RANK_HISTORY_FEED_TOKEN="${RANK_HISTORY_FEED_TOKEN:-}"
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 DEPLOY_DIR="$ROOT_DIR/infra/serverless"
@@ -21,6 +32,18 @@ LAMBDA_ROLE_ARN="arn:aws:iam::$ACCOUNT_ID:role/$LAMBDA_ROLE"
 SCHEDULER_ROLE_ARN="arn:aws:iam::$ACCOUNT_ID:role/$SCHEDULER_ROLE"
 TABLE_ARN="arn:aws:dynamodb:$AWS_REGION:$ACCOUNT_ID:table/$TABLE_NAME"
 COLLECTOR_ARN="arn:aws:lambda:$AWS_REGION:$ACCOUNT_ID:function:$COLLECTOR_FUNCTION"
+
+jq -cn \
+  --arg table "$TABLE_NAME" \
+  --arg proxy "$BACKEND_PROXY_TOKEN" \
+  --arg started "$RANK_COLLECTION_STARTED_AT" \
+  --arg calendar_url "$CALENDAR_FEED_URL" \
+  --arg calendar_token "$CALENDAR_FEED_TOKEN" \
+  --arg history_url "$RANK_HISTORY_FEED_URL" \
+  --arg history_token "$RANK_HISTORY_FEED_TOKEN" \
+  '{Variables:{DYNAMODB_TABLE:$table,PROXY_TOKEN:$proxy,RANK_COLLECTION_STARTED_AT:$started,CALENDAR_FEED_URL:$calendar_url,CALENDAR_FEED_TOKEN:$calendar_token,RANK_HISTORY_FEED_URL:$history_url,RANK_HISTORY_FEED_TOKEN:$history_token}}' \
+  >"$WORK_DIR/api-environment.json"
+jq -cn --arg table "$TABLE_NAME" '{Variables:{DYNAMODB_TABLE:$table}}' >"$WORK_DIR/collector-environment.json"
 
 cat >"$WORK_DIR/lambda-policy.json" <<JSON
 {
@@ -107,6 +130,7 @@ create_function_with_retry() {
   local zip_file="$2"
   local memory="$3"
   local timeout="$4"
+  local environment_file="$5"
   local attempt
   for attempt in 1 2 3 4 5; do
     if aws lambda create-function \
@@ -118,7 +142,7 @@ create_function_with_retry() {
       --zip-file "fileb://$zip_file" \
       --memory-size "$memory" \
       --timeout "$timeout" \
-      --environment "Variables={DYNAMODB_TABLE=$TABLE_NAME}" \
+      --environment "file://$environment_file" \
       --tags Project=gacha-revenue,CostProfile=free-tier >/dev/null; then
       return 0
     fi
@@ -134,6 +158,7 @@ ensure_function() {
   local zip_file="$2"
   local memory="$3"
   local timeout="$4"
+  local environment_file="$5"
   if aws lambda get-function --function-name "$function_name" >/dev/null 2>&1; then
     aws lambda update-function-code --function-name "$function_name" --zip-file "fileb://$zip_file" --architectures arm64 >/dev/null
     aws lambda wait function-updated --function-name "$function_name"
@@ -144,15 +169,15 @@ ensure_function() {
       --role "$LAMBDA_ROLE_ARN" \
       --memory-size "$memory" \
       --timeout "$timeout" \
-      --environment "Variables={DYNAMODB_TABLE=$TABLE_NAME}" >/dev/null
+      --environment "file://$environment_file" >/dev/null
   else
-    create_function_with_retry "$function_name" "$zip_file" "$memory" "$timeout"
+    create_function_with_retry "$function_name" "$zip_file" "$memory" "$timeout" "$environment_file"
   fi
   aws lambda wait function-updated --function-name "$function_name"
 }
 
-ensure_function "$API_FUNCTION" "$API_ZIP" 256 30
-ensure_function "$COLLECTOR_FUNCTION" "$COLLECTOR_ZIP" 256 45
+ensure_function "$API_FUNCTION" "$API_ZIP" 256 30 "$WORK_DIR/api-environment.json"
+ensure_function "$COLLECTOR_FUNCTION" "$COLLECTOR_ZIP" 256 45 "$WORK_DIR/collector-environment.json"
 
 # AWS requires at least 100 account concurrency units to remain unreserved.
 # New accounts can start below that threshold, so apply the cost guard only
