@@ -37,17 +37,25 @@ jobs:
 
   infrastructure:
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: infra/terraform
     steps:
       - uses: actions/checkout@v4
-      - uses: hashicorp/setup-terraform@v4
+      - uses: actions/setup-go@v5
         with:
-          terraform_version: "1.14.3"
-      - run: terraform fmt -check -recursive
-      - run: terraform init -backend=false
-      - run: terraform validate
+          go-version: '1.24.x'
+          cache-dependency-path: backend/go.sum
+      - name: Validate free infrastructure definitions
+        run: |
+          bash -n infra/serverless/deploy.sh
+          jq empty infra/serverless/*.json
+      - name: Cross-compile Lambda functions
+        working-directory: backend
+        env:
+          CGO_ENABLED: "0"
+          GOOS: linux
+          GOARCH: arm64
+        run: |
+          go build -trimpath -o /tmp/gacha-api-bootstrap ./cmd/lambda-api
+          go build -trimpath -o /tmp/gacha-collector-bootstrap ./cmd/lambda-collector
 
   browser:
     runs-on: ubuntu-latest

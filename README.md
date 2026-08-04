@@ -29,18 +29,17 @@
 生产链路为：
 
 ```text
-EventBridge Scheduler → SQS → Go worker → S3 原始归档
-                                      ↘ PostgreSQL 小时观测与聚合 → Go API
-Vercel Next.js 前端 ────────────────────────────────────────────↗
+EventBridge Scheduler → Go collector Lambda → DynamoDB 小时快照
+Vercel Next.js 前端 ──→ Go API Lambda Function URL ────────────↗
 ```
 
-Go worker 每小时读取 Apple 公开 Top Grossing RSS（CN / JP / US / KR，Top 200），记录：
+Go collector Lambda 每小时读取 Apple 公开 Top Grossing RSS（CN / JP / US / KR；接口当前返回 Top 100），记录：
 
 - 每个独立上半 / 下半窗口的四区峰值与最低可见名次；
 - 中国区游戏超过抖音、腾讯视频、QQ 音乐、剪映、网易云音乐、百度网盘、夸克的小时数；
-- 同一小时 `rank_game < rank_app` 时累计一小时；不在 Top 200 时不伪造精确名次。
+- 同一小时 `rank_game < rank_app` 时累计一小时；不在 Top 100 可见范围时不伪造精确名次。
 
-Apple 公共 feed 只能从采集启用时开始积累，也不提供卡池日历。历史回填与未来卡池自动建档必须接入合法购买的七麦、Sensor Tower 或其他授权 feed；令牌只保存在 AWS Secrets Manager。
+Apple 公共 feed 只能从采集启用时开始积累，也不提供卡池日历。历史回填与未来卡池自动建档仍需合法购买的七麦、Sensor Tower 或其他授权 feed；免费 AWS 服务本身不能免费获得这些商业数据。当前卡池日历来自仓库中的公开日历快照，小时榜单从部署成功后自动积累。
 
 ## 本地运行
 
@@ -62,7 +61,8 @@ npm run lint
 npm run build
 npx playwright test
 (cd backend && go test ./... && go vet ./...)
-(cd infra/terraform && terraform fmt -check -recursive && terraform validate)
+bash -n infra/serverless/deploy.sh
+jq empty infra/serverless/*.json
 ```
 
 ## Vercel 前端
@@ -70,48 +70,28 @@ npx playwright test
 标准 Next.js 项目，生产构建为 `npm run build`。AWS API 可用后，在 Vercel 项目的 Production / Preview 环境设置：
 
 ```text
-NEXT_PUBLIC_API_BASE_URL=https://api.<你的域名>/v1
+NEXT_PUBLIC_API_BASE_URL=https://<function-id>.lambda-url.ap-northeast-1.on.aws/v1
 ```
 
 然后重新部署。未设置时，前端会使用仓库中最后一次同来源快照，不会请求未部署的 API。
 
 ## AWS 后端
 
-Terraform 创建 ECR、ECS Fargate、ALB/ACM、RDS PostgreSQL、ElastiCache Redis、SQS/DLQ、EventBridge Scheduler、S3、Secrets Manager、SSM 和 CloudWatch。它复用一个现有 VPC：ECS/ALB 使用至少两个公有子网，RDS/Redis 使用至少两个私有子网。
+生产后端是无 VPC 的免费额度友好架构：
 
-复制示例并替换值可本地部署：
+- 两个 ARM64 Go Lambda：公开只读 API 与每小时榜单采集器；当账号并发配额允许时分别限制并发为 2 和 1（新账号配额不足时部署日志会明确提示）。
+- 一个 DynamoDB Standard 表，固定 `5 RCU / 5 WCU`，数据保留 13 个月后由 TTL 清理。
+- 一个 EventBridge Scheduler，每小时第 8 分钟采集 Apple CN / JP / US / KR Top Grossing。
+- Lambda Function URL 直接提供 GET API；CloudWatch 日志只保留 7 天。
+- 不创建 VPC、NAT、ECS、RDS、ElastiCache、ALB、ECR、S3、API Gateway、Route 53 或 Secrets Manager。
 
-```bash
-cp infra/terraform/backend.hcl.example infra/terraform/backend.hcl
-cp infra/terraform/terraform.tfvars.example infra/terraform/terraform.tfvars
-cd infra/terraform
-terraform init -backend-config=backend.hcl
-terraform apply
-```
-
-GitHub Actions 的 `Deploy AWS backend` workflow 使用 GitHub OIDC，不保存长期 AWS access key。仓库 `production` environment 需要以下 Variables：
+GitHub Actions 的 `Deploy free AWS backend` workflow 使用 GitHub OIDC，不保存长期 AWS access key。仓库 `production` environment 只需要：
 
 | Variable | 内容 |
 |---|---|
-| `AWS_DEPLOY_ROLE_ARN` | 信任本仓库 GitHub OIDC 的 AWS IAM role ARN |
-| `AWS_REGION` | 推荐 `ap-northeast-1` |
-| `TF_STATE_BUCKET` | 已存在、开启版本控制与加密的 Terraform state S3 bucket |
-| `AWS_VPC_ID` | 目标 VPC ID |
-| `AWS_PUBLIC_SUBNET_IDS` | JSON 数组，例如 `["subnet-a","subnet-c"]` |
-| `AWS_PRIVATE_SUBNET_IDS` | JSON 数组，例如 `["subnet-b","subnet-d"]` |
-| `API_DOMAIN_NAME` | Route 53 区域下的 API 域名，例如 `api.example.com` |
-| `ROUTE53_ZONE_ID` | 上述域名的 public hosted zone ID |
-| `RAW_DATA_BUCKET_NAME` | 全球唯一的新 S3 bucket 名 |
+| `AWS_DEPLOY_ROLE_ARN` | `arn:aws:iam::597994428399:role/gacha-revenue-free-github-deploy` |
+| `AWS_REGION` | `ap-northeast-1` |
 
-可选成本 / 高可用 Variables：`API_DESIRED_COUNT`、`WORKER_DESIRED_COUNT`、`RDS_INSTANCE_CLASS`、`REDIS_NODE_TYPE`、`REDIS_NUM_CACHE_CLUSTERS`。默认 workflow 使用单 API、单 worker、`db.t4g.small` 与单 Redis 节点，属于较低成本、非高可用配置。
+角色信任范围必须限制为 `repo:achenachena/gacha_revenue:environment:production`，并附加 [最小部署权限](infra/serverless/github-deploy-policy.json)。触发 workflow 后会幂等创建或更新所有资源、立即采集一轮数据，并在 Summary 输出 Function URL。
 
-首次部署后，如有授权历史 API，在 Secrets Manager 输出的 `rank_feed_secret_arn` 对应 secret 中写入：
-
-```json
-{
-  "AUTHORIZED_RANK_FEED_URL": "https://licensed-provider.example/feed",
-  "AUTHORIZED_RANK_FEED_TOKEN": "replace-me"
-}
-```
-
-供应商 token 不进入 GitHub Variables、Vercel或前端包。
+“Free plan / 免费额度”仍不是无限期免计费承诺：需要保持 AWS 预算告警开启，并关注账号的 credits 与 Free plan 到期日。部署脚本把资源规格锁定在上述范围，也不授予 GitHub 删除资源或创建其他 AWS 服务的权限。

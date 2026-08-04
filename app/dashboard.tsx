@@ -83,7 +83,7 @@ const copy = {
     noHours: "未超过",
     awaitingFeed: "暂无覆盖",
     hours: "小时",
-    rankNote: "峰值 = 观察窗口内最小名次；最低 = 最大名次。Apple 公共 feed 只含 Top 200，超出范围时不会伪造精确名次。",
+    rankNote: "峰值 = 观察窗口内最小名次；最低 = 最大可见名次。Apple 公共 feed 当前返回 Top 100，掉出范围时不会伪造精确名次。",
     appLineNote: "每个小时比较一次中国区畅销总榜；当游戏名次小于应用名次时，累计 1 小时。",
     characterNote: "每条记录按独立上半 / 下半开放窗口统计。0 小时只在已有观测时表示确实未超过；暂无覆盖表示采集启用前的历史小时仍需授权 API 回填，二者严格区分。",
     correctionSource: "已核验历史记录",
@@ -182,7 +182,7 @@ const copy = {
     noHours: "Never above",
     awaitingFeed: "No coverage",
     hours: "hours",
-    rankNote: "Peak is the minimum rank and lowest is the maximum rank. Apple's public feed is Top 200 only; exact ranks outside it are never invented.",
+    rankNote: "Peak is the minimum rank and lowest is the worst visible rank. Apple's public feed currently returns the Top 100; exact ranks outside it are never invented.",
     appLineNote: "China overall-grossing ranks are compared hourly; one hour is added whenever the game rank is smaller than the app rank.",
     characterNote: "Each row uses the exact phase window. Zero only means genuinely never above when observations exist; no coverage means pre-collector history still needs licensed API backfill.",
     correctionSource: "Verified historical record",
@@ -363,7 +363,8 @@ type BannerMetricsResponse = {
       lowest_rank: number | null;
       observed_hours: number;
       ranked_hours: number;
-      lowest_is_beyond_200: boolean;
+      lowest_is_beyond_feed: boolean;
+      feed_limit: number;
     }>>;
     app_line_observations: Array<{
       app_id: AppLineId;
@@ -825,7 +826,7 @@ export default function Dashboard({ locale }: { locale: Locale }) {
         </div>
         <div className="formula-definitions">
           {t.definitions.map(([symbol, definition]) => <div key={symbol}><code>{symbol}</code><p>{definition}</p></div>)}
-          <div className="source-links"><strong>{t.sources}</strong><a href={revenueSource.url} target="_blank" rel="noreferrer">GachaDash / GachaRevenue ↗</a><a href="https://sensortower.com/product/mobile-app/app-performance-insights" target="_blank" rel="noreferrer">Sensor Tower ↗</a><a href="https://itunes.apple.com/cn/rss/topgrossingapplications/limit=200/json" target="_blank" rel="noreferrer">Apple Top Grossing RSS ↗</a></div>
+          <div className="source-links"><strong>{t.sources}</strong><a href={revenueSource.url} target="_blank" rel="noreferrer">GachaDash / GachaRevenue ↗</a><a href="https://sensortower.com/product/mobile-app/app-performance-insights" target="_blank" rel="noreferrer">Sensor Tower ↗</a><a href="https://itunes.apple.com/cn/rss/topgrossingapplications/limit=100/json" target="_blank" rel="noreferrer">Apple Top Grossing RSS ↗</a></div>
           <p className="source-note">{t.sourceNote}</p>
         </div>
       </section>
