@@ -28,8 +28,8 @@ test("switches revenue grain and locale", async ({ page }) => {
   await expect(page.getByText("¥12.57亿").first()).toBeVisible();
   await expect(page.getByText("3.92", { exact: true }).first()).toBeVisible();
   await page.getByRole("button", { name: "按年" }).click();
-  await expect(page.getByText("2025", { exact: true })).toBeVisible();
-  await expect(page.getByText("2026 YTD").first()).toBeVisible();
+  await expect(page.getByText("2025（部分）", { exact: true })).toBeAttached();
+  await expect(page.getByText("2026（截至6月）", { exact: true })).toBeAttached();
   await page.getByRole("link", { name: "EN", exact: true }).click();
   await expect(page).toHaveURL(/\/en$/);
   await expect(page.getByRole("heading", { name: "2026 YTD mobile revenue estimates (through June)" })).toBeVisible();
@@ -46,7 +46,20 @@ test("keeps overview text clear and lets users expand phase history", async ({ p
   expect(trendBox).not.toBeNull();
   expect((footBox?.y ?? 0) + (footBox?.height ?? 0)).toBeLessThanOrEqual(trendBox?.y ?? 0);
 
+  await expect(page.locator(".line-chart text").filter({ hasText: "2020-09" })).toHaveCount(1);
+  await expect(page.locator(".line-chart text").filter({ hasText: "2026-06" })).toHaveCount(1);
+  const chart = page.locator("#trend .line-chart");
+  await page.locator("#trend").getByRole("button", { name: "查看开服" }).click();
+  await expect.poll(() => chart.evaluate((element) => element.scrollLeft)).toBe(0);
+  await page.locator("#trend").getByRole("button", { name: "查看最新" }).click();
+  await expect.poll(() => chart.evaluate((element) => element.scrollLeft)).toBeGreaterThan(0);
+
   await page.getByRole("button", { name: "按版本" }).click();
+  const headingBox = await page.locator("#trend .panel-heading").boundingBox();
+  const filterBox = await page.locator("#trend .trend-filter-bar").boundingBox();
+  expect(headingBox).not.toBeNull();
+  expect(filterBox).not.toBeNull();
+  expect(filterBox?.y ?? 0).toBeGreaterThanOrEqual((headingBox?.y ?? 0) + (headingBox?.height ?? 0));
   const start = page.getByLabel("起始小版本");
   const end = page.getByLabel("结束小版本");
   await expect(start).toHaveValue("gi-65-p1");
@@ -55,25 +68,24 @@ test("keeps overview text clear and lets users expand phase history", async ({ p
   await expect(page.getByText("6.5上", { exact: true })).toBeVisible();
   await expect(page.getByText("6.6下", { exact: true })).toBeVisible();
 
-  await start.selectOption("gi-63-p1");
-  await end.selectOption("gi-66-p2");
-  await expect(page.getByTestId("trend-point")).toHaveCount(8);
-  await page.getByRole("button", { name: "当前数据源首期至今" }).click();
-  await expect(start).toHaveValue("gi-63-p1");
+  await page.getByRole("button", { name: "选择开服至今" }).click();
+  await expect(start).toHaveValue("catalog-genshin-10-p1");
   await expect(end).toHaveValue("gi-67-p2");
-  await expect(page.getByText(/已选 10 个小版本，其中 8 个有月流水覆盖/)).toBeVisible();
+  await expect(page.getByText(/已选 102 个小版本，其中 8 个有月流水覆盖/)).toBeVisible();
+  await expect(page.locator(".line-chart text").filter({ hasText: "1.0上" })).toHaveCount(1);
+  await expect(page.locator(".line-chart text").filter({ hasText: "6.7下" })).toHaveCount(1);
 });
 
 test("compares games and opens version intelligence", async ({ page }) => {
   await page.goto("/zh-CN");
   await expect(page.locator("main")).toHaveAttribute("data-hydrated", "true");
-  await page.getByLabel("选择游戏").selectOption("hsr");
-  await page.getByLabel("选择版本 / 卡池角色").selectOption("hsr-32-anaxa");
-  await expect(page.getByText("UP · 那刻夏")).toBeVisible();
-  const douyinRow = page.getByRole("row").filter({ hasText: "抖音" });
-  await expect(douyinRow).toContainText("未超过");
-  await expect(douyinRow).toContainText("0 小时");
-  await expect(page.getByText("20.6 小时")).toHaveCount(0);
+  const bannerSelect = page.getByLabel("选择版本 / 卡池角色");
+  await page.getByLabel("选择游戏").selectOption("endfield");
+  await bannerSelect.selectOption("ef-10-p1");
+  await expect(page.getByText("UP · 莱万汀")).toBeVisible();
+  await expect(bannerSelect.locator("option")).toHaveCount(11);
+  const allOptionText = await bannerSelect.locator("option").allTextContents();
+  expect(allOptionText.join(" ")).not.toMatch(/那刻夏|Anaxa|Laevatain/);
   await expect(page.getByRole("columnheader", { name: "峰值名次" })).toBeVisible();
   await expect(page.getByRole("columnheader", { name: "最低名次" })).toBeVisible();
   await page.getByLabel("排名游戏").selectOption("wuwa");

@@ -11,6 +11,7 @@ export type RevenueMonth = {
 export type Game = {
   id: GameId;
   sourceSlug: string;
+  launchDate: string;
   shortName: string;
   name: Record<Locale, string>;
   publisher: string;
@@ -74,6 +75,7 @@ export function updateGameRevenue(
     {
       id: game.id,
       sourceSlug: game.sourceSlug,
+      launchDate: game.launchDate,
       shortName: game.shortName,
       name: game.name,
       publisher: game.publisher,
@@ -90,6 +92,7 @@ export const games: Game[] = [
     {
       id: "genshin",
       sourceSlug: "genshin-impact",
+      launchDate: "2020-09-28",
       shortName: "GI",
       name: { "zh-CN": "原神", en: "Genshin Impact" },
       publisher: "HoYoverse",
@@ -109,6 +112,7 @@ export const games: Game[] = [
     {
       id: "hsr",
       sourceSlug: "honkai-star-rail",
+      launchDate: "2023-04-26",
       shortName: "HSR",
       name: { "zh-CN": "崩坏：星穹铁道", en: "Honkai: Star Rail" },
       publisher: "HoYoverse",
@@ -128,6 +132,7 @@ export const games: Game[] = [
     {
       id: "zzz",
       sourceSlug: "zenless-zone-zero",
+      launchDate: "2024-07-04",
       shortName: "ZZZ",
       name: { "zh-CN": "绝区零", en: "Zenless Zone Zero" },
       publisher: "HoYoverse",
@@ -147,6 +152,7 @@ export const games: Game[] = [
     {
       id: "wuwa",
       sourceSlug: "wuthering-waves",
+      launchDate: "2024-05-23",
       shortName: "WW",
       name: { "zh-CN": "鸣潮", en: "Wuthering Waves" },
       publisher: "Kuro Games",
@@ -166,6 +172,7 @@ export const games: Game[] = [
     {
       id: "endfield",
       sourceSlug: "arknights-endfield",
+      launchDate: "2026-01-22",
       shortName: "EF",
       name: { "zh-CN": "明日方舟：终末地", en: "Arknights: Endfield" },
       publisher: "GRYPHLINE",
@@ -182,6 +189,7 @@ export const games: Game[] = [
     {
       id: "nte",
       sourceSlug: "neverness-to-everness",
+      launchDate: "2026-04-29",
       shortName: "NTE",
       name: { "zh-CN": "异环", en: "Neverness to Everness" },
       publisher: "Hotta Studio / Perfect World",
@@ -276,6 +284,44 @@ type BannerSeed = {
   knownHours?: Partial<Record<AppLineId, number>>;
 };
 
+const chineseCharacterNames: Record<string, string> = {
+  Columbina: "哥伦比娅", Ineffa: "伊涅芙", Zibai: "兹白", Neuvillette: "那维莱特",
+  Varka: "法尔伽", Flins: "菲林斯", Skirk: "丝柯克", Escoffier: "爱可菲",
+  Linnea: "琳妮娅", Chasca: "恰斯卡", Nefer: "奈芙尔", Lauma: "菈乌玛",
+  Nicole: "妮可", Durin: "杜林", Lohen: "洛衡", Mavuika: "玛薇卡",
+  Sandrone: "桑多涅", Citlali: "茜特菈莉", "Raiden Shogun": "雷电将军",
+  Fugue: "忘归人", Lingsha: "灵砂", Aglaea: "阿格莱雅", Sunday: "星期日",
+  "Yao Guang": "瑶光", Evernight: "长夜月", Hysilens: "海瑟音", "Black Swan": "黑天鹅",
+  Sparxie: "斯帕克希", Cerydra: "刻律德菈", Rappa: "乱破", Sparkle: "花火",
+  Ashveil: "阿什维尔", Hyacine: "风堇", Boothill: "波提欧", "Silver Wolf LV.999": "银狼·LV.999",
+  "The Dahlia": "大丽花", Castorice: "遐蝶", Firefly: "流萤", Evanescia: "绯英",
+  Tribbie: "缇宝", "Mortenax Blade": "摩腾斯·刃", Phainon: "白厄", Cyrene: "昔涟",
+  "Himeko Nova": "姬子·新星", "Dan Heng Permansor Terrae": "丹恒·腾荒",
+  Aventurine: "砂金", "Ye Shunguang": "叶瞬光", Zhao: "照", Alice: "爱丽丝",
+  "Soldier 0 - Anby": "零号·安比", "Astra Yao": "耀嘉音", Sunna: "桑娜", Yixuan: "仪玄",
+  Aria: "爱莉娅", Yuzuha: "浮波柚叶", "Nangong Yu": "南宫羽", Yidhari: "伊德海莉",
+  Cissia: "希希娅", Seed: "席德", Promeia: "普罗米娅", Lucia: "露西亚",
+  "Starlight Billy": "星辉比利", "Orphie & Magus": "奥菲丝与鬼火", Velina: "薇莉娜",
+  Norma: "诺玛", Remielle: "雷米艾尔", Sigrid: "西格莉德", Mornye: "莫宁",
+  Augusta: "奥古斯塔", Iuno: "尤诺", Chisa: "千咲", Lupa: "露帕",
+  "Luuk Herssen": "陆·赫森", Galbrena: "嘉贝莉娜", Sigrika: "希格莉卡", Qiuyuan: "仇远",
+  Lynae: "琳奈", Zani: "赞妮", Phoebe: "菲比", Hiyuki: "日雪", Denia: "黛妮娅",
+  Phrolova: "弗洛洛", Lucy: "露西", Rebecca: "丽贝卡", Lucilla: "露西拉",
+  Cartethyia: "卡提希娅", "Yangyang: Xuanling": "秧秧·玄翎", Suisui: "穗穗",
+  Laevatain: "莱万汀", Gilberta: "洁尔佩塔", Yvonne: "伊冯", Tangtang: "唐糖",
+  Rossi: "罗西", "Zhuang Fangyi": "庄方仪", "Fest of Brilliance": "辉煌盛会",
+  "Mi Fu": "米芙", Camille: "卡缪", Arcane: "奥术", Liino: "莉诺",
+};
+
+export function localizeCharactersToChinese(value: string) {
+  return value
+    .split(/[、,]/)
+    .map((name) => name.trim())
+    .filter(Boolean)
+    .map((name) => chineseCharacterNames[name] ?? name)
+    .join("、");
+}
+
 function banner(seed: BannerSeed): VersionDetail {
   const start = new Date(`${seed.date}T00:00:00Z`).getTime();
   const end = new Date(`${seed.endDate}T00:00:00Z`).getTime();
@@ -288,7 +334,7 @@ function banner(seed: BannerSeed): VersionDetail {
     phase: { "zh-CN": seed.phaseIndex === 1 ? "上半" : seed.phaseIndex === 2 ? "下半" : `第 ${seed.phaseIndex} 期`, en: `Phase ${seed.phaseIndex}` },
     date: seed.date,
     endDate: seed.endDate,
-    characters: { "zh-CN": seed.zh, en: seed.en },
+    characters: { "zh-CN": localizeCharactersToChinese(seed.zh), en: seed.en },
     scope: { "zh-CN": "独立卡池窗口", en: "Exact banner window" },
     revenue: null,
     revenueRange: [null, null],
@@ -312,7 +358,7 @@ const WUWA_SOURCE = "https://www.pcgamer.com/games/rpg/wuthering-waves-banner-ne
 const ENDFIELD_SOURCE = "https://endfieldhub.org/tools/banner-history";
 const NTE_SOURCE = "https://www.pcgamer.com/games/action/neverness-to-everness-banners-next-current-gacha-explained/";
 
-export const versionDetails: VersionDetail[] = [
+const sourcedVersionDetails: VersionDetail[] = [
   // Genshin Impact: every 2026 phase currently present in the cited history.
   banner({ id: "gi-63-p1", gameId: "genshin", version: "6.3", phaseIndex: 1, date: "2026-01-14", endDate: "2026-02-03", zh: "Columbina、Ineffa", en: "Columbina, Ineffa", sourceUrl: GENSHIN_SOURCE, sourceUpdatedAt: "2026-07-23" }),
   banner({ id: "gi-63-p2", gameId: "genshin", version: "6.3", phaseIndex: 2, date: "2026-02-03", endDate: "2026-02-25", zh: "Zibai、Neuvillette", en: "Zibai, Neuvillette", sourceUrl: GENSHIN_SOURCE, sourceUpdatedAt: "2026-07-23" }),
@@ -337,9 +383,7 @@ export const versionDetails: VersionDetail[] = [
   banner({ id: "hsr-43-p1", gameId: "hsr", version: "4.3", phaseIndex: 1, date: "2026-06-01", endDate: "2026-06-24", zh: "Mortenax Blade、Yao Guang", en: "Mortenax Blade, Yao Guang", sourceUrl: HSR_SOURCE, sourceUpdatedAt: "2026-07-24" }),
   banner({ id: "hsr-43-p2", gameId: "hsr", version: "4.3", phaseIndex: 2, date: "2026-06-24", endDate: "2026-07-15", zh: "Phainon、Cyrene", en: "Phainon, Cyrene", sourceUrl: HSR_SOURCE, sourceUpdatedAt: "2026-07-24" }),
   banner({ id: "hsr-44-p1", gameId: "hsr", version: "4.4", phaseIndex: 1, date: "2026-07-15", endDate: "2026-08-05", zh: "Himeko Nova、Sparxie、Evernight、Dan Heng Permansor Terrae", en: "Himeko Nova, Sparxie, Evernight, Dan Heng Permansor Terrae", sourceUrl: HSR_SOURCE, sourceUpdatedAt: "2026-07-24" }),
-  banner({ id: "hsr-44-p2", gameId: "hsr", version: "4.4", phaseIndex: 2, date: "2026-08-05", endDate: "2026-08-26", zh: "Himeko Nova、Cerydra、Anaxa、Aventurine", en: "Himeko Nova, Cerydra, Anaxa, Aventurine", sourceUrl: HSR_SOURCE, sourceUpdatedAt: "2026-07-24" }),
-  banner({ id: "hsr-32-anaxa", gameId: "hsr", version: "3.2", phaseIndex: 2, date: "2025-04-30", endDate: "2025-05-21", zh: "那刻夏", en: "Anaxa", sourceUrl: HSR_SOURCE, sourceUpdatedAt: "2026-08-03", knownHours: { douyin: 0 } }),
-
+  banner({ id: "hsr-44-p2", gameId: "hsr", version: "4.4", phaseIndex: 2, date: "2026-08-05", endDate: "2026-08-26", zh: "Himeko Nova、Cerydra、Aventurine", en: "Himeko Nova, Cerydra, Aventurine", sourceUrl: HSR_SOURCE, sourceUpdatedAt: "2026-07-24" }),
   // Zenless Zone Zero.
   banner({ id: "zzz-25-p1", gameId: "zzz", version: "2.5", phaseIndex: 1, date: "2025-12-30", endDate: "2026-01-21", zh: "Ye Shunguang、Zhao", en: "Ye Shunguang, Zhao", sourceUrl: ZZZ_SOURCE, sourceUpdatedAt: "2026-07-02" }),
   banner({ id: "zzz-25-p2", gameId: "zzz", version: "2.5", phaseIndex: 2, date: "2026-01-21", endDate: "2026-02-06", zh: "Alice、Soldier 0 - Anby、Astra Yao", en: "Alice, Soldier 0 - Anby, Astra Yao", sourceUrl: ZZZ_SOURCE, sourceUpdatedAt: "2026-07-02" }),
@@ -391,9 +435,91 @@ export const versionDetails: VersionDetail[] = [
   banner({ id: "nte-12-p2", gameId: "nte", version: "1.2", phaseIndex: 2, date: "2026-07-29", endDate: "2026-08-19", zh: "伊洛伊", en: "Iroi", sourceUrl: NTE_SOURCE, sourceUpdatedAt: "2026-07-10" }),
 ];
 
-export const monthLabels = {
-  "zh-CN": ["1月", "2月", "3月", "4月", "5月", "6月"],
-  en: ["Jan", "Feb", "Mar", "Apr", "May", "Jun"],
+function versionRange(major: number, lastMinor: number, firstMinor = 0) {
+  return Array.from({ length: lastMinor - firstMinor + 1 }, (_, index) => `${major}.${firstMinor + index}`);
+}
+
+const completeVersionNumbers: Record<GameId, string[]> = {
+  genshin: [
+    ...versionRange(1, 6),
+    ...versionRange(2, 8),
+    ...versionRange(3, 8),
+    ...versionRange(4, 8),
+    ...versionRange(5, 8),
+    ...versionRange(6, 7),
+  ],
+  hsr: [
+    ...versionRange(1, 6),
+    ...versionRange(2, 7),
+    ...versionRange(3, 8),
+    ...versionRange(4, 4),
+  ],
+  zzz: [
+    ...versionRange(1, 7),
+    ...versionRange(2, 8),
+    ...versionRange(3, 1),
+  ],
+  wuwa: [
+    ...versionRange(1, 4),
+    ...versionRange(2, 8),
+    ...versionRange(3, 5),
+  ],
+  endfield: versionRange(1, 4),
+  nte: versionRange(1, 2),
 };
 
-export const yearLabels: string[] = ["2025（7–12月）", "2026 YTD"];
+function phaseIndexes(gameId: GameId, version: string) {
+  if (gameId === "endfield" && version === "1.0") return [1, 2, 3];
+  if (gameId === "hsr" && version === "3.8") return [1, 2, 3];
+  return [1, 2];
+}
+
+function phaseKey(gameId: GameId, version: string, phaseIndex: number) {
+  return `${gameId}:${version}:${phaseIndex}`;
+}
+
+function catalogPlaceholder(gameId: GameId, version: string, phaseIndex: number): VersionDetail {
+  return {
+    id: `catalog-${gameId}-${version.replace(".", "")}-p${phaseIndex}`,
+    gameId,
+    version,
+    phaseIndex,
+    phase: {
+      "zh-CN": phaseIndex === 1 ? "上半" : phaseIndex === 2 ? "下半" : `第 ${phaseIndex} 期`,
+      en: `Phase ${phaseIndex}`,
+    },
+    date: "",
+    endDate: "",
+    characters: { "zh-CN": "角色待补充", en: "Characters pending" },
+    scope: { "zh-CN": "历史小版本目录", en: "Historical phase catalog" },
+    revenue: null,
+    revenueRange: [null, null],
+    confidence: "N/A",
+    windowHours: 0,
+    observedHours: 0,
+    coverageStatus: "historical_provider_required",
+    collectionStartedAt: null,
+    dataStatus: "awaiting_feed",
+    sourceUrl: "",
+    sourceUpdatedAt: "",
+    ranks: { ...emptyRanks },
+    appHours: observations({}, "verified_manual", ""),
+  };
+}
+
+const sourcedByPhase = new Map(
+  sourcedVersionDetails.map((version) => [phaseKey(version.gameId, version.version, version.phaseIndex), version]),
+);
+const catalogKeys = new Set<string>();
+const catalogDetails = (Object.entries(completeVersionNumbers) as Array<[GameId, string[]]>).flatMap(
+  ([gameId, versions]) => versions.flatMap((version) => phaseIndexes(gameId, version).map((phaseIndex) => {
+    const key = phaseKey(gameId, version, phaseIndex);
+    catalogKeys.add(key);
+    return sourcedByPhase.get(key) ?? catalogPlaceholder(gameId, version, phaseIndex);
+  })),
+);
+
+export const versionDetails: VersionDetail[] = [
+  ...catalogDetails,
+  ...sourcedVersionDetails.filter((version) => !catalogKeys.has(phaseKey(version.gameId, version.version, version.phaseIndex))),
+];

@@ -25,11 +25,15 @@ import {
   type ExchangeRateData,
 } from "./api-client";
 import {
+  buildMonthlyRevenueSeries,
   buildVersionRangeOptions,
   buildVersionRevenueSeries,
+  buildYearlyRevenueSeries,
   defaultVersionRange,
   highestYTDGameId,
   latestRevenuePeriod,
+  sortVersions,
+  versionPhaseKey,
   type VersionRange,
 } from "./revenue-model";
 
@@ -69,10 +73,16 @@ const copy = {
     versionRange: "小版本显示范围",
     rangeStart: "起始小版本",
     rangeEnd: "结束小版本",
-    fullRange: "当前数据源首期至今",
+    fullRange: "选择开服至今",
     rangeSummary: "已选 {selected} 个小版本，其中 {estimable} 个有月流水覆盖",
     noMonthlyCoverage: "暂无月流水覆盖",
-    calendarCoverageNote: "选择器会展示当前卡池日历源提供的全部小版本；接入更早日历后会自动扩展，不会用猜测补齐历史。",
+    calendarCoverageNote: "版本目录已覆盖开服至今；没有可靠卡池日期或流水的历史期次会明确留空。",
+    monthCoverageNote: "开服至今共 {available} 个月；当前可靠来源覆盖 {covered} 个月，缺失月份保留为空。横向滚动可查看完整历史。",
+    yearCoverageNote: "开服至今共 {available} 个年度节点；标注“部分”的年份只有部分月份来源值。",
+    firstPeriod: "查看开服",
+    latestPeriod: "查看最新",
+    calendarPending: "卡池日期待补充",
+    catalogCount: "开服至今共 {count} 个小版本条目",
     versionModelNote: "版本值按卡池窗口与已发布月流水的重叠小时比例归属；尚无月流水覆盖的卡池不进入图表。",
     unit: "移动端流水估算（亿元人民币）",
     monthAxis: "月份",
@@ -177,10 +187,16 @@ const copy = {
     versionRange: "Phase range",
     rangeStart: "Start phase",
     rangeEnd: "End phase",
-    fullRange: "First sourced phase to now",
+    fullRange: "Select launch to now",
     rangeSummary: "{selected} phases selected; {estimable} have monthly revenue coverage",
     noMonthlyCoverage: "no monthly coverage",
-    calendarCoverageNote: "The selectors include every phase supplied by the current calendar source and expand automatically when earlier history is connected; missing history is never guessed.",
+    calendarCoverageNote: "The phase catalog now spans launch to present; historical dates and revenue without a reliable source remain explicitly blank.",
+    monthCoverageNote: "{available} months from launch to present; the reliable source currently covers {covered}. Missing months remain blank. Scroll horizontally for the full history.",
+    yearCoverageNote: "{available} annual nodes from launch to present; years marked partial contain only some sourced months.",
+    firstPeriod: "Go to launch",
+    latestPeriod: "Go to latest",
+    calendarPending: "banner dates pending",
+    catalogCount: "{count} phase entries from launch to present",
     versionModelNote: "Phase values allocate published monthly revenue by exact banner-window overlap; phases without monthly coverage are excluded.",
     unit: "Estimated mobile revenue (USD millions)",
     monthAxis: "Month",
@@ -315,31 +331,62 @@ function LineChart({
   xAxisTitle,
   unit,
 }: {
-  values: number[];
+  values: Array<number | null>;
   labels: string[];
   color: string;
   locale: Locale;
   xAxisTitle: string;
   unit: string;
 }) {
-  const chartWidth = Math.max(900, values.length * 105);
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const chartWidth = Math.max(900, values.length * (values.length > 36 ? 76 : 105));
   const chartHeight = 330;
   const margin = { top: 42, right: 28, bottom: 58, left: 76 };
   const plotWidth = chartWidth - margin.left - margin.right;
   const plotHeight = chartHeight - margin.top - margin.bottom;
-  const yMax = niceAxisMax(Math.max(...values, 0));
+  const populatedValues = values.filter((value): value is number => value !== null);
+  const yMax = niceAxisMax(Math.max(...populatedValues, 0));
   const ticks = Array.from({ length: 5 }, (_, index) => (yMax / 4) * index);
   const points = values.map((value, index) => ({
     x: margin.left + (index / Math.max(values.length - 1, 1)) * plotWidth,
-    y: margin.top + (1 - value / yMax) * plotHeight,
+    y: value === null ? null : margin.top + (1 - value / yMax) * plotHeight,
     value,
     label: labels[index],
   }));
-  const linePoints = points.map((point) => `${point.x},${point.y}`).join(" ");
+  const segments: typeof points[] = [];
+  let segment: typeof points = [];
+  for (const point of points) {
+    if (point.value === null) {
+      if (segment.length) segments.push(segment);
+      segment = [];
+    } else {
+      segment.push(point);
+    }
+  }
+  if (segment.length) segments.push(segment);
+
+  useEffect(() => {
+    const container = scrollRef.current;
+    if (container) container.scrollLeft = container.scrollWidth;
+  }, [labels]);
+
+  const scrollTo = (position: "start" | "end") => {
+    const container = scrollRef.current;
+    if (!container) return;
+    container.scrollTo({ left: position === "start" ? 0 : container.scrollWidth, behavior: "smooth" });
+  };
 
   return (
-    <div className="line-chart" role="img" aria-label={`${copy[locale].trendTitle}，${unit}`}>
-      <svg viewBox={`0 0 ${chartWidth} ${chartHeight}`} preserveAspectRatio="xMidYMid meet" style={{ minWidth: chartWidth }}>
+    <div className="chart-shell">
+      {values.length > 12 && (
+        <div className="chart-scroll-actions">
+          <button type="button" onClick={() => scrollTo("start")}>← {copy[locale].firstPeriod}</button>
+          <span>{labels[0]} — {labels.at(-1)}</span>
+          <button type="button" onClick={() => scrollTo("end")}>{copy[locale].latestPeriod} →</button>
+        </div>
+      )}
+      <div ref={scrollRef} className="line-chart" role="img" aria-label={`${copy[locale].trendTitle}，${unit}`}>
+        <svg viewBox={`0 0 ${chartWidth} ${chartHeight}`} preserveAspectRatio="xMidYMid meet" style={{ minWidth: chartWidth }}>
         <text className="axis-title axis-title-y" x={margin.left} y="17">{unit}</text>
         {ticks.map((tick) => {
           const y = margin.top + (1 - tick / yMax) * plotHeight;
@@ -352,21 +399,36 @@ function LineChart({
         })}
         <line className="chart-axis" x1={margin.left} x2={margin.left} y1={margin.top} y2={margin.top + plotHeight} />
         <line className="chart-axis" x1={margin.left} x2={chartWidth - margin.right} y1={margin.top + plotHeight} y2={margin.top + plotHeight} />
-        {points.length > 1 && (
-          <polyline className="chart-line" points={linePoints} fill="none" stroke={color} />
-        )}
+        {segments.filter((items) => items.length > 1).map((items, index) => (
+          <polyline
+            key={`${items[0].label}-${index}`}
+            className="chart-line"
+            points={items.map((point) => `${point.x},${point.y}`).join(" ")}
+            fill="none"
+            stroke={color}
+          />
+        ))}
         {points.map((point) => (
-          <g key={`${point.label}-${point.value}`} data-testid="trend-point">
+          <g key={`${point.label}-${point.value}`}>
             <line className="chart-x-tick" x1={point.x} x2={point.x} y1={margin.top + plotHeight} y2={margin.top + plotHeight + 5} />
             <text className="axis-tick" x={point.x} y={margin.top + plotHeight + 23} textAnchor="middle">{point.label}</text>
-            <circle className="chart-dot" cx={point.x} cy={point.y} r="5" fill="#fff" stroke={color}>
-              <title>{`${point.label}: ${formatChartMoney(point.value, locale)}`}</title>
-            </circle>
-            <text className="chart-value-label" x={point.x} y={Math.max(point.y - 12, 31)} textAnchor="middle">{point.value.toFixed(2)}</text>
+            {point.value === null || point.y === null ? (
+              <circle className="chart-missing-dot" cx={point.x} cy={margin.top + plotHeight} r="2.5">
+                <title>{`${point.label}: ${copy[locale].noMonthlyCoverage}`}</title>
+              </circle>
+            ) : (
+              <g data-testid="trend-point">
+                <circle className="chart-dot" cx={point.x} cy={point.y} r="5" fill="#fff" stroke={color}>
+                  <title>{`${point.label}: ${formatChartMoney(point.value, locale)}`}</title>
+                </circle>
+                <text className="chart-value-label" x={point.x} y={Math.max(point.y - 12, 31)} textAnchor="middle">{point.value.toFixed(2)}</text>
+              </g>
+            )}
           </g>
         ))}
         <text className="axis-title axis-title-x" x={margin.left + plotWidth / 2} y={chartHeight - 5} textAnchor="middle">{xAxisTitle}</text>
-      </svg>
+        </svg>
+      </div>
     </div>
   );
 }
@@ -430,10 +492,10 @@ export default function Dashboard({ locale }: { locale: Locale }) {
       .then((normalized) => {
         if (normalized.length) {
           setVersionCatalog((current) => {
-            const byWindow = new Map(normalized.map((item) => [`${item.gameId}:${item.version}:${item.date}:${item.endDate}`, item]));
-            const merged = current.map((item) => byWindow.get(`${item.gameId}:${item.version}:${item.date}:${item.endDate}`) ?? item);
-            const existing = new Set(merged.map((item) => `${item.gameId}:${item.version}:${item.date}:${item.endDate}`));
-            return [...merged, ...normalized.filter((item) => !existing.has(`${item.gameId}:${item.version}:${item.date}:${item.endDate}`))];
+            const byPhase = new Map(normalized.map((item) => [versionPhaseKey(item), item]));
+            const merged = current.map((item) => byPhase.get(versionPhaseKey(item)) ?? item);
+            const existing = new Set(merged.map(versionPhaseKey));
+            return [...merged, ...normalized.filter((item) => !existing.has(versionPhaseKey(item)))];
           });
         }
       })
@@ -444,7 +506,9 @@ export default function Dashboard({ locale }: { locale: Locale }) {
     return () => controller.abort();
   }, []);
 
-  const metricTarget = versionCatalog.find((item) => item.id === selectedVersionId);
+  const metricTarget = versionCatalog.find(
+    (item) => item.id === selectedVersionId && item.gameId === versionGame && /^\d{4}-\d{2}-\d{2}$/.test(item.date) && /^\d{4}-\d{2}-\d{2}$/.test(item.endDate),
+  );
   const metricWindow = metricTarget ? `${metricTarget.gameId}|${metricTarget.date}|${metricTarget.endDate}` : "";
 
   useEffect(() => {
@@ -465,7 +529,9 @@ export default function Dashboard({ locale }: { locale: Locale }) {
   }, [selectedVersionId, metricWindow]);
 
   const rankingTargets = useMemo(
-    () => versionCatalog.filter((version) => version.gameId === rankingGame),
+    () => versionCatalog.filter(
+      (version) => version.gameId === rankingGame && /^\d{4}-\d{2}-\d{2}$/.test(version.date) && /^\d{4}-\d{2}-\d{2}$/.test(version.endDate),
+    ),
     [rankingGame, versionCatalog],
   );
   useEffect(() => {
@@ -518,8 +584,19 @@ export default function Dashboard({ locale }: { locale: Locale }) {
   const currentMonthLabel = locale === "zh-CN" ? `${sourceMonth} 月来源值` : `${sourceMonthName} source value`;
   const monthTotalLabel = locale === "zh-CN" ? `${sourceMonth} 月来源值合计` : `${sourceMonthName} source total`;
   const ytdLabel = locale === "zh-CN" ? `${sourceYear} 年累计` : `${sourceYear} YTD`;
-  const selectedVersion = versionsData.find((version) => version.id === selectedVersionId);
-  const visibleVersions = versionsData.filter((item) => item.gameId === versionGame).sort((a, b) => b.date.localeCompare(a.date));
+  const visibleVersions = useMemo(
+    () => versionsData.filter((item) => item.gameId === versionGame).sort((a, b) => sortVersions(b, a)),
+    [versionGame, versionsData],
+  );
+  const visibleVersionGroups = useMemo(() => {
+    const groups = new Map<string, VersionDetail[]>();
+    for (const version of visibleVersions) {
+      const label = `${version.version.split(".")[0]}.x`;
+      groups.set(label, [...(groups.get(label) ?? []), version]);
+    }
+    return [...groups.entries()];
+  }, [visibleVersions]);
+  const selectedVersion = visibleVersions.find((version) => version.id === selectedVersionId) ?? visibleVersions[0];
   const comparisonGames = gameData.filter((game) => compareIds.includes(game.id) && game.ytd !== null);
   const compareTotal = comparisonGames.reduce((sum, game) => sum + (game.ytd ?? 0), 0);
   const monthlyTotal = gameData.reduce((sum, game) => sum + (game.currentMonth ?? 0), 0);
@@ -555,11 +632,18 @@ export default function Dashboard({ locale }: { locale: Locale }) {
     () => buildVersionRevenueSeries(activeGame, versionsData, effectiveVersionRange, locale),
     [activeGame, effectiveVersionRange, locale, versionsData],
   );
+  const monthlySeries = useMemo(
+    () => buildMonthlyRevenueSeries(activeGame, { year: sourceYear, month: sourceMonth }),
+    [activeGame, sourceMonth, sourceYear],
+  );
+  const yearlySeries = useMemo(
+    () => buildYearlyRevenueSeries(activeGame, { year: sourceYear, month: sourceMonth }, locale),
+    [activeGame, locale, sourceMonth, sourceYear],
+  );
 
   const trend = useMemo(() => {
     if (period === "year") {
-      const years = [...new Set(activeGame.revenueHistory.map((item) => item.year))];
-      return { values: activeGame.yearly, labels: years.map((year) => year === sourceYear ? `${sourceYear} YTD` : `${year}`), xAxis: t.yearAxis };
+      return { values: yearlySeries.values, labels: yearlySeries.labels, xAxis: t.yearAxis };
     }
     if (period === "version") {
       return {
@@ -568,12 +652,11 @@ export default function Dashboard({ locale }: { locale: Locale }) {
         xAxis: t.versionAxis,
       };
     }
-    const months = activeGame.revenueHistory.filter((item) => item.year === sourceYear).map((item) => item.month);
-    return { values: activeGame.monthly, labels: months.map((month) => locale === "zh-CN" ? `${month}月` : new Intl.DateTimeFormat("en", { month: "short", timeZone: "UTC" }).format(new Date(Date.UTC(sourceYear, month - 1, 1)))), xAxis: t.monthAxis };
-  }, [activeGame, locale, period, sourceYear, t.monthAxis, t.versionAxis, t.yearAxis, versionSeries.labels, versionSeries.values]);
+    return { values: monthlySeries.values, labels: monthlySeries.labels, xAxis: t.monthAxis };
+  }, [monthlySeries.labels, monthlySeries.values, period, t.monthAxis, t.versionAxis, t.yearAxis, versionSeries.labels, versionSeries.values, yearlySeries.labels, yearlySeries.values]);
 
   const stats = useMemo(() => {
-    const populated = trend.values.filter((value) => value > 0);
+    const populated = trend.values.filter((value): value is number => value !== null && value > 0);
     if (!populated.length) return { peak: null, average: null, latest: null };
     return {
       peak: Math.max(...populated),
@@ -582,7 +665,7 @@ export default function Dashboard({ locale }: { locale: Locale }) {
     };
   }, [trend]);
   const chartValues = useMemo(
-    () => trend.values.map((value) => displayValue(value, locale, exchangeRate.rate)),
+    () => trend.values.map((value) => value === null ? null : displayValue(value, locale, exchangeRate.rate)),
     [exchangeRate.rate, locale, trend.values],
   );
 
@@ -634,7 +717,7 @@ export default function Dashboard({ locale }: { locale: Locale }) {
 
   const changeVersionGame = (gameId: GameId) => {
     setVersionGame(gameId);
-    const first = versionsData.filter((item) => item.gameId === gameId).sort((a, b) => b.date.localeCompare(a.date))[0];
+    const first = versionsData.filter((item) => item.gameId === gameId).sort((a, b) => sortVersions(b, a))[0];
     setSelectedVersionId(first?.id ?? "");
   };
 
@@ -713,52 +796,60 @@ export default function Dashboard({ locale }: { locale: Locale }) {
       <section className="panel trend-panel" id="trend">
         <div className="panel-heading">
           <div><p className="section-kicker">01 · TREND</p><h2>{t.trendTitle}</h2><p>{t.trendSub}</p></div>
-          <div className="trend-controls">
-            <div className="period-switch" role="group" aria-label={t.trendSub}>
-              {(["month", "year", "version"] as Period[]).map((item) => (
-                <button key={item} className={period === item ? "active" : ""} onClick={() => setPeriod(item)} aria-pressed={period === item}>{t[item]}</button>
-              ))}
-            </div>
-            {period === "version" && (
-              <div className="version-range-control" role="group" aria-label={t.versionRange}>
-                <span>{t.versionRange}</span>
-                <div className="version-range-fields">
-                  <label>
-                    <span>{t.rangeStart}</span>
-                    <select
-                      aria-label={t.rangeStart}
-                      value={effectiveVersionRange?.startId ?? ""}
-                      onChange={(event) => setRangeBoundary("startId", event.target.value)}
-                    >
-                      {versionRangeOptions.map((option) => (
-                        <option key={option.id} value={option.id}>{option.label}{option.estimable ? "" : ` · ${t.noMonthlyCoverage}`}</option>
-                      ))}
-                    </select>
-                  </label>
-                  <label>
-                    <span>{t.rangeEnd}</span>
-                    <select
-                      aria-label={t.rangeEnd}
-                      value={effectiveVersionRange?.endId ?? ""}
-                      onChange={(event) => setRangeBoundary("endId", event.target.value)}
-                    >
-                      {versionRangeOptions.map((option) => (
-                        <option key={option.id} value={option.id}>{option.label}{option.estimable ? "" : ` · ${t.noMonthlyCoverage}`}</option>
-                      ))}
-                    </select>
-                  </label>
-                  <button type="button" onClick={showFullVersionRange} disabled={!versionRangeOptions.length}>{t.fullRange}</button>
-                </div>
-                <small>{t.rangeSummary.replace("{selected}", String(versionSeries.selected)).replace("{estimable}", String(versionSeries.estimable))}</small>
-              </div>
-            )}
+          <div className="period-switch" role="group" aria-label={t.trendSub}>
+            {(["month", "year", "version"] as Period[]).map((item) => (
+              <button key={item} className={period === item ? "active" : ""} onClick={() => setPeriod(item)} aria-pressed={period === item}>{t[item]}</button>
+            ))}
           </div>
         </div>
+        {period === "version" && (
+          <div className="trend-filter-bar">
+            <div className="version-range-control" role="group" aria-label={t.versionRange}>
+              <div className="filter-bar-heading">
+                <strong>{t.versionRange}</strong>
+                <small>{t.rangeSummary.replace("{selected}", String(versionSeries.selected)).replace("{estimable}", String(versionSeries.estimable))}</small>
+              </div>
+              <div className="version-range-fields">
+                <label>
+                  <span>{t.rangeStart}</span>
+                  <select
+                    aria-label={t.rangeStart}
+                    value={effectiveVersionRange?.startId ?? ""}
+                    onChange={(event) => setRangeBoundary("startId", event.target.value)}
+                  >
+                    {versionRangeOptions.map((option) => (
+                      <option key={option.id} value={option.id}>{option.label}{option.estimable ? "" : ` · ${t.noMonthlyCoverage}`}</option>
+                    ))}
+                  </select>
+                </label>
+                <label>
+                  <span>{t.rangeEnd}</span>
+                  <select
+                    aria-label={t.rangeEnd}
+                    value={effectiveVersionRange?.endId ?? ""}
+                    onChange={(event) => setRangeBoundary("endId", event.target.value)}
+                  >
+                    {versionRangeOptions.map((option) => (
+                      <option key={option.id} value={option.id}>{option.label}{option.estimable ? "" : ` · ${t.noMonthlyCoverage}`}</option>
+                    ))}
+                  </select>
+                </label>
+                <button type="button" onClick={showFullVersionRange} disabled={!versionRangeOptions.length}>{t.fullRange}</button>
+              </div>
+            </div>
+          </div>
+        )}
         <div className="trend-layout">
           <div className="trend-main">
             <div className="chart-title-row"><div><GameMark game={activeGame} small /><strong>{activeGame.name[locale]}</strong></div><span>{t.unit}</span></div>
-            {period === "version" && <p className="version-model-note">{t.versionModelNote} {t.calendarCoverageNote}</p>}
-            {trend.values.length && trend.values.some((value) => value > 0) ? (
+            <p className="version-model-note">
+              {period === "version"
+                ? `${t.versionModelNote} ${t.calendarCoverageNote}`
+                : period === "month"
+                  ? t.monthCoverageNote.replace("{available}", String(monthlySeries.available)).replace("{covered}", String(monthlySeries.covered))
+                  : t.yearCoverageNote.replace("{available}", String(yearlySeries.available))}
+            </p>
+            {trend.values.length && trend.values.some((value) => value !== null && value > 0) ? (
               <LineChart values={chartValues} labels={trend.labels} color={activeGame.color} locale={locale} xAxisTitle={trend.xAxis} unit={t.unit} />
             ) : <div className="empty-chart">{t.notLive}</div>}
           </div>
@@ -766,7 +857,7 @@ export default function Dashboard({ locale }: { locale: Locale }) {
             <div><span>{t.peak}</span><strong>{formatMoney(stats.peak, locale, exchangeRate.rate)}</strong></div>
             <div><span>{t.average}</span><strong>{formatMoney(stats.average, locale, exchangeRate.rate)}</strong></div>
             <div><span>{t.latest}</span><strong>{formatMoney(stats.latest, locale, exchangeRate.rate)}</strong></div>
-            <p><i style={{ background: activeGame.color }} />{activeGame.name[locale]} · {period === "month" ? sourceYear : period === "year" ? `${activeGame.revenueHistory[0]?.year ?? sourceYear}—${sourceYear}` : t.versionAxis}</p>
+            <p><i style={{ background: activeGame.color }} />{activeGame.name[locale]} · {period === "version" ? t.versionAxis : `${activeGame.launchDate.slice(0, 7)}—${sourceYear}-${String(sourceMonth).padStart(2, "0")}`}</p>
           </aside>
         </div>
       </section>
@@ -810,13 +901,17 @@ export default function Dashboard({ locale }: { locale: Locale }) {
             </select>
           </label>
           <label>
-            <span>{t.selectBanner}</span>
-            <select value={selectedVersionId} disabled={!visibleVersions.length} onChange={(event) => setSelectedVersionId(event.target.value)} aria-label={t.selectBanner}>
+            <span>{t.selectBanner}<small>{t.catalogCount.replace("{count}", String(visibleVersions.length))}</small></span>
+            <select value={selectedVersion?.id ?? ""} disabled={!visibleVersions.length} onChange={(event) => setSelectedVersionId(event.target.value)} aria-label={t.selectBanner}>
               {!visibleVersions.length && <option value="">{t.noVerifiedBanner}</option>}
-              {visibleVersions.map((item) => (
-                <option key={item.id} value={item.id}>
-                  {item.version} · {item.phase[locale]} · UP {item.characters[locale]}
-                </option>
+              {visibleVersionGroups.map(([group, items]) => (
+                <optgroup key={group} label={group}>
+                  {items.map((item) => (
+                    <option key={item.id} value={item.id}>
+                      {item.version} · {item.phase[locale]} · UP {item.characters[locale]}
+                    </option>
+                  ))}
+                </optgroup>
               ))}
             </select>
           </label>
@@ -830,9 +925,9 @@ export default function Dashboard({ locale }: { locale: Locale }) {
                 <strong>UP · {selectedVersion.characters[locale]}</strong>
                 <small>{gameData.find((game) => game.id === selectedVersion.gameId)?.name[locale]} · {selectedVersion.version} · {selectedVersion.phase[locale]}</small>
               </div>
-              <div><span>{t.dateWindow}</span><strong>{selectedVersion.date}<i>→</i>{selectedVersion.endDate}</strong><small>{selectedVersion.observedHours} / {selectedVersion.windowHours} {t.hours} · {coverageLabel(selectedVersion)}</small></div>
-              <div><span>{t.estimateBasis}</span><strong>{selectedVersion.scope[locale]}</strong><small>{selectedVersion.sourceUrl ? <a href={selectedVersion.sourceUrl} target="_blank" rel="noreferrer">{t.calendarSource} ↗</a> : t.calendarSource} · {selectedVersion.sourceUpdatedAt}</small></div>
-              <div className="version-money"><span>{t.versionEstimate}</span><strong>{formatMoney(selectedVersion.revenue, locale, exchangeRate.rate)}</strong><small>{versionSourceLabel(selectedVersion)} · {selectedVersion.observedHours}/{selectedVersion.windowHours}h</small></div>
+              <div><span>{t.dateWindow}</span><strong>{selectedVersion.date ? <>{selectedVersion.date}<i>→</i>{selectedVersion.endDate}</> : t.calendarPending}</strong><small>{selectedVersion.windowHours ? `${selectedVersion.observedHours} / ${selectedVersion.windowHours} ${t.hours} · ` : ""}{coverageLabel(selectedVersion)}</small></div>
+              <div><span>{t.estimateBasis}</span><strong>{selectedVersion.scope[locale]}</strong><small>{selectedVersion.sourceUrl ? <a href={selectedVersion.sourceUrl} target="_blank" rel="noreferrer">{t.calendarSource} ↗</a> : t.calendarPending}{selectedVersion.sourceUpdatedAt && ` · ${selectedVersion.sourceUpdatedAt}`}</small></div>
+              <div className="version-money"><span>{t.versionEstimate}</span><strong>{formatMoney(selectedVersion.revenue, locale, exchangeRate.rate)}</strong><small>{versionSourceLabel(selectedVersion)}{selectedVersion.windowHours ? ` · ${selectedVersion.observedHours}/${selectedVersion.windowHours}h` : ""}</small></div>
             </div>
 
             <div className="intelligence-grid">
@@ -843,7 +938,7 @@ export default function Dashboard({ locale }: { locale: Locale }) {
                     <thead><tr><th>{t.region}</th><th>{t.peakRank}</th><th>{t.lowRank}</th><th>{t.rankMeaning}</th></tr></thead>
                     <tbody>
                       {(Object.entries(selectedVersion.ranks) as Array<["CN" | "JP" | "US" | "KR", [number | null, number | null]]>).map(([country, rank]) => (
-                        <tr key={country}><td><b>{country}</b>{marketNames[country][locale]}</td><td><strong>{rank[0] === null ? "—" : `#${rank[0]}`}</strong><small>{rank[0] === null ? coverageLabel(selectedVersion) : t.peakMeaning}</small></td><td><strong>{rank[1] === null ? "—" : `#${rank[1]}`}</strong><small>{rank[1] === null ? coverageLabel(selectedVersion) : t.lowMeaning}</small></td><td>{selectedVersion.date}<br />{selectedVersion.endDate}</td></tr>
+                        <tr key={country}><td><b>{country}</b>{marketNames[country][locale]}</td><td><strong>{rank[0] === null ? "—" : `#${rank[0]}`}</strong><small>{rank[0] === null ? coverageLabel(selectedVersion) : t.peakMeaning}</small></td><td><strong>{rank[1] === null ? "—" : `#${rank[1]}`}</strong><small>{rank[1] === null ? coverageLabel(selectedVersion) : t.lowMeaning}</small></td><td>{selectedVersion.date || t.calendarPending}<br />{selectedVersion.endDate}</td></tr>
                       ))}
                     </tbody>
                   </table>

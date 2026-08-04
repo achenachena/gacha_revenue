@@ -494,32 +494,47 @@ main {
   box-shadow: 0 1px 3px rgba(33, 35, 30, 0.1);
 }
 
-.trend-controls {
-  display: flex;
-  align-items: flex-end;
-  justify-content: flex-end;
-  flex-wrap: wrap;
-  gap: 10px;
+.trend-filter-bar {
+  margin-top: 16px;
+  padding: 15px 16px 16px;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  background: #f7f7f3;
 }
 
 .version-range-control {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  min-width: min(680px, 66vw);
+  width: 100%;
 }
 
-.version-range-control > span,
+.filter-bar-heading {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 20px;
+  margin-bottom: 10px;
+}
+
+.filter-bar-heading strong {
+  font-size: 11px;
+}
+
+.filter-bar-heading small {
+  color: var(--subtle);
+  font-size: 9px;
+  line-height: 1.45;
+  text-align: right;
+}
+
 .version-range-control label > span {
   color: var(--subtle);
-  font-size: 8px;
+  font-size: 9px;
 }
 
 .version-range-fields {
   display: grid;
-  grid-template-columns: minmax(190px, 1fr) minmax(190px, 1fr) auto;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto;
   align-items: end;
-  gap: 7px;
+  gap: 12px;
 }
 
 .version-range-fields label {
@@ -532,30 +547,29 @@ main {
 .version-range-control select {
   width: 100%;
   min-width: 0;
-  height: 35px;
+  height: 42px;
   border: 1px solid var(--line);
   border-radius: 4px;
   background: var(--white);
   color: var(--ink);
   padding: 0 28px 0 10px;
-  font-size: 10px;
+  font-size: 11px;
 }
 
 .version-range-fields button {
-  height: 35px;
+  height: 42px;
   border: 1px solid var(--line);
   border-radius: 4px;
   background: var(--white);
   color: var(--ink);
-  padding: 0 12px;
-  font-size: 9px;
+  padding: 0 16px;
+  font-size: 10px;
   white-space: nowrap;
   cursor: pointer;
 }
 
 .version-range-fields button:hover { border-color: var(--green); color: var(--green); }
 .version-range-fields button:disabled { opacity: 0.5; cursor: not-allowed; }
-.version-range-control > small { color: var(--subtle); font-size: 8px; }
 
 .trend-layout {
   display: grid;
@@ -584,10 +598,45 @@ main {
   font-size: 9px;
 }
 
+.chart-shell {
+  min-width: 0;
+}
+
+.chart-scroll-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 13px;
+}
+
+.chart-scroll-actions span {
+  color: var(--subtle);
+  font-family: var(--font-geist-mono), monospace;
+  font-size: 8px;
+  text-align: center;
+}
+
+.chart-scroll-actions button {
+  border: 1px solid var(--line);
+  border-radius: 3px;
+  background: var(--white);
+  color: var(--muted);
+  padding: 6px 9px;
+  font-size: 9px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.chart-scroll-actions button:hover {
+  border-color: var(--green);
+  color: var(--green);
+}
+
 .line-chart {
   width: 100%;
   min-height: 330px;
-  margin-top: 13px;
+  margin-top: 8px;
   overflow-x: auto;
   overflow-y: hidden;
   scrollbar-width: thin;
@@ -620,6 +669,10 @@ main {
 
 .chart-dot {
   stroke-width: 3;
+}
+
+.chart-missing-dot {
+  fill: #c7cac3;
 }
 
 .axis-title {
@@ -862,6 +915,20 @@ main {
   color: var(--muted);
   font-size: 8px;
   font-weight: 650;
+}
+
+.version-selectors label > span {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.version-selectors label > span small {
+  color: var(--subtle);
+  font-size: 8px;
+  font-weight: 450;
+  text-align: right;
 }
 
 .version-selectors select,
@@ -1345,6 +1412,8 @@ footer a { margin-left: auto; font-family: var(--font-geist-mono), monospace; co
   .methodology { grid-template-columns: 1fr; gap: 32px; padding: 38px 34px; }
   .ranking-heading { align-items: flex-start; flex-direction: column; }
   .ranking-controls { width: 100%; }
+  .version-range-fields { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+  .version-range-fields button { grid-column: 1 / -1; }
 }
 
 @media (max-width: 640px) {
@@ -1365,10 +1434,13 @@ footer a { margin-left: auto; font-family: var(--font-geist-mono), monospace; co
   .panel-heading { align-items: flex-start; flex-direction: column; }
   .period-switch { width: 100%; }
   .period-switch button { flex: 1; }
-  .trend-controls { width: 100%; align-items: stretch; flex-direction: column; }
-  .version-range-control { min-width: 0; width: 100%; }
+  .trend-filter-bar { margin-top: 12px; padding: 13px; }
+  .filter-bar-heading { align-items: flex-start; flex-direction: column; gap: 4px; }
+  .filter-bar-heading small { text-align: left; }
   .version-range-fields { grid-template-columns: 1fr; }
+  .version-range-fields button { grid-column: auto; }
   .version-range-control select { width: 100%; }
+  .chart-scroll-actions span { display: none; }
   .line-chart { min-height: 255px; margin-left: -12px; margin-right: -5px; width: calc(100% + 17px); }
   .line-chart svg { min-height: 250px; }
   .chart-value-label { font-size: 8px; }

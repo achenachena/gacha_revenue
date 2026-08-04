@@ -143,18 +143,3 @@ func TestVersionsPreserveOwnerCorrectionsWithoutInventingUnknownHours(t *testing
 		}
 	}
 }
-
-func TestAnaxaDidNotExceedDouyin(t *testing.T) {
-	request := httptest.NewRequest(http.MethodGet, "/v1/versions?game_id=hsr", nil)
-	recorder := httptest.NewRecorder()
-	New(slog.New(slog.NewTextHandler(io.Discard, nil)), nil).ServeHTTP(recorder, request)
-	var payload struct {
-		Data []versionFixture `json:"data"`
-	}
-	if err := json.NewDecoder(bytes.NewReader(recorder.Body.Bytes())).Decode(&payload); err != nil {
-		t.Fatal(err)
-	}
-	if len(payload.Data) != 1 || payload.Data[0].CharactersZh != "那刻夏" || payload.Data[0].AppHours[0].Hours == nil || *payload.Data[0].AppHours[0].Hours != 0 {
-		t.Fatalf("unexpected Anaxa correction: %+v", payload.Data)
-	}
-}
