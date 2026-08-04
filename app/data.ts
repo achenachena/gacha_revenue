@@ -1,3 +1,5 @@
+import { publishedRevenueHistory } from "./revenue-history";
+
 export type Locale = "zh-CN" | "en";
 
 export type GameId = "genshin" | "hsr" | "zzz" | "wuwa" | "endfield" | "nte";
@@ -99,14 +101,7 @@ export const games: Game[] = [
       color: "#6558D8",
       pale: "#EEECFF",
     },
-    [
-      { year: 2025, month: 7, value: 42.335 }, { year: 2025, month: 8, value: 27.765 },
-      { year: 2025, month: 9, value: 43.875 }, { year: 2025, month: 10, value: 56.725 },
-      { year: 2025, month: 11, value: 20.97 }, { year: 2025, month: 12, value: 40.825 },
-      { year: 2026, month: 1, value: 66.04 }, { year: 2026, month: 2, value: 55.245 },
-      { year: 2026, month: 3, value: 40.11 }, { year: 2026, month: 4, value: 40.105 },
-      { year: 2026, month: 5, value: 41.655 }, { year: 2026, month: 6, value: 33.34 },
-    ],
+    publishedRevenueHistory.genshin,
   ),
   sourcedGame(
     {
@@ -119,14 +114,7 @@ export const games: Game[] = [
       color: "#2478D4",
       pale: "#E6F2FF",
     },
-    [
-      { year: 2025, month: 7, value: 92.45 }, { year: 2025, month: 8, value: 29.925 },
-      { year: 2025, month: 9, value: 39.535 }, { year: 2025, month: 10, value: 23.45 },
-      { year: 2025, month: 11, value: 81.38 }, { year: 2025, month: 12, value: 27.895 },
-      { year: 2026, month: 1, value: 8.0375 }, { year: 2026, month: 2, value: 21.135 },
-      { year: 2026, month: 3, value: 31.73 }, { year: 2026, month: 4, value: 58.1 },
-      { year: 2026, month: 5, value: 38.765 }, { year: 2026, month: 6, value: 28.455 },
-    ],
+    publishedRevenueHistory.hsr,
   ),
   sourcedGame(
     {
@@ -139,14 +127,7 @@ export const games: Game[] = [
       color: "#E6A10C",
       pale: "#FFF5D7",
     },
-    [
-      { year: 2025, month: 7, value: 22.96 }, { year: 2025, month: 8, value: 15.925 },
-      { year: 2025, month: 9, value: 10.89 }, { year: 2025, month: 10, value: 12.915 },
-      { year: 2025, month: 11, value: 10.89 }, { year: 2025, month: 12, value: 27.55 },
-      { year: 2026, month: 1, value: 23.245 }, { year: 2026, month: 2, value: 13.35 },
-      { year: 2026, month: 3, value: 16.44 }, { year: 2026, month: 4, value: 7.167 },
-      { year: 2026, month: 5, value: 9.37 }, { year: 2026, month: 6, value: 9.655 },
-    ],
+    publishedRevenueHistory.zzz,
   ),
   sourcedGame(
     {
@@ -159,14 +140,7 @@ export const games: Game[] = [
       color: "#00A68E",
       pale: "#DFF8F2",
     },
-    [
-      { year: 2025, month: 7, value: 16.875 }, { year: 2025, month: 8, value: 14.875 },
-      { year: 2025, month: 9, value: 21.9 }, { year: 2025, month: 10, value: 16.6 },
-      { year: 2025, month: 11, value: 18.875 }, { year: 2025, month: 12, value: 23.175 },
-      { year: 2026, month: 1, value: 19.15 }, { year: 2026, month: 2, value: 46 },
-      { year: 2026, month: 3, value: 11.4 }, { year: 2026, month: 4, value: 14.7 },
-      { year: 2026, month: 5, value: 31.75 }, { year: 2026, month: 6, value: 34 },
-    ],
+    publishedRevenueHistory.wuwa,
   ),
   sourcedGame(
     {
@@ -179,11 +153,7 @@ export const games: Game[] = [
       color: "#E85C3A",
       pale: "#FFEAE4",
     },
-    [
-      { year: 2026, month: 1, value: 28.55 }, { year: 2026, month: 2, value: 26.08 },
-      { year: 2026, month: 3, value: 22.05 }, { year: 2026, month: 4, value: 17.28 },
-      { year: 2026, month: 5, value: 4.766 }, { year: 2026, month: 6, value: 9.52 },
-    ],
+    publishedRevenueHistory.endfield,
   ),
   sourcedGame(
     {
@@ -196,10 +166,7 @@ export const games: Game[] = [
       color: "#E14983",
       pale: "#FFE8F1",
     },
-    [
-      { year: 2026, month: 4, value: 6.74 }, { year: 2026, month: 5, value: 23.575 },
-      { year: 2026, month: 6, value: 13.95 },
-    ],
+    publishedRevenueHistory.nte,
   ),
 ];
 

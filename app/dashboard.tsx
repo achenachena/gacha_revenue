@@ -13,6 +13,7 @@ import {
   type AppLineId,
   type VersionDetail,
 } from "./data";
+import { historicalRevenueSource } from "./revenue-history";
 import {
   applyBannerMetrics,
   loadExchangeRate,
@@ -160,6 +161,8 @@ const copy = {
     ],
     excludes: "口径：第三方移动端 IAP 市场估算；不含 PC、主机、广告、电商周边与 IP 授权。",
     sources: "数据源说明",
+    historicalSource: "GACHAREVENUE 历史数据",
+    sourceChangelog: "来源更新记录",
     sourceNote: "竞争游戏不存在可公开核验的真实流水；本站保证来源、口径与计算可追溯，但不会把第三方估算说成厂商审计收入。",
     fxNote: "人民币按 ECB 每日 USD/CNY 参考汇率换算",
     sourceDelay: "公开源尚未发布；来源通常在月末后 2–4 周更新。",
@@ -274,6 +277,8 @@ const copy = {
     ],
     excludes: "Basis: third-party mobile IAP estimates; excludes PC, console, ads, merchandise, and IP licensing.",
     sources: "Source note",
+    historicalSource: "GACHAREVENUE history",
+    sourceChangelog: "Source changelog",
     sourceNote: "No public source can guarantee competitors' true revenue. This site guarantees traceable provenance and reproducible calculations, not audited publisher results.",
     fxNote: "Chinese display uses the ECB daily USD/CNY reference rate",
     sourceDelay: "source data is not published yet. The source usually updates 2–4 weeks after month-end.",
@@ -1008,7 +1013,7 @@ export default function Dashboard({ locale }: { locale: Locale }) {
         </div>
         <div className="formula-definitions">
           {t.definitions.map(([symbol, definition]) => <div key={symbol}><code>{symbol}</code><p>{definition}</p></div>)}
-          <div className="source-links"><strong>{t.sources}</strong><a href={revenueSource.url} target="_blank" rel="noreferrer">GachaDash / GachaRevenue ↗</a><a href="https://sensortower.com/product/mobile-app/app-performance-insights" target="_blank" rel="noreferrer">Sensor Tower ↗</a><a href="https://itunes.apple.com/cn/rss/topgrossingapplications/limit=100/json" target="_blank" rel="noreferrer">Apple Top Grossing RSS ↗</a><a href={exchangeRate.source_url} target="_blank" rel="noreferrer">ECB / Frankfurter FX ↗</a></div>
+          <div className="source-links"><strong>{t.sources}</strong><a href={revenueSource.url} target="_blank" rel="noreferrer">GachaDash ↗</a><a href={historicalRevenueSource.url} target="_blank" rel="noreferrer">{t.historicalSource} ↗</a><a href={historicalRevenueSource.changelogUrl} target="_blank" rel="noreferrer">{t.sourceChangelog} ↗</a><a href="https://sensortower.com/product/mobile-app/app-performance-insights" target="_blank" rel="noreferrer">Sensor Tower ↗</a><a href="https://itunes.apple.com/cn/rss/topgrossingapplications/limit=100/json" target="_blank" rel="noreferrer">Apple Top Grossing RSS ↗</a><a href={exchangeRate.source_url} target="_blank" rel="noreferrer">ECB / Frankfurter FX ↗</a></div>
           <p className="source-note">{t.sourceNote}</p>
         </div>
       </section>

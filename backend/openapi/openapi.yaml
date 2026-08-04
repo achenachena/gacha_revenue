@@ -74,8 +74,8 @@ paths:
     get:
       tags: [Revenue]
       operationId: refreshPublicRevenue
-      summary: Return the latest public monthly mobile-revenue series
-      description: Fetches and caches the source-published Sensor Tower aggregation. Falls back to the last bundled source snapshot when the upstream page is temporarily unavailable.
+      summary: Return the public monthly mobile-revenue history
+      description: Merges a source-verified historical baseline with the latest source-published Sensor Tower aggregation. Falls back to the bundled snapshot when the upstream page is temporarily unavailable.
       responses:
         '200':
           description: Public monthly revenue series for all supported games
