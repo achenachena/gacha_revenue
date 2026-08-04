@@ -34,15 +34,6 @@ func TestGamesIncludesEstimateMetadata(t *testing.T) {
 	}
 }
 
-func TestEditorEndpointRejectsViewer(t *testing.T) {
-	request := httptest.NewRequest(http.MethodPost, "/v1/admin/ingestions", nil)
-	recorder := httptest.NewRecorder()
-	New(config.Config{}, slog.New(slog.NewTextHandler(io.Discard, nil))).ServeHTTP(recorder, request)
-	if recorder.Code != http.StatusForbidden {
-		t.Fatalf("expected 403, got %d", recorder.Code)
-	}
-}
-
 func TestRevenueReturnsLabelledPublicSourceSnapshot(t *testing.T) {
 	request := httptest.NewRequest(http.MethodGet, "/v1/revenue?grain=month", nil)
 	recorder := httptest.NewRecorder()
@@ -63,6 +54,17 @@ func TestRevenueReturnsLabelledPublicSourceSnapshot(t *testing.T) {
 	last := payload.Data[len(payload.Data)-1]
 	if last.GameID != "nte" || last.Period != "2026-06-01" || last.Estimate != 13.95 || last.Low != last.Estimate || last.High != last.Estimate {
 		t.Fatalf("unexpected final source point: %+v", last)
+	}
+}
+
+func TestParsePublicRevenueSourceUsesPublishedTotals(t *testing.T) {
+	body := `before \"revenueHistory\":[{\"year\":2026,\"month\":4,\"revenue_total\":5810000000},{\"year\":2026,\"month\":5,\"revenue_total\":3876500000}] after`
+	history, err := parsePublicRevenueSource(body)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(history) != 2 || history[0].Year != 2026 || history[0].Month != 4 || history[0].Value != 58.1 || history[1].Value != 38.765 {
+		t.Fatalf("unexpected public revenue history: %+v", history)
 	}
 }
 

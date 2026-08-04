@@ -13,7 +13,6 @@ tags:
   - name: Revenue
   - name: Versions
   - name: Methodology
-  - name: Admin
 paths:
   /games:
     get:
@@ -67,6 +66,41 @@ paths:
                     type: array
                     items: {$ref: '#/components/schemas/RevenuePoint'}
                   meta: {$ref: '#/components/schemas/EstimateMeta'}
+  /public-revenue:
+    get:
+      tags: [Revenue]
+      operationId: refreshPublicRevenue
+      summary: Return the latest public monthly mobile-revenue series
+      description: Fetches and caches the source-published Sensor Tower aggregation. Falls back to the last bundled source snapshot when the upstream page is temporarily unavailable.
+      responses:
+        '200':
+          description: Public monthly revenue series for all supported games
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, meta]
+                properties:
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      required: [game_id, history, source_url]
+                      properties:
+                        game_id: {type: string}
+                        history:
+                          type: array
+                          items:
+                            type: object
+                            required: [year, month, value]
+                            properties:
+                              year: {type: integer}
+                              month: {type: integer, minimum: 1, maximum: 12}
+                              value: {type: number, description: USD millions}
+                        source_url: {type: string, format: uri}
+                  meta:
+                    type: object
+                    additionalProperties: true
   /versions:
     get:
       tags: [Versions]
@@ -89,6 +123,28 @@ paths:
                     type: array
                     items: {$ref: '#/components/schemas/VersionIntelligence'}
                   meta: {$ref: '#/components/schemas/EstimateMeta'}
+  /banner-metrics:
+    get:
+      tags: [Versions]
+      operationId: getBannerMetrics
+      summary: Aggregate hourly Apple ranks and China app-line hours for one banner window
+      parameters:
+        - in: query
+          name: game_id
+          required: true
+          schema: {type: string}
+        - in: query
+          name: start
+          required: true
+          schema: {type: string, format: date}
+        - in: query
+          name: end
+          required: true
+          schema: {type: string, format: date}
+      responses:
+        '200': {description: Aggregated rank observations}
+        '400': {description: Invalid or missing window parameters}
+        '503': {description: Rank database is unavailable}
   /app-line-rankings:
     get:
       tags: [Versions]
@@ -127,21 +183,7 @@ paths:
       responses:
         '200':
           description: Active model summary
-  /admin/ingestions:
-    post:
-      tags: [Admin]
-      operationId: createIngestion
-      summary: Queue an authorized-source ingestion
-      security: [{cognito: [editor]}]
-      responses:
-        '202': {description: Ingestion queued}
-        '401': {description: Missing or invalid JWT}
-        '403': {description: Editor or admin role required}
 components:
-  securitySchemes:
-    cognito:
-      type: openIdConnect
-      openIdConnectUrl: https://cognito-idp.{region}.amazonaws.com/{userPoolId}/.well-known/openid-configuration
   schemas:
     Game:
       type: object

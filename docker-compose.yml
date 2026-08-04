@@ -25,7 +25,6 @@ services:
       HTTP_ADDRESS: :8080
       DATABASE_URL: postgres://gacha:gacha@postgres:5432/gacha?sslmode=disable
       REDIS_URL: redis://redis:6379/0
-      AUTH_REQUIRED: "false"
       RAW_DATA_BUCKET: gacha-revenue-raw-local
       INGESTION_QUEUE_URL: http://localstack:4566/000000000000/gacha-ingestion
     healthcheck:
@@ -34,8 +33,8 @@ services:
       timeout: 3s
       retries: 3
     depends_on:
-      postgres:
-        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
       redis:
         condition: service_healthy
 
@@ -56,12 +55,23 @@ services:
       AWS_SECRET_ACCESS_KEY: test
       AWS_ENDPOINT_URL: http://localstack:4566
     depends_on:
-      postgres:
-        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
       redis:
         condition: service_healthy
       localstack:
         condition: service_healthy
+
+  migrate:
+    build:
+      context: ./backend
+      target: migrate
+    environment:
+      DATABASE_URL: postgres://gacha:gacha@postgres:5432/gacha?sslmode=disable
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: "no"
 
   postgres:
     image: postgres:17-alpine
@@ -73,8 +83,6 @@ services:
       POSTGRES_PASSWORD: gacha
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      - ./backend/migrations/000001_initial_schema.up.sql:/docker-entrypoint-initdb.d/001-schema.sql:ro
-      - ./backend/migrations/000002_banner_rank_automation.up.sql:/docker-entrypoint-initdb.d/002-banner-ranks.sql:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U gacha -d gacha"]
       interval: 5s

@@ -71,9 +71,7 @@ func main() {
 	defer stop()
 
 	if cfg.RankFeedURL == "" || cfg.RankFeedToken == "" {
-		logger.Warn("authorized rank feed is not configured; worker will not create synthetic data")
-		<-ctx.Done()
-		return
+		logger.Warn("authorized historical rank feed is not configured; Apple public hourly collection remains enabled")
 	}
 
 	awsCfg, err := awsconfig.LoadDefaultConfig(ctx)
@@ -132,9 +130,15 @@ func (w *worker) run(ctx context.Context) error {
 				w.logger.Warn("unknown ingestion job", "type", job.Type)
 				continue
 			}
-			if err := w.ingestRankFeed(ctx); err != nil {
-				w.logger.Error("rank ingestion failed; message retained for retry", "error", err)
+			if err := w.ingestAppleRanks(ctx); err != nil {
+				w.logger.Error("Apple rank ingestion failed; message retained for retry", "error", err)
 				continue
+			}
+			if job.Type == "scheduled_full_refresh" && w.config.RankFeedURL != "" && w.config.RankFeedToken != "" {
+				if err := w.ingestRankFeed(ctx); err != nil {
+					w.logger.Error("rank ingestion failed; message retained for retry", "error", err)
+					continue
+				}
 			}
 			_, err := w.sqs.DeleteMessage(ctx, &sqs.DeleteMessageInput{QueueUrl: &w.config.IngestionQueue, ReceiptHandle: message.ReceiptHandle})
 			if err != nil {

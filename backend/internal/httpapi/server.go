@@ -5,20 +5,17 @@ import (
 	"log/slog"
 	"net/http"
 	"sort"
-	"strings"
 	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 
-	"gacha-revenue/backend/internal/auth"
 	"gacha-revenue/backend/internal/config"
 )
 
 type Server struct {
-	config   config.Config
-	verifier *auth.Verifier
-	logger   *slog.Logger
-	db       *pgxpool.Pool
+	config config.Config
+	logger *slog.Logger
+	db     *pgxpool.Pool
 }
 
 func New(cfg config.Config, logger *slog.Logger) http.Handler {
@@ -27,19 +24,17 @@ func New(cfg config.Config, logger *slog.Logger) http.Handler {
 
 func NewWithDB(cfg config.Config, logger *slog.Logger, db *pgxpool.Pool) http.Handler {
 	server := &Server{config: cfg, logger: logger, db: db}
-	if cfg.CognitoIssuer != "" {
-		server.verifier = auth.NewVerifier(cfg.CognitoIssuer, cfg.CognitoClientID)
-	}
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /healthz", server.health)
 	mux.HandleFunc("GET /v1/games", server.games)
+	mux.HandleFunc("GET /v1/public-revenue", server.publicRevenue)
 	mux.HandleFunc("GET /v1/revenue", server.revenue)
 	mux.HandleFunc("GET /v1/versions", server.versions)
+	mux.HandleFunc("GET /v1/banner-metrics", server.bannerMetrics)
 	mux.HandleFunc("GET /v1/app-line-rankings", server.appLineRankings)
 	mux.HandleFunc("GET /v1/methodology", server.methodology)
-	mux.Handle("POST /v1/admin/ingestions", server.requireRole("editor", http.HandlerFunc(server.createIngestion)))
-	return server.recover(server.requestLog(server.cors(server.authenticate(mux))))
+	return server.recover(server.requestLog(server.cors(mux)))
 }
 
 func (s *Server) health(w http.ResponseWriter, _ *http.Request) {
@@ -308,41 +303,6 @@ func (s *Server) methodology(w http.ResponseWriter, _ *http.Request) {
 			"excludes": []string{"advertising", "merchandise", "ip_licensing"},
 		},
 		"meta": responseMeta(),
-	})
-}
-
-func (s *Server) createIngestion(w http.ResponseWriter, _ *http.Request) {
-	writeJSON(w, http.StatusAccepted, map[string]any{"status": "queued", "requested_at": time.Now().UTC()})
-}
-
-func (s *Server) authenticate(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if s.verifier == nil {
-			next.ServeHTTP(w, r.WithContext(auth.WithClaims(r.Context(), auth.Claims{Role: "viewer"})))
-			return
-		}
-		header := r.Header.Get("Authorization")
-		if !strings.HasPrefix(header, "Bearer ") {
-			next.ServeHTTP(w, r.WithContext(auth.WithClaims(r.Context(), auth.Claims{Role: "viewer"})))
-			return
-		}
-		claims, err := s.verifier.Verify(r.Context(), strings.TrimPrefix(header, "Bearer "))
-		if err != nil {
-			writeJSON(w, http.StatusUnauthorized, map[string]string{"error": "invalid bearer token"})
-			return
-		}
-		next.ServeHTTP(w, r.WithContext(auth.WithClaims(r.Context(), claims)))
-	})
-}
-
-func (s *Server) requireRole(minimum string, next http.Handler) http.Handler {
-	weight := map[string]int{"viewer": 1, "editor": 2, "admin": 3}
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if weight[auth.FromContext(r.Context()).Role] < weight[minimum] {
-			writeJSON(w, http.StatusForbidden, map[string]string{"error": "insufficient role"})
-			return
-		}
-		next.ServeHTTP(w, r)
 	})
 }
 

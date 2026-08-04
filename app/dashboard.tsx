@@ -414,6 +414,7 @@ function normalizeVersions(payload: VersionsResponse): VersionDetail[] {
 
 export default function Dashboard({ locale }: { locale: Locale }) {
   const t = copy[locale];
+  const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL?.replace(/\/$/, "") ?? "";
   const hydrated = useSyncExternalStore(subscribeToHydration, () => true, () => false);
   const [gameData, setGameData] = useState<Game[]>(games);
   const [selectedGame, setSelectedGame] = useState<GameId>("hsr");
@@ -426,8 +427,9 @@ export default function Dashboard({ locale }: { locale: Locale }) {
   const [versionsData, setVersionsData] = useState<VersionDetail[]>(versionDetails);
 
   useEffect(() => {
+    if (!apiBase) return;
     const controller = new AbortController();
-    fetch("/api/public-revenue", { signal: controller.signal })
+    fetch(`${apiBase}/public-revenue`, { signal: controller.signal })
       .then((response) => {
         if (!response.ok) throw new Error(`public revenue API returned ${response.status}`);
         return response.json() as Promise<PublicRevenueResponse>;
@@ -444,13 +446,12 @@ export default function Dashboard({ locale }: { locale: Locale }) {
         console.error("Unable to refresh public revenue source", error);
       });
     return () => controller.abort();
-  }, []);
+  }, [apiBase]);
 
   useEffect(() => {
-    const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL;
     if (!apiBase) return;
     const controller = new AbortController();
-    fetch(`${apiBase.replace(/\/$/, "")}/versions`, { signal: controller.signal })
+    fetch(`${apiBase}/versions`, { signal: controller.signal })
       .then((response) => {
         if (!response.ok) throw new Error(`versions API returned ${response.status}`);
         return response.json() as Promise<VersionsResponse>;
@@ -458,8 +459,12 @@ export default function Dashboard({ locale }: { locale: Locale }) {
       .then((payload) => {
         const normalized = normalizeVersions(payload);
         if (normalized.length) {
-          setVersionsData(normalized);
-          setSelectedVersionId((current) => normalized.some((item) => item.id === current) ? current : (normalized.find((item) => item.gameId === "wuwa")?.id ?? normalized[0].id));
+          setVersionsData((current) => {
+            const byWindow = new Map(normalized.map((item) => [`${item.gameId}:${item.version}:${item.date}:${item.endDate}`, item]));
+            const merged = current.map((item) => byWindow.get(`${item.gameId}:${item.version}:${item.date}:${item.endDate}`) ?? item);
+            const existing = new Set(merged.map((item) => `${item.gameId}:${item.version}:${item.date}:${item.endDate}`));
+            return [...merged, ...normalized.filter((item) => !existing.has(`${item.gameId}:${item.version}:${item.date}:${item.endDate}`))];
+          });
         }
       })
       .catch((error: unknown) => {
@@ -467,14 +472,15 @@ export default function Dashboard({ locale }: { locale: Locale }) {
         console.error("Unable to load authorized version data", error);
       });
     return () => controller.abort();
-  }, []);
+  }, [apiBase]);
 
   useEffect(() => {
+    if (!apiBase) return;
     const metricTarget = versionDetails.find((item) => item.id === selectedVersionId);
     if (!metricTarget) return;
     const controller = new AbortController();
     const query = new URLSearchParams({ game_id: metricTarget.gameId, start: metricTarget.date, end: metricTarget.endDate });
-    fetch(`/api/banner-metrics?${query}`, { signal: controller.signal })
+    fetch(`${apiBase}/banner-metrics?${query}`, { signal: controller.signal })
       .then((response) => {
         if (response.status === 503) return null;
         if (!response.ok) throw new Error(`banner metrics API returned ${response.status}`);
@@ -518,7 +524,7 @@ export default function Dashboard({ locale }: { locale: Locale }) {
         console.error("Unable to load automatic Apple rank observations", error);
       });
     return () => controller.abort();
-  }, [selectedVersionId]);
+  }, [apiBase, selectedVersionId]);
 
   const activeGame = gameData.find((game) => game.id === selectedGame) ?? gameData[0];
   const selectedVersion = versionsData.find((version) => version.id === selectedVersionId);

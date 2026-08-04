@@ -1,5 +1,19 @@
 locals {
-  name = "${var.project}-${var.environment}"
+  name          = "${var.project}-${var.environment}"
+  api_image     = "${aws_ecr_repository.api.repository_url}:${var.image_tag}"
+  migrate_image = "${aws_ecr_repository.api.repository_url}:${var.image_tag}-migrate"
+  worker_image  = "${aws_ecr_repository.worker.repository_url}:${var.image_tag}"
+  database_environment = [
+    { name = "PGHOST", value = aws_db_instance.postgres.address },
+    { name = "PGPORT", value = tostring(aws_db_instance.postgres.port) },
+    { name = "PGUSER", value = aws_db_instance.postgres.username },
+    { name = "PGDATABASE", value = aws_db_instance.postgres.db_name },
+    { name = "PGSSLMODE", value = "require" },
+    { name = "REDIS_URL", value = "rediss://${aws_elasticache_replication_group.redis.primary_endpoint_address}:6379/0" }
+  ]
+  database_secrets = [
+    { name = "PGPASSWORD", valueFrom = "${aws_db_instance.postgres.master_user_secret[0].secret_arn}:password::" }
+  ]
 }
 
 data "aws_caller_identity" "current" {}
@@ -27,7 +41,11 @@ resource "aws_s3_bucket_versioning" "raw" {
 
 resource "aws_s3_bucket_server_side_encryption_configuration" "raw" {
   bucket = aws_s3_bucket.raw.id
-  rule { apply_server_side_encryption_by_default { sse_algorithm = "AES256" } }
+  rule {
+    apply_server_side_encryption_by_default {
+      sse_algorithm = "AES256"
+    }
+  }
 }
 
 resource "aws_s3_bucket_public_access_block" "raw" {
@@ -41,14 +59,14 @@ resource "aws_s3_bucket_public_access_block" "raw" {
 resource "aws_sqs_queue" "ingestion_dlq" {
   name                      = "${local.name}-ingestion-dlq"
   message_retention_seconds = 1209600
-  sqs_managed_sse_enabled    = true
+  sqs_managed_sse_enabled   = true
 }
 
 resource "aws_sqs_queue" "ingestion" {
   name                       = "${local.name}-ingestion"
   visibility_timeout_seconds = 180
   message_retention_seconds  = 345600
-  sqs_managed_sse_enabled     = true
+  sqs_managed_sse_enabled    = true
   redrive_policy = jsonencode({
     deadLetterTargetArn = aws_sqs_queue.ingestion_dlq.arn
     maxReceiveCount     = 5
@@ -61,25 +79,25 @@ resource "aws_db_subnet_group" "main" {
 }
 
 resource "aws_db_instance" "postgres" {
-  identifier                     = local.name
-  engine                         = "postgres"
-  engine_version                 = "17.4"
-  instance_class                 = "db.t4g.medium"
-  allocated_storage              = 50
-  max_allocated_storage          = 500
-  storage_encrypted              = true
-  db_name                        = "gacha"
-  username                       = "gacha_admin"
-  manage_master_user_password    = true
-  db_subnet_group_name           = aws_db_subnet_group.main.name
-  vpc_security_group_ids         = var.security_group_ids
-  backup_retention_period        = 14
-  deletion_protection            = true
-  performance_insights_enabled   = true
-  auto_minor_version_upgrade     = true
-  publicly_accessible            = false
-  skip_final_snapshot            = false
-  final_snapshot_identifier       = "${local.name}-final"
+  identifier                   = local.name
+  engine                       = "postgres"
+  engine_version               = "17.4"
+  instance_class               = var.rds_instance_class
+  allocated_storage            = 50
+  max_allocated_storage        = 500
+  storage_encrypted            = true
+  db_name                      = "gacha"
+  username                     = "gacha_admin"
+  manage_master_user_password  = true
+  db_subnet_group_name         = aws_db_subnet_group.main.name
+  vpc_security_group_ids       = [aws_security_group.data.id]
+  backup_retention_period      = 14
+  deletion_protection          = var.deletion_protection
+  performance_insights_enabled = true
+  auto_minor_version_upgrade   = true
+  publicly_accessible          = false
+  skip_final_snapshot          = false
+  final_snapshot_identifier    = "${local.name}-final"
 }
 
 resource "aws_elasticache_subnet_group" "main" {
@@ -91,53 +109,22 @@ resource "aws_elasticache_replication_group" "redis" {
   replication_group_id       = local.name
   description                = "Revenue API cache and distributed rate limits"
   engine                     = "redis"
-  node_type                  = "cache.t4g.small"
-  num_cache_clusters         = 2
-  automatic_failover_enabled = true
-  multi_az_enabled           = true
+  node_type                  = var.redis_node_type
+  num_cache_clusters         = var.redis_num_cache_clusters
+  automatic_failover_enabled = var.redis_num_cache_clusters > 1
+  multi_az_enabled           = var.redis_num_cache_clusters > 1
   at_rest_encryption_enabled = true
   transit_encryption_enabled = true
   subnet_group_name          = aws_elasticache_subnet_group.main.name
-  security_group_ids         = var.security_group_ids
-}
-
-resource "aws_cognito_user_pool" "main" {
-  name = local.name
-  username_attributes      = ["email"]
-  auto_verified_attributes = ["email"]
-
-  password_policy {
-    minimum_length                   = 12
-    require_lowercase                = true
-    require_numbers                  = true
-    require_symbols                  = true
-    require_uppercase                = true
-    temporary_password_validity_days = 2
-  }
-}
-
-resource "aws_cognito_user_pool_client" "web" {
-  name         = "${local.name}-web"
-  user_pool_id = aws_cognito_user_pool.main.id
-  generate_secret = false
-  allowed_oauth_flows_user_pool_client = true
-  allowed_oauth_flows  = ["code"]
-  allowed_oauth_scopes = ["openid", "email", "profile"]
-  callback_urls = ["https://example.com/auth/callback"]
-  logout_urls   = ["https://example.com/"]
-  supported_identity_providers = ["COGNITO"]
-}
-
-resource "aws_cognito_user_group" "roles" {
-  for_each     = toset(["viewer", "editor", "admin"])
-  name         = each.value
-  user_pool_id = aws_cognito_user_pool.main.id
-  precedence   = each.value == "admin" ? 10 : each.value == "editor" ? 20 : 30
+  security_group_ids         = [aws_security_group.data.id]
 }
 
 resource "aws_ecs_cluster" "main" {
   name = local.name
-  setting { name = "containerInsights" value = "enabled" }
+  setting {
+    name  = "containerInsights"
+    value = "enabled"
+  }
 }
 
 resource "aws_cloudwatch_log_group" "api" {
@@ -153,7 +140,7 @@ resource "aws_cloudwatch_log_group" "worker" {
 resource "aws_iam_role" "ecs_execution" {
   name = "${local.name}-ecs-execution"
   assume_role_policy = jsonencode({
-    Version = "2012-10-17"
+    Version   = "2012-10-17"
     Statement = [{ Effect = "Allow", Principal = { Service = "ecs-tasks.amazonaws.com" }, Action = "sts:AssumeRole" }]
   })
 }
@@ -171,7 +158,7 @@ resource "aws_iam_role_policy" "ecs_execution_secrets" {
     Statement = [{
       Effect   = "Allow"
       Action   = ["secretsmanager:GetSecretValue"]
-      Resource = aws_secretsmanager_secret.application.arn
+      Resource = [aws_db_instance.postgres.master_user_secret[0].secret_arn, aws_secretsmanager_secret.rank_feed.arn]
     }]
   })
 }
@@ -179,7 +166,7 @@ resource "aws_iam_role_policy" "ecs_execution_secrets" {
 resource "aws_iam_role" "task" {
   name = "${local.name}-task"
   assume_role_policy = jsonencode({
-    Version = "2012-10-17"
+    Version   = "2012-10-17"
     Statement = [{ Effect = "Allow", Principal = { Service = "ecs-tasks.amazonaws.com" }, Action = "sts:AssumeRole" }]
   })
 }
@@ -196,15 +183,25 @@ resource "aws_iam_role_policy" "task" {
   })
 }
 
-resource "aws_secretsmanager_secret" "application" {
-  name = "${local.name}/application"
-  description = "Database credentials and licensed provider tokens; values are set out-of-band."
+resource "aws_secretsmanager_secret" "rank_feed" {
+  name        = "${local.name}/authorized-rank-feed"
+  description = "Optional licensed Sensor Tower or Qimai feed URL and token."
+}
+
+resource "aws_secretsmanager_secret_version" "rank_feed_placeholder" {
+  secret_id = aws_secretsmanager_secret.rank_feed.id
+  secret_string = jsonencode({
+    AUTHORIZED_RANK_FEED_URL   = ""
+    AUTHORIZED_RANK_FEED_TOKEN = ""
+  })
+
+  lifecycle { ignore_changes = [secret_string] }
 }
 
 resource "aws_ssm_parameter" "model_version" {
   name  = "/${local.name}/model-version"
   type  = "String"
-  value = "2.0.0"
+  value = "3.0.0"
 }
 
 resource "aws_ecs_task_definition" "api" {
@@ -216,23 +213,17 @@ resource "aws_ecs_task_definition" "api" {
   execution_role_arn       = aws_iam_role.ecs_execution.arn
   task_role_arn            = aws_iam_role.task.arn
   container_definitions = jsonencode([{
-    name      = "api"
-    image     = var.api_image
-    essential = true
+    name         = "api"
+    image        = local.api_image
+    essential    = true
     portMappings = [{ containerPort = 8080, protocol = "tcp" }]
-    environment = [
+    environment = concat(local.database_environment, [
       { name = "APP_ENV", value = var.environment },
       { name = "HTTP_ADDRESS", value = ":8080" },
       { name = "RAW_DATA_BUCKET", value = aws_s3_bucket.raw.bucket },
-      { name = "INGESTION_QUEUE_URL", value = aws_sqs_queue.ingestion.url },
-      { name = "COGNITO_ISSUER", value = "https://cognito-idp.${var.aws_region}.amazonaws.com/${aws_cognito_user_pool.main.id}" },
-      { name = "COGNITO_CLIENT_ID", value = aws_cognito_user_pool_client.web.id },
-      { name = "AUTH_REQUIRED", value = "false" }
-    ]
-    secrets = [
-      { name = "DATABASE_URL", valueFrom = "${aws_secretsmanager_secret.application.arn}:DATABASE_URL::" },
-      { name = "REDIS_URL", valueFrom = "${aws_secretsmanager_secret.application.arn}:REDIS_URL::" }
-    ]
+      { name = "INGESTION_QUEUE_URL", value = aws_sqs_queue.ingestion.url }
+    ])
+    secrets          = local.database_secrets
     logConfiguration = { logDriver = "awslogs", options = { awslogs-group = aws_cloudwatch_log_group.api.name, awslogs-region = var.aws_region, awslogs-stream-prefix = "api" } }
   }])
 }
@@ -247,19 +238,36 @@ resource "aws_ecs_task_definition" "worker" {
   task_role_arn            = aws_iam_role.task.arn
   container_definitions = jsonencode([{
     name      = "worker"
-    image     = var.worker_image
+    image     = local.worker_image
     essential = true
-    environment = [
+    environment = concat(local.database_environment, [
       { name = "APP_ENV", value = var.environment },
       { name = "RAW_DATA_BUCKET", value = aws_s3_bucket.raw.bucket },
       { name = "INGESTION_QUEUE_URL", value = aws_sqs_queue.ingestion.url }
-    ]
-    secrets = [
-      { name = "DATABASE_URL", valueFrom = "${aws_secretsmanager_secret.application.arn}:DATABASE_URL::" },
-      { name = "AUTHORIZED_RANK_FEED_URL", valueFrom = "${aws_secretsmanager_secret.application.arn}:AUTHORIZED_RANK_FEED_URL::" },
-      { name = "AUTHORIZED_RANK_FEED_TOKEN", valueFrom = "${aws_secretsmanager_secret.application.arn}:AUTHORIZED_RANK_FEED_TOKEN::" }
-    ]
+    ])
+    secrets = concat(local.database_secrets, [
+      { name = "AUTHORIZED_RANK_FEED_URL", valueFrom = "${aws_secretsmanager_secret.rank_feed.arn}:AUTHORIZED_RANK_FEED_URL::" },
+      { name = "AUTHORIZED_RANK_FEED_TOKEN", valueFrom = "${aws_secretsmanager_secret.rank_feed.arn}:AUTHORIZED_RANK_FEED_TOKEN::" }
+    ])
     logConfiguration = { logDriver = "awslogs", options = { awslogs-group = aws_cloudwatch_log_group.worker.name, awslogs-region = var.aws_region, awslogs-stream-prefix = "worker" } }
+  }])
+}
+
+resource "aws_ecs_task_definition" "migrate" {
+  family                   = "${local.name}-migrate"
+  requires_compatibilities = ["FARGATE"]
+  network_mode             = "awsvpc"
+  cpu                      = 256
+  memory                   = 512
+  execution_role_arn       = aws_iam_role.ecs_execution.arn
+  task_role_arn            = aws_iam_role.task.arn
+  container_definitions = jsonencode([{
+    name             = "migrate"
+    image            = local.migrate_image
+    essential        = true
+    environment      = local.database_environment
+    secrets          = local.database_secrets
+    logConfiguration = { logDriver = "awslogs", options = { awslogs-group = aws_cloudwatch_log_group.api.name, awslogs-region = var.aws_region, awslogs-stream-prefix = "migrate" } }
   }])
 }
 
@@ -267,66 +275,37 @@ resource "aws_ecs_service" "api" {
   name            = "${local.name}-api"
   cluster         = aws_ecs_cluster.main.id
   task_definition = aws_ecs_task_definition.api.arn
-  desired_count   = 2
+  desired_count   = var.api_desired_count
   launch_type     = "FARGATE"
 
   network_configuration {
-    subnets          = var.private_subnet_ids
-    security_groups  = var.security_group_ids
-    assign_public_ip = false
+    subnets          = var.public_subnet_ids
+    security_groups  = [aws_security_group.tasks.id]
+    assign_public_ip = true
   }
 
-  lifecycle { ignore_changes = [task_definition] }
+  load_balancer {
+    target_group_arn = aws_lb_target_group.api.arn
+    container_name   = "api"
+    container_port   = 8080
+  }
+
+  health_check_grace_period_seconds = 90
+  depends_on                        = [aws_lb_listener.https]
+
 }
 
 resource "aws_ecs_service" "worker" {
   name            = "${local.name}-worker"
   cluster         = aws_ecs_cluster.main.id
   task_definition = aws_ecs_task_definition.worker.arn
-  desired_count   = 1
+  desired_count   = var.worker_desired_count
   launch_type     = "FARGATE"
 
   network_configuration {
-    subnets          = var.private_subnet_ids
-    security_groups  = var.security_group_ids
-    assign_public_ip = false
+    subnets          = var.public_subnet_ids
+    security_groups  = [aws_security_group.tasks.id]
+    assign_public_ip = true
   }
 
-  lifecycle { ignore_changes = [task_definition] }
-}
-
-resource "aws_cloudwatch_event_rule" "daily_ingestion" {
-  name                = "${local.name}-daily-ingestion"
-  schedule_expression = "cron(15 2 * * ? *)"
-}
-
-resource "aws_cloudwatch_event_rule" "hourly_rank_ingestion" {
-  name                = "${local.name}-hourly-rank-ingestion"
-  schedule_expression = "cron(5 * * * ? *)"
-}
-
-resource "aws_sqs_queue_policy" "eventbridge" {
-  queue_url = aws_sqs_queue.ingestion.id
-  policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [{
-      Effect = "Allow"
-      Principal = { Service = "events.amazonaws.com" }
-      Action = "sqs:SendMessage"
-      Resource = aws_sqs_queue.ingestion.arn
-      Condition = { ArnEquals = { "aws:SourceArn" = [aws_cloudwatch_event_rule.daily_ingestion.arn, aws_cloudwatch_event_rule.hourly_rank_ingestion.arn] } }
-    }]
-  })
-}
-
-resource "aws_cloudwatch_event_target" "daily_ingestion" {
-  rule = aws_cloudwatch_event_rule.daily_ingestion.name
-  arn  = aws_sqs_queue.ingestion.arn
-  input = jsonencode({ type = "scheduled_full_refresh", model_version = "2.0.0" })
-}
-
-resource "aws_cloudwatch_event_target" "hourly_rank_ingestion" {
-  rule = aws_cloudwatch_event_rule.hourly_rank_ingestion.name
-  arn  = aws_sqs_queue.ingestion.arn
-  input = jsonencode({ type = "hourly_rank_refresh" })
 }

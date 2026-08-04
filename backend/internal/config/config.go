@@ -1,46 +1,58 @@
 package config
 
 import (
-	"fmt"
+	"net"
+	"net/url"
 	"os"
 )
 
 type Config struct {
-	Address         string
-	Environment     string
-	DatabaseURL     string
-	RedisURL        string
-	RawDataBucket   string
-	IngestionQueue  string
-	CognitoIssuer   string
-	CognitoClientID string
-	AuthRequired    bool
-	RankFeedURL     string
-	RankFeedToken   string
+	Address        string
+	Environment    string
+	DatabaseURL    string
+	RedisURL       string
+	RawDataBucket  string
+	IngestionQueue string
+	RankFeedURL    string
+	RankFeedToken  string
 }
 
 func Load() Config {
 	return Config{
-		Address:         value("HTTP_ADDRESS", ":8080"),
-		Environment:     value("APP_ENV", "development"),
-		DatabaseURL:     value("DATABASE_URL", "postgres://gacha:gacha@localhost:5432/gacha?sslmode=disable"),
-		RedisURL:        value("REDIS_URL", "redis://localhost:6379/0"),
-		RawDataBucket:   value("RAW_DATA_BUCKET", "gacha-revenue-raw-local"),
-		IngestionQueue:  value("INGESTION_QUEUE_URL", "http://localhost:4566/000000000000/gacha-ingestion"),
-		CognitoIssuer:   os.Getenv("COGNITO_ISSUER"),
-		CognitoClientID: os.Getenv("COGNITO_CLIENT_ID"),
-		AuthRequired:    os.Getenv("AUTH_REQUIRED") == "true",
-		RankFeedURL:     os.Getenv("AUTHORIZED_RANK_FEED_URL"),
-		RankFeedToken:   os.Getenv("AUTHORIZED_RANK_FEED_TOKEN"),
+		Address:        value("HTTP_ADDRESS", ":8080"),
+		Environment:    value("APP_ENV", "development"),
+		DatabaseURL:    databaseURL(),
+		RedisURL:       value("REDIS_URL", "redis://localhost:6379/0"),
+		RawDataBucket:  value("RAW_DATA_BUCKET", "gacha-revenue-raw-local"),
+		IngestionQueue: value("INGESTION_QUEUE_URL", "http://localhost:4566/000000000000/gacha-ingestion"),
+		RankFeedURL:    os.Getenv("AUTHORIZED_RANK_FEED_URL"),
+		RankFeedToken:  os.Getenv("AUTHORIZED_RANK_FEED_TOKEN"),
 	}
 }
 
-func (c Config) Validate() error {
-	if c.AuthRequired && (c.CognitoIssuer == "" || c.CognitoClientID == "") {
-		return fmt.Errorf("COGNITO_ISSUER and COGNITO_CLIENT_ID are required when AUTH_REQUIRED=true")
+func databaseURL() string {
+	if value := os.Getenv("DATABASE_URL"); value != "" {
+		return value
 	}
-	return nil
+	host := value("PGHOST", "localhost")
+	port := value("PGPORT", "5432")
+	user := value("PGUSER", "gacha")
+	password := value("PGPASSWORD", "gacha")
+	database := value("PGDATABASE", "gacha")
+	sslMode := value("PGSSLMODE", "disable")
+	databaseURL := &url.URL{
+		Scheme: "postgres",
+		User:   url.UserPassword(user, password),
+		Host:   net.JoinHostPort(host, port),
+		Path:   "/" + database,
+	}
+	query := databaseURL.Query()
+	query.Set("sslmode", sslMode)
+	databaseURL.RawQuery = query.Encode()
+	return databaseURL.String()
 }
+
+func (c Config) Validate() error { return nil }
 
 func value(key, fallback string) string {
 	if v := os.Getenv(key); v != "" {
