@@ -83,7 +83,21 @@ jobs:
             --header "X-Backend-Token: ${BACKEND_PROXY_TOKEN}" \
             "${API_URL}v1/banner-metrics?game_id=hsr&start=2026-08-01&end=2026-08-03"
 
-      - name: Show API Lambda errors after failed verification
+      - name: Diagnose API Lambda after failed verification
         if: failure()
+        env:
+          BACKEND_PROXY_TOKEN: ${{ secrets.BACKEND_PROXY_TOKEN }}
         run: |
-          aws logs tail /aws/lambda/gacha-revenue-free-api --since 10m --format short | tail -n 100
+          jq -cn --arg token "$BACKEND_PROXY_TOKEN" '{
+            version:"2.0",
+            rawPath:"/v1/banner-metrics",
+            rawQueryString:"game_id=hsr&start=2026-08-01&end=2026-08-03",
+            headers:{"x-backend-token":$token},
+            requestContext:{http:{method:"GET"}}
+          }' >"$RUNNER_TEMP/api-event.json"
+          aws lambda invoke \
+            --function-name gacha-revenue-free-api \
+            --cli-binary-format raw-in-base64-out \
+            --payload "fileb://$RUNNER_TEMP/api-event.json" \
+            "$RUNNER_TEMP/api-output.json"
+          jq . "$RUNNER_TEMP/api-output.json"
