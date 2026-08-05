@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { startTransition, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
+import { startTransition, useEffect, useMemo, useRef, useState } from "react";
 import {
   appLines,
   gameVisuals,
@@ -38,10 +38,9 @@ import {
   type RevenuePeriod,
   type VersionRange,
 } from "./revenue-model";
+import { useVersionCatalog } from "./use-version-catalog";
 
 type Period = "month" | "year" | "version";
-
-const subscribeToHydration = () => () => {};
 
 const copy = {
   "zh-CN": {
@@ -89,6 +88,7 @@ const copy = {
     versionSub: "下拉选择每个版本的独立上半 / 下半卡池；卡池日历与榜单观测分别标注来源",
     selectGame: "选择游戏",
     selectBanner: "选择版本 / 卡池角色",
+    loadingVersionCatalog: "正在加载该游戏版本目录…",
     noVerifiedBanner: "该游戏暂无已核验卡池数据",
     dateWindow: "观察窗口",
     associatedCharacters: "关联角色 / 卡池",
@@ -188,6 +188,7 @@ const copy = {
     versionSub: "Select the exact first/second phase for each version; calendar and rank sources are tracked separately",
     selectGame: "Select game",
     selectBanner: "Select version / character banner",
+    loadingVersionCatalog: "Loading this game's version catalog…",
     noVerifiedBanner: "No verified banner data for this game",
     dateWindow: "Observation window",
     associatedCharacters: "Associated characters / banners",
@@ -500,7 +501,6 @@ export default function Dashboard({
   initialExchangeRate: ExchangeRateData | null;
 }) {
   const t = copy[locale];
-  const hydrated = useSyncExternalStore(subscribeToHydration, () => true, () => false);
   const [gameData, setGameData] = useState<Game[]>(initialRevenue?.games.length ? initialRevenue.games : loadingGames);
   const [selectedGame, setSelectedGame] = useState<GameId>(() => initialRevenue?.games.length ? highestYTDGameId(initialRevenue.games) : "genshin");
   const [revenuePeriod, setRevenuePeriod] = useState<RevenuePeriod | null>(initialRevenue?.latestPeriod ?? null);
@@ -512,7 +512,6 @@ export default function Dashboard({
   const [selectedVersionId, setSelectedVersionId] = useState("hsr-44-p1");
   const [rankingGame, setRankingGame] = useState<GameId>("genshin");
   const [rankingApp, setRankingApp] = useState<AppLineId>("douyin");
-  const [versionCatalog, setVersionCatalog] = useState<VersionDetail[]>([]);
   const [metricsByVersion, setMetricsByVersion] = useState<Record<string, BannerMetricsData>>({});
   const [exchangeRate, setExchangeRate] = useState<ExchangeRateData | null>(initialExchangeRate);
   const [methodology, setMethodology] = useState<MethodologyData | null>(null);
@@ -522,11 +521,19 @@ export default function Dashboard({
   const [versionsVisible, setVersionsVisible] = useState(false);
   const [rankingVisible, setRankingVisible] = useState(false);
   const [methodologyVisible, setMethodologyVisible] = useState(false);
+  const requestedVersionGames = useMemo(() => {
+    const requested: GameId[] = [];
+    if (versionsVisible) requested.push(versionGame);
+    if (rankingVisible) requested.push(rankingGame);
+    if (period === "version") requested.push(selectedGame);
+    return requested;
+  }, [period, rankingGame, rankingVisible, selectedGame, versionGame, versionsVisible]);
+  const { catalog: versionCatalog, loadedGames: loadedVersionGames } = useVersionCatalog(requestedVersionGames);
+  const versionCatalogLoaded = loadedVersionGames.has(versionGame);
 
   useEffect(() => {
     const targets: Array<[HTMLElement | null, () => void]> = [
       [versionsPanelRef.current, () => setVersionsVisible(true)],
-      [rankingSectionRef.current, () => setRankingVisible(true)],
       [methodologyRef.current, () => setMethodologyVisible(true)],
     ];
     if (!("IntersectionObserver" in window)) {
@@ -546,6 +553,22 @@ export default function Dashboard({
     for (const element of callbacks.keys()) observer.observe(element);
     return () => observer.disconnect();
   }, []);
+
+  useEffect(() => {
+    const element = rankingSectionRef.current;
+    if (!element || rankingVisible || !versionsVisible || !versionCatalogLoaded) return;
+    if (!("IntersectionObserver" in window)) {
+      const timer = setTimeout(() => setRankingVisible(true), 0);
+      return () => clearTimeout(timer);
+    }
+    const observer = new IntersectionObserver(([entry]) => {
+      if (!entry.isIntersecting) return;
+      setRankingVisible(true);
+      observer.disconnect();
+    }, { threshold: 0.5 });
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, [rankingVisible, versionCatalogLoaded, versionsVisible]);
 
   useEffect(() => {
     if (initialRevenue) return;
@@ -595,31 +618,14 @@ export default function Dashboard({
     return () => controller.abort();
   }, [methodologyVisible]);
 
-  useEffect(() => {
-    if (versionCatalog.length || !(versionsVisible || rankingVisible || period === "version")) return;
-    const controller = new AbortController();
-    loadVersions(controller.signal)
-      .then((normalized) => {
-        if (normalized.length) {
-          startTransition(() => {
-            setVersionCatalog(normalized);
-            setSelectedVersionId((current) => normalized.some((item) => item.id === current)
-              ? current
-              : normalized.filter((item) => item.gameId === "hsr").sort((a, b) => sortVersions(b, a))[0]?.id ?? "");
-          });
-        }
-      })
-      .catch((error: unknown) => {
-        if (error instanceof DOMException && error.name === "AbortError") return;
-        console.error("Unable to load authorized version data", error);
-    });
-    return () => controller.abort();
-  }, [period, rankingVisible, versionCatalog.length, versionsVisible]);
-
   const metricTarget = versionCatalog.find(
-    (item) => item.id === selectedVersionId && item.gameId === versionGame && /^\d{4}-\d{2}-\d{2}$/.test(item.date) && /^\d{4}-\d{2}-\d{2}$/.test(item.endDate),
-  );
-  const metricWindow = metricTarget ? `${metricTarget.gameId}|${metricTarget.date}|${metricTarget.endDate}` : "";
+    (item) => item.id === selectedVersionId && item.gameId === versionGame,
+  ) ?? versionCatalog.filter((item) => item.gameId === versionGame).sort((a, b) => sortVersions(b, a))[0];
+  const validMetricTarget = metricTarget && /^\d{4}-\d{2}-\d{2}$/.test(metricTarget.date) && /^\d{4}-\d{2}-\d{2}$/.test(metricTarget.endDate)
+    ? metricTarget
+    : undefined;
+  const metricWindow = validMetricTarget ? `${validMetricTarget.gameId}|${validMetricTarget.date}|${validMetricTarget.endDate}` : "";
+  const metricVersionId = validMetricTarget?.id ?? "";
 
   useEffect(() => {
     if (!versionsVisible || !metricWindow) return;
@@ -629,17 +635,17 @@ export default function Dashboard({
       .then((payload) => {
         const metrics = payload.data;
         if (!metrics) return;
-        startTransition(() => setMetricsByVersion((current) => withRicherBannerMetrics(current, selectedVersionId, metrics)));
+        startTransition(() => setMetricsByVersion((current) => withRicherBannerMetrics(current, metricVersionId, metrics)));
       })
       .catch((error: unknown) => {
         if (error instanceof DOMException && error.name === "AbortError") return;
         console.error("Unable to load automatic Apple rank observations", error);
       });
     return () => controller.abort();
-  }, [selectedVersionId, metricWindow, versionsVisible]);
+  }, [metricVersionId, metricWindow, versionsVisible]);
 
   useEffect(() => {
-    if (!rankingVisible || !versionCatalog.some((version) => version.gameId === rankingGame)) return;
+    if (!rankingVisible) return;
     const controller = new AbortController();
     const refresh = async () => {
       try {
@@ -661,7 +667,7 @@ export default function Dashboard({
       controller.abort();
       window.clearInterval(timer);
     };
-  }, [rankingGame, rankingVisible, versionCatalog]);
+  }, [rankingGame, rankingVisible]);
 
   const versionsData = useMemo(
     () => versionCatalog.map((version) => {
@@ -837,15 +843,33 @@ export default function Dashboard({
     setSelectedVersionId(first?.id ?? "");
   };
 
+  const prefetchVersionCatalog = () => {
+    void loadVersions(versionGame).catch(() => undefined);
+  };
+
   return (
-    <main data-hydrated={hydrated ? "true" : "false"}>
+    <main>
       <header className="site-header">
         <Link className="brand" href={`/${locale}`} aria-label={t.footer} scroll={false}>
           <span className="brand-symbol"><i /><i /><i /></span>
           <span><strong>{t.brand}</strong><small>{t.brandSub}</small></span>
         </Link>
         <nav aria-label="Primary navigation">
-          {t.nav.map((label, index) => <a key={label} href={`#${t.navIds[index]}`}>{label}</a>)}
+          {t.nav.map((label, index) => {
+            const sectionId = t.navIds[index];
+            const versionsLink = sectionId === "versions";
+            return (
+              <a
+                key={label}
+                href={`#${sectionId}`}
+                onClick={versionsLink ? () => setVersionsVisible(true) : undefined}
+                onFocus={versionsLink ? prefetchVersionCatalog : undefined}
+                onPointerEnter={versionsLink ? prefetchVersionCatalog : undefined}
+              >
+                {label}
+              </a>
+            );
+          })}
         </nav>
         <div className="header-actions">
           <span className="snapshot-badge">{t.dataBadge}</span>
@@ -993,9 +1017,12 @@ export default function Dashboard({
             </select>
           </label>
           <label>
-            <span>{t.selectBanner}<small>{t.catalogCount.replace("{count}", String(visibleVersions.length))}</small></span>
+            <span>
+              {t.selectBanner}
+              <small>{versionCatalogLoaded ? t.catalogCount.replace("{count}", String(visibleVersions.length)) : t.loadingVersionCatalog}</small>
+            </span>
             <select value={selectedVersion?.id ?? ""} disabled={!visibleVersions.length} onChange={(event) => setSelectedVersionId(event.target.value)} aria-label={t.selectBanner}>
-              {!visibleVersions.length && <option value="">{t.noVerifiedBanner}</option>}
+              {!visibleVersions.length && <option value="">{versionCatalogLoaded ? t.noVerifiedBanner : t.loadingVersionCatalog}</option>}
               {visibleVersionGroups.map(([group, items]) => (
                 <optgroup key={group} label={group}>
                   {items.map((item) => (
@@ -1081,7 +1108,7 @@ export default function Dashboard({
             </div>
             <p className="character-note">{t.characterNote}</p>
           </>
-        ) : <div className="verified-empty">{t.noVerifiedBanner}</div>}
+        ) : <div className="verified-empty">{versionCatalogLoaded ? t.noVerifiedBanner : t.loadingVersionCatalog}</div>}
 
         <section ref={rankingSectionRef} className="banner-ranking-section">
           <div className="ranking-heading">

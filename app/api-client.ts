@@ -295,8 +295,23 @@ export function loadMethodology(signal: AbortSignal) {
   });
 }
 
-export function loadVersions(signal: AbortSignal) {
-  return fetchJSON<VersionsResponse>("versions?compact=1", signal).then(normalizeVersions);
+const versionCatalogRequests = new Map<GameId, { expiresAt: number; request: Promise<VersionDetail[]> }>();
+const versionCatalogCacheMs = 5 * 60 * 1000;
+
+export function loadVersions(gameId: GameId) {
+  const now = Date.now();
+  const cached = versionCatalogRequests.get(gameId);
+  if (cached && cached.expiresAt > now) return cached.request;
+
+  const query = new URLSearchParams({ compact: "1", game_id: gameId });
+  const request = fetchJSON<VersionsResponse>(`versions?${query}`, AbortSignal.timeout(15_000))
+    .then(normalizeVersions)
+    .catch((error: unknown) => {
+      if (versionCatalogRequests.get(gameId)?.request === request) versionCatalogRequests.delete(gameId);
+      throw error;
+    });
+  versionCatalogRequests.set(gameId, { expiresAt: now + versionCatalogCacheMs, request });
+  return request;
 }
 
 export function loadBannerMetrics(target: Pick<VersionDetail, "gameId" | "date" | "endDate">, signal: AbortSignal) {

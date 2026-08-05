@@ -30,9 +30,33 @@ test("does not fan out banner requests during initial paint", async ({ page }) =
   expect(backendPaths).not.toContain("/api/backend/banner-rankings");
 });
 
+test("loads and caches version catalogs one game at a time", async ({ page }) => {
+  const versionRequests: URL[] = [];
+  page.on("request", (request) => {
+    const url = new URL(request.url());
+    if (url.pathname === "/api/backend/versions") versionRequests.push(url);
+  });
+
+  await page.goto("/zh-CN");
+  await page.locator('a[href="#versions"]').evaluate((element: HTMLAnchorElement) => element.click());
+  await expect(page.getByLabel("选择版本 / 卡池角色")).toBeEnabled();
+  expect(versionRequests).toHaveLength(1);
+  expect(versionRequests[0].searchParams.get("game_id")).toBe("hsr");
+  expect(versionRequests[0].searchParams.get("compact")).toBe("1");
+
+  await page.getByLabel("选择游戏").selectOption("wuwa");
+  await expect(page.getByLabel("选择版本 / 卡池角色")).toBeEnabled();
+  await expect.poll(() => versionRequests.length).toBe(2);
+  expect(versionRequests[1].searchParams.get("game_id")).toBe("wuwa");
+
+  await page.getByLabel("选择游戏").selectOption("hsr");
+  await expect(page.getByLabel("选择版本 / 卡池角色")).toBeEnabled();
+  expect(versionRequests).toHaveLength(2);
+});
+
 test("switches revenue grain and locale", async ({ page }) => {
   await page.goto("/zh-CN");
-  await expect(page.locator("main")).toHaveAttribute("data-hydrated", "true");
+  await expect(page.getByRole("button", { name: "按月" })).toBeEnabled();
   await expect(page.getByRole("heading", { name: "2026 年累计移动端流水估算（截至 6 月）" })).toBeVisible();
   await expect(page.getByText("¥57.50亿")).toBeVisible();
   await expect(page.getByText(/2026 年 7 月公开源尚未发布/)).toBeVisible();
@@ -124,7 +148,7 @@ test("keeps overview text clear and lets users expand phase history", async ({ p
 
 test("opens launch-to-present version intelligence", async ({ page }) => {
   await page.goto("/zh-CN");
-  await expect(page.locator("main")).toHaveAttribute("data-hydrated", "true");
+  await expect(page.getByRole("button", { name: "按月" })).toBeEnabled();
   await page.locator("#versions").scrollIntoViewIfNeeded();
   const bannerSelect = page.getByLabel("选择版本 / 卡池角色");
   await page.getByLabel("选择游戏").selectOption("endfield");
