@@ -109,7 +109,7 @@ type MethodologyResponse = {
   };
 };
 
-type ExchangeRateResponse = {
+export type ExchangeRateResponse = {
   data?: Omit<ExchangeRateData, "fallback">;
   meta?: { fallback_snapshot?: boolean };
 };
@@ -265,11 +265,13 @@ export function normalizePublicRevenue(payload: PublicRevenueResponse): PublicRe
 }
 
 export function loadExchangeRate(signal: AbortSignal) {
-  return fetchJSON<ExchangeRateResponse>("exchange-rate", signal).then((payload): ExchangeRateData | null => {
-    if (!payload.data || payload.data.base !== "USD" || payload.data.quote !== "CNY") return null;
-    if (!Number.isFinite(payload.data.rate) || payload.data.rate < 4 || payload.data.rate > 12) return null;
-    return { ...payload.data, fallback: Boolean(payload.meta?.fallback_snapshot) };
-  });
+  return fetchJSON<ExchangeRateResponse>("exchange-rate", signal).then(normalizeExchangeRate);
+}
+
+export function normalizeExchangeRate(payload: ExchangeRateResponse): ExchangeRateData | null {
+  if (!payload.data || payload.data.base !== "USD" || payload.data.quote !== "CNY") return null;
+  if (!Number.isFinite(payload.data.rate) || payload.data.rate < 4 || payload.data.rate > 12) return null;
+  return { ...payload.data, fallback: Boolean(payload.meta?.fallback_snapshot) };
 }
 
 export function loadMethodology(signal: AbortSignal) {

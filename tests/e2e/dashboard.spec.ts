@@ -23,7 +23,9 @@ test("does not fan out banner requests during initial paint", async ({ page }) =
   });
   await page.goto("/zh-CN");
   await expect(page.getByText("¥57.50亿")).toBeVisible();
-  await expect.poll(() => backendPaths.includes("/api/backend/versions")).toBe(true);
+  expect(backendPaths).not.toContain("/api/backend/public-revenue");
+  expect(backendPaths).not.toContain("/api/backend/exchange-rate");
+  expect(backendPaths).not.toContain("/api/backend/versions");
   expect(backendPaths).not.toContain("/api/backend/banner-metrics");
   expect(backendPaths).not.toContain("/api/backend/banner-rankings");
 });
@@ -40,7 +42,7 @@ test("switches revenue grain and locale", async ({ page }) => {
   await expect(page.locator(".game-card").filter({ hasText: "异环" })).toContainText("¥2.99亿");
 
   await page.locator(".game-card").filter({ hasText: "崩坏：星穹铁道" }).click();
-  await expect(page.getByText("¥12.58亿").first()).toBeVisible();
+  await expect(page.locator(".game-card[aria-pressed='true']")).toContainText(/¥12\.5\d亿/);
   await expect(page.locator("#trend .line-chart-y-axis")).toHaveCount(1);
   await expect(page.locator("#trend .line-chart-y-axis")).toContainText("亿元人民币");
   const [frameBox, axisBox, plotBox] = await Promise.all([
@@ -67,6 +69,17 @@ test("switches revenue grain and locale", async ({ page }) => {
   await expect(page).toHaveURL(/\/en$/);
   await expect(page.getByRole("heading", { name: "2026 YTD mobile revenue estimates (through June)" })).toBeVisible();
   await expect(page.locator(".game-card[aria-pressed='true']")).toContainText("$276.5M");
+});
+
+test("switches locale without a document reload and uses the requested ranking defaults", async ({ page }) => {
+  await page.goto("/zh-CN");
+  await page.evaluate(() => Object.assign(window, { __localeNavigationMarker: "preserved" }));
+  await page.getByRole("link", { name: "EN", exact: true }).click();
+  await expect(page).toHaveURL(/\/en$/);
+  await expect.poll(() => page.evaluate(() => (window as typeof window & { __localeNavigationMarker?: string }).__localeNavigationMarker)).toBe("preserved");
+  await page.locator(".banner-ranking-section").scrollIntoViewIfNeeded();
+  await expect(page.getByLabel("Ranking game")).toHaveValue("genshin");
+  await expect(page.getByLabel("Comparison app line")).toHaveValue("douyin");
 });
 
 test("keeps overview text clear and lets users expand phase history", async ({ page }) => {
@@ -203,6 +216,7 @@ test("adds a provider banner to the automatic per-game ranking", async ({ page }
 
   await page.goto("/zh-CN");
   await page.locator(".banner-ranking-section").scrollIntoViewIfNeeded();
+  await page.getByLabel("比较应用线").selectOption("tencent_video");
   await page.getByLabel("排名游戏").selectOption("hsr");
   await page.getByLabel("排名游戏").selectOption("wuwa");
   const firstRankingRow = page.locator(".banner-ranking-table tbody tr").first();

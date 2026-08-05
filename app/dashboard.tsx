@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { startTransition, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import {
   appLines,
@@ -495,23 +496,31 @@ function withRicherBannerMetrics(
   return { ...current, [versionID]: incoming };
 }
 
-export default function Dashboard({ locale }: { locale: Locale }) {
+export default function Dashboard({
+  locale,
+  initialRevenue,
+  initialExchangeRate,
+}: {
+  locale: Locale;
+  initialRevenue: PublicRevenueData | null;
+  initialExchangeRate: ExchangeRateData | null;
+}) {
   const t = copy[locale];
   const hydrated = useSyncExternalStore(subscribeToHydration, () => true, () => false);
-  const [gameData, setGameData] = useState<Game[]>(loadingGames);
-  const [selectedGame, setSelectedGame] = useState<GameId>("genshin");
-  const [revenuePeriod, setRevenuePeriod] = useState<RevenuePeriod | null>(null);
-  const [revenueTotals, setRevenueTotals] = useState<PublicRevenueData["totals"]>({ latest: 0, ytd: 0, coveredGames: 0, games: loadingGames.length });
+  const [gameData, setGameData] = useState<Game[]>(initialRevenue?.games.length ? initialRevenue.games : loadingGames);
+  const [selectedGame, setSelectedGame] = useState<GameId>(() => initialRevenue?.games.length ? highestYTDGameId(initialRevenue.games) : "genshin");
+  const [revenuePeriod, setRevenuePeriod] = useState<RevenuePeriod | null>(initialRevenue?.latestPeriod ?? null);
+  const [revenueTotals, setRevenueTotals] = useState<PublicRevenueData["totals"]>(initialRevenue?.totals ?? { latest: 0, ytd: 0, coveredGames: 0, games: loadingGames.length });
   const userSelectedGame = useRef(false);
   const [period, setPeriod] = useState<Period>("month");
   const [versionRange, setVersionRange] = useState<(VersionRange & { gameId: GameId }) | null>(null);
   const [versionGame, setVersionGame] = useState<GameId>("hsr");
   const [selectedVersionId, setSelectedVersionId] = useState("hsr-44-p1");
-  const [rankingGame, setRankingGame] = useState<GameId>("wuwa");
-  const [rankingApp, setRankingApp] = useState<AppLineId>("tencent_video");
+  const [rankingGame, setRankingGame] = useState<GameId>("genshin");
+  const [rankingApp, setRankingApp] = useState<AppLineId>("douyin");
   const [versionCatalog, setVersionCatalog] = useState<VersionDetail[]>([]);
   const [metricsByVersion, setMetricsByVersion] = useState<Record<string, BannerMetricsData>>({});
-  const [exchangeRate, setExchangeRate] = useState<ExchangeRateData | null>(null);
+  const [exchangeRate, setExchangeRate] = useState<ExchangeRateData | null>(initialExchangeRate);
   const [methodology, setMethodology] = useState<MethodologyData | null>(null);
   const versionsPanelRef = useRef<HTMLElement>(null);
   const rankingSectionRef = useRef<HTMLElement>(null);
@@ -545,6 +554,7 @@ export default function Dashboard({ locale }: { locale: Locale }) {
   }, []);
 
   useEffect(() => {
+    if (initialRevenue) return;
     const controller = new AbortController();
     loadPublicRevenue(controller.signal)
       .then((payload) => {
@@ -561,9 +571,10 @@ export default function Dashboard({ locale }: { locale: Locale }) {
         console.error("Unable to refresh public revenue source", error);
     });
     return () => controller.abort();
-  }, []);
+  }, [initialRevenue]);
 
   useEffect(() => {
+    if (initialExchangeRate) return;
     const controller = new AbortController();
     loadExchangeRate(controller.signal)
       .then((value) => {
@@ -574,7 +585,7 @@ export default function Dashboard({ locale }: { locale: Locale }) {
         console.error("Unable to refresh ECB exchange rate", error);
       });
     return () => controller.abort();
-  }, []);
+  }, [initialExchangeRate]);
 
   useEffect(() => {
     if (!methodologyVisible) return;
@@ -591,7 +602,7 @@ export default function Dashboard({ locale }: { locale: Locale }) {
   }, [methodologyVisible]);
 
   useEffect(() => {
-    if (versionCatalog.length) return;
+    if (versionCatalog.length || !(versionsVisible || rankingVisible || period === "version")) return;
     const controller = new AbortController();
     loadVersions(controller.signal)
       .then((normalized) => {
@@ -609,7 +620,7 @@ export default function Dashboard({ locale }: { locale: Locale }) {
         console.error("Unable to load authorized version data", error);
     });
     return () => controller.abort();
-  }, [versionCatalog.length]);
+  }, [period, rankingVisible, versionCatalog.length, versionsVisible]);
 
   const metricTarget = versionCatalog.find(
     (item) => item.id === selectedVersionId && item.gameId === versionGame && /^\d{4}-\d{2}-\d{2}$/.test(item.date) && /^\d{4}-\d{2}-\d{2}$/.test(item.endDate),
@@ -839,17 +850,17 @@ export default function Dashboard({ locale }: { locale: Locale }) {
   return (
     <main data-hydrated={hydrated ? "true" : "false"}>
       <header className="site-header">
-        <a className="brand" href={`/${locale}`} aria-label={t.footer}>
+        <Link className="brand" href={`/${locale}`} aria-label={t.footer} scroll={false}>
           <span className="brand-symbol"><i /><i /><i /></span>
           <span><strong>{t.brand}</strong><small>{t.brandSub}</small></span>
-        </a>
+        </Link>
         <nav aria-label="Primary navigation">
           {t.nav.map((label, index) => <a key={label} href={`#${t.navIds[index]}`}>{label}</a>)}
         </nav>
         <div className="header-actions">
           <span className="snapshot-badge">{t.dataBadge}</span>
-          <a className={locale === "zh-CN" ? "active" : ""} href="/zh-CN">中</a><span>/</span>
-          <a className={locale === "en" ? "active" : ""} href="/en">EN</a>
+          <Link className={locale === "zh-CN" ? "active" : ""} href="/zh-CN" scroll={false}>中</Link><span>/</span>
+          <Link className={locale === "en" ? "active" : ""} href="/en" scroll={false}>EN</Link>
         </div>
       </header>
 

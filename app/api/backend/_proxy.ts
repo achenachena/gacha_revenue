@@ -1,17 +1,13 @@
 import type { NextRequest } from "next/server";
 
-const allowedGames = new Set(["genshin", "hsr", "zzz", "wuwa", "endfield", "nte"]);
-const policies = {
-  "public-revenue": { revalidate: 21_600 },
-  "exchange-rate": { revalidate: 43_200 },
-  methodology: { revalidate: 86_400 },
-  versions: { revalidate: 60 },
-  "banner-metrics": { revalidate: 300 },
-  "banner-rankings": { revalidate: 300 },
-} as const;
-const maxResponseBytes = 2 * 1024 * 1024;
+import {
+  backendConfiguration,
+  backendPolicies,
+  maxBackendResponseBytes,
+  type BackendEndpoint,
+} from "../../backend-server";
 
-export type BackendEndpoint = keyof typeof policies;
+const allowedGames = new Set(["genshin", "hsr", "zzz", "wuwa", "endfield", "nte"]);
 
 function jsonError(status: number, error: string) {
   return Response.json(
@@ -58,45 +54,28 @@ function validatedQuery(endpoint: BackendEndpoint, searchParams: URLSearchParams
   return new URLSearchParams({ game_id: gameID, start, end });
 }
 
-function upstreamBaseURL(): URL | null {
-  const raw = process.env.BACKEND_API_BASE_URL?.trim();
-  if (!raw) return null;
-  try {
-    const parsed = new URL(raw.endsWith("/") ? raw : `${raw}/`);
-    const localDevelopment =
-      process.env.NODE_ENV !== "production" &&
-      parsed.protocol === "http:" &&
-      ["127.0.0.1", "localhost"].includes(parsed.hostname);
-    if ((!localDevelopment && parsed.protocol !== "https:") || parsed.username || parsed.password || parsed.hash) return null;
-    return parsed;
-  } catch {
-    return null;
-  }
-}
-
 export async function proxyBackend(request: NextRequest, endpoint: BackendEndpoint) {
   const query = validatedQuery(endpoint, request.nextUrl.searchParams);
   if (!query) return jsonError(400, "invalid query");
-  const baseURL = upstreamBaseURL();
-  const token = process.env.BACKEND_PROXY_TOKEN;
-  if (!baseURL || !token || token.length < 32 || token.length > 256) return jsonError(503, "data service unavailable");
+  const configuration = backendConfiguration();
+  if (!configuration) return jsonError(503, "data service unavailable");
 
-  const upstreamURL = new URL(endpoint, baseURL);
+  const upstreamURL = new URL(endpoint, configuration.baseURL);
   upstreamURL.search = query.toString();
   try {
     const upstream = await fetch(upstreamURL, {
-      headers: { Accept: "application/json", "X-Backend-Token": token },
+      headers: { Accept: "application/json", "X-Backend-Token": configuration.token },
       signal: AbortSignal.timeout(25_000),
       cache: "no-store",
     });
     const contentType = upstream.headers.get("content-type") ?? "";
     const contentLength = Number(upstream.headers.get("content-length") ?? 0);
-    if (!contentType.toLowerCase().startsWith("application/json") || contentLength > maxResponseBytes) {
+    if (!contentType.toLowerCase().startsWith("application/json") || contentLength > maxBackendResponseBytes) {
       return jsonError(502, "invalid upstream response");
     }
     const body = await upstream.arrayBuffer();
-    if (body.byteLength > maxResponseBytes) return jsonError(502, "invalid upstream response");
-    const policy = policies[endpoint];
+    if (body.byteLength > maxBackendResponseBytes) return jsonError(502, "invalid upstream response");
+    const policy = backendPolicies[endpoint];
     return new Response(body, {
       status: upstream.status,
       headers: {
