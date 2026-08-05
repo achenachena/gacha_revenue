@@ -2,6 +2,12 @@ name: Deploy free AWS backend
 
 on:
   workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - "backend/**"
+      - "infra/serverless/**"
+      - ".github/workflows/deploy-aws-free.yml"
 
 permissions:
   contents: read
