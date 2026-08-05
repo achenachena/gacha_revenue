@@ -43,7 +43,7 @@ App-line time is calculated hourly:
 hours_above(game, phase, app) = Σ 1(game_rank < app_rank) × one hour
 ```
 
-Every stored snapshot carries its actual visible depth, while exact stored ranks are capped to 1–200. Apple's public feed currently returns only 100 rows even when 200 are requested, so a miss in that source leaves the lowest rank unknown. A normalized authorized feed may supply complete Top 200 observations; ranks 1–200 are then retained exactly and a miss is displayed as `Outside Top 200`. The application never promotes a Top 100 miss to Top 200 or stores an exact rank greater than 200.
+Every stored snapshot carries its actual visible depth, while exact stored ranks are capped to 1–200. Apple's public feed currently returns only 100 rows even when 200 are requested, so a miss in that source is reported as `Outside Top 100`. A normalized authorized feed may supply complete Top 200 observations; ranks 1–200 are then retained exactly and a miss is displayed as `Outside Top 200`. The application never promotes a Top 100 miss to Top 200 or stores an exact rank greater than 200.
 
 The collector calculates new observations automatically, but pre-collection windows require an authorized historical provider or separately sourced published evidence. Unknown values remain null and are never represented as zero. Published historical summaries store source links and retain unknown full-window lowest ranks as null.
 

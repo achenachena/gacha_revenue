@@ -68,8 +68,7 @@ func Aggregate(gameID string, start, end time.Time, snapshots []rankstore.Snapsh
 func aggregateRank(gameID, market string, snapshots []rankstore.Snapshot) RankMetric {
 	metric := RankMetric{}
 	peak, lowest, widestFeed := 0, 0, 0
-	missingFromShallowFeed := false
-	beyondTop200 := false
+	beyondFeedLimit := 0
 	for _, snapshot := range snapshots {
 		marketSnapshot, ok := snapshot.Markets[market]
 		if !ok {
@@ -82,10 +81,8 @@ func aggregateRank(gameID, market string, snapshots []rankstore.Snapshot) RankMe
 		}
 		rank, ranked := marketSnapshot.Games[gameID]
 		if !ranked {
-			if feedLimit >= rankstore.ReportingRankLimit {
-				beyondTop200 = true
-			} else {
-				missingFromShallowFeed = true
+			if beyondFeedLimit == 0 || feedLimit < beyondFeedLimit {
+				beyondFeedLimit = feedLimit
 			}
 			continue
 		}
@@ -99,14 +96,10 @@ func aggregateRank(gameID, market string, snapshots []rankstore.Snapshot) RankMe
 	}
 	metric.PeakRank = rankPointer(peak)
 	metric.FeedLimit = widestFeed
-	if beyondTop200 {
+	if beyondFeedLimit > 0 {
 		metric.LowestRank = nil
 		metric.LowestBeyondFeed = true
-		metric.FeedLimit = rankstore.ReportingRankLimit
-	} else if missingFromShallowFeed {
-		// A Top 100 miss could mean any rank from 101 onward. Keep the lowest
-		// rank unknown until a complete Top 200 source covers that hour.
-		metric.LowestRank = nil
+		metric.FeedLimit = beyondFeedLimit
 	} else {
 		metric.LowestRank = rankPointer(lowest)
 	}

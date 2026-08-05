@@ -43,8 +43,24 @@ func TestAggregateOldSnapshotsDefaultToTop100(t *testing.T) {
 		Markets:      map[string]rankstore.MarketSnapshot{"CN": {Games: map[string]int{}, AppLines: map[string]int{}}},
 	}})
 	cn := result.Ranks["CN"]
-	if cn.LowestBeyondFeed || cn.LowestRank != nil || cn.FeedLimit != rankstore.LegacyFeedLimit {
+	if !cn.LowestBeyondFeed || cn.LowestRank != nil || cn.FeedLimit != rankstore.LegacyFeedLimit {
 		t.Fatalf("unexpected legacy boundary: %+v", cn)
+	}
+}
+
+func TestAggregateTop100MissUsesTop100Boundary(t *testing.T) {
+	start := time.Date(2026, 8, 1, 0, 0, 0, 0, time.UTC)
+	result := Aggregate("zzz", start, start.Add(2*time.Hour), []rankstore.Snapshot{
+		{ObservedHour: start, Markets: map[string]rankstore.MarketSnapshot{
+			"CN": {FeedLimit: 100, Games: map[string]int{"zzz": 47}},
+		}},
+		{ObservedHour: start.Add(time.Hour), Markets: map[string]rankstore.MarketSnapshot{
+			"CN": {FeedLimit: 100, Games: map[string]int{}},
+		}},
+	})
+	cn := result.Ranks["CN"]
+	if cn.PeakRank == nil || *cn.PeakRank != 47 || cn.LowestRank != nil || !cn.LowestBeyondFeed || cn.FeedLimit != 100 {
+		t.Fatalf("expected a Top 100 boundary, got %+v", cn)
 	}
 }
 

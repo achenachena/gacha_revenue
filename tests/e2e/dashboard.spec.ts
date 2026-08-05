@@ -135,7 +135,7 @@ test("opens launch-to-present version intelligence", async ({ page }) => {
   expect(allOptionText.join(" ")).not.toMatch(/那刻夏|Anaxa|Laevatain/);
   await expect(page.getByRole("columnheader", { name: "峰值名次" })).toBeVisible();
   await expect(page.getByRole("columnheader", { name: "最低名次" })).toBeVisible();
-  await expect(page.getByText("100名开外")).toHaveCount(0);
+  await expect(page.locator(".rank-table")).not.toContainText(/最小名次|最大名次/);
   await page.getByLabel("排名游戏").selectOption("wuwa");
   await page.getByLabel("比较应用线").selectOption("tencent_video");
   const rankingRows = page.locator(".banner-ranking-table tbody tr");
@@ -145,7 +145,7 @@ test("opens launch-to-present version intelligence", async ({ page }) => {
   await expect(rankingRows.nth(1)).toContainText("15 小时");
 });
 
-test("adds a provider banner to the automatic per-game ranking", async ({ page }) => {
+test("adds an automatically observed banner and uses the source's visible rank boundary", async ({ page }) => {
   await page.route("**/api/backend/public-revenue", (route) =>
     route.fulfill({ json: { data: [], meta: { fetched_at: "2026-08-03T12:00:00Z" } } }),
   );
@@ -191,12 +191,12 @@ test("adds a provider banner to the automatic per-game ranking", async ({ page }
           version_id: "wuwa-provider-p1",
           ranks: {
             CN: {
-              peak_rank: 175,
+              peak_rank: 47,
               lowest_rank: null,
               observed_hours: 48,
               ranked_hours: 12,
               lowest_is_beyond_feed: true,
-              feed_limit: 200,
+              feed_limit: 100,
             },
           },
           app_line_observations: [{
@@ -205,7 +205,7 @@ test("adds a provider banner to the automatic per-game ranking", async ({ page }
             observed_hours: 48,
             updated_at: "2026-08-03T11:00:00Z",
           }],
-          source: "licensed_feed",
+          source: "apple_public_feed",
           coverage_status: "observed",
           collection_started_at: "2026-08-01T00:00:00Z",
           phase_revenue: null,
@@ -222,7 +222,7 @@ test("adds a provider banner to the automatic per-game ranking", async ({ page }
   const firstRankingRow = page.locator(".banner-ranking-table tbody tr").first();
   await expect(firstRankingRow).toContainText("3.6 · 上半 · UP 自动卡池角色");
   await expect(firstRankingRow).toContainText("22 小时");
-  await expect(firstRankingRow).toContainText("授权排名 feed");
+  await expect(firstRankingRow).toContainText("Apple 畅销榜 RSS 自动观测");
   await page.getByLabel("选择游戏").selectOption("wuwa");
-  await expect(page.getByText("200名开外", { exact: true })).toBeVisible();
+  await expect(page.getByText("100名开外", { exact: true })).toBeVisible();
 });

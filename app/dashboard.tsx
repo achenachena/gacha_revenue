@@ -100,8 +100,6 @@ const copy = {
     peakRank: "峰值名次",
     lowRank: "最低名次",
     rankMeaning: "观察窗定义",
-    peakMeaning: "最小名次",
-    lowMeaning: "最大名次",
     cnLines: "中国区 iOS 应用线超越时长",
     appLine: "应用线",
     result: "是否超过",
@@ -117,8 +115,7 @@ const copy = {
     historicalVideoSummary: "公开视频历史汇总核验（非原始小时快照）",
     unverifiedBlank: "未能核验，留空",
     hours: "小时",
-    rankNote: "仅保存 1–200 名的具体名次。完整 Top 200 观测中未上榜时显示“200名开外”；Apple 公共源缺少第 101–200 名，因此仅有 Top 100 观测的最低名次会保持为空。",
-    top200Incomplete: "Top 200 覆盖不足",
+    rankNote: "峰值名次为观察窗内最佳名次，最低名次为观察窗内最差名次。Apple 公共源覆盖 Top 100；观察窗内掉出榜单时，最低名次显示“100名开外”。授权更深榜单按其实际可见边界显示。",
     appLineNote: "每个小时比较一次中国区畅销总榜；当游戏名次小于应用名次时，累计 1 小时。",
     characterNote: "每条记录按独立上半 / 下半开放窗口统计。0 小时只在已有观测时表示确实未超过；暂无覆盖表示采集启用前的历史小时仍需授权 API 回填，二者严格区分。",
     correctionSource: "已核验历史记录",
@@ -202,8 +199,6 @@ const copy = {
     peakRank: "Peak rank",
     lowRank: "Lowest rank",
     rankMeaning: "Window definition",
-    peakMeaning: "Minimum rank",
-    lowMeaning: "Maximum rank",
     cnLines: "Hours above China iOS app lines",
     appLine: "App line",
     result: "Result",
@@ -219,8 +214,7 @@ const copy = {
     historicalVideoSummary: "Verified public-video historical summary (not raw hourly snapshots)",
     unverifiedBlank: "Unverified; left blank",
     hours: "hours",
-    rankNote: "Exact ranks are stored only from 1–200. A miss in a complete Top 200 observation is shown as “Outside Top 200”; Apple's public source omits ranks 101–200, so a Top 100-only lowest rank remains unknown.",
-    top200Incomplete: "Incomplete Top 200 coverage",
+    rankNote: "Peak rank is the best rank in the window; lowest rank is the worst. Apple's public source covers the Top 100, so a miss is shown as “Outside Top 100”. Deeper authorized feeds use their actual visible boundary.",
     appLineNote: "China overall-grossing ranks are compared hourly; one hour is added whenever the game rank is smaller than the app rank.",
     characterNote: "Each row uses the exact phase window. Zero only means genuinely never above when observations exist; no coverage means pre-collector history still needs licensed API backfill.",
     correctionSource: "Verified historical record",
@@ -730,14 +724,10 @@ export default function Dashboard({
   const lowestRankLabel = (version: VersionDetail, market: "CN" | "JP" | "US" | "KR", rank: number | null) => {
     const boundary = version.rankBoundaries[market];
     if (boundary.lowestBeyondFeed) {
-      return locale === "zh-CN" ? "200名开外" : "Outside Top 200";
+      return locale === "zh-CN" ? `${boundary.feedLimit}名开外` : `Outside Top ${boundary.feedLimit}`;
     }
     return rank === null ? "—" : `#${rank}`;
   };
-  const missingRankLabel = (version: VersionDetail, market: "CN" | "JP" | "US" | "KR") =>
-    version.observedHours > 0 && version.rankBoundaries[market].feedLimit < 200
-      ? t.top200Incomplete
-      : missingMetricLabel(version);
   const versionSourceLabel = (version: VersionDetail) => {
     if (version.dataStatus === "licensed_feed") return t.licensedSource;
     if (version.dataStatus === "apple_public_feed") return t.appleSource;
@@ -1040,7 +1030,7 @@ export default function Dashboard({
                     <thead><tr><th>{t.region}</th><th>{t.peakRank}</th><th>{t.lowRank}</th><th>{t.rankMeaning}</th></tr></thead>
                     <tbody>
                       {(Object.entries(selectedVersion.ranks) as Array<["CN" | "JP" | "US" | "KR", [number | null, number | null]]>).map(([country, rank]) => (
-                        <tr key={country}><td><b>{country}</b>{marketNames[country][locale]}</td><td><strong>{rank[0] === null ? "—" : `#${rank[0]}`}</strong><small>{rank[0] === null ? missingRankLabel(selectedVersion, country) : t.peakMeaning}</small></td><td><strong>{lowestRankLabel(selectedVersion, country, rank[1])}</strong><small>{rank[1] === null && !selectedVersion.rankBoundaries[country].lowestBeyondFeed ? missingRankLabel(selectedVersion, country) : t.lowMeaning}</small></td><td>{selectedVersion.date || t.calendarPending}<br />{selectedVersion.endDate}</td></tr>
+                        <tr key={country}><td><b>{country}</b>{marketNames[country][locale]}</td><td><strong>{rank[0] === null ? "—" : `#${rank[0]}`}</strong><small>{t.peakRank}</small></td><td><strong>{lowestRankLabel(selectedVersion, country, rank[1])}</strong><small>{t.lowRank}</small></td><td>{selectedVersion.date || t.calendarPending}<br />{selectedVersion.endDate}</td></tr>
                       ))}
                     </tbody>
                   </table>

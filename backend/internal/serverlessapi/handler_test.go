@@ -84,6 +84,7 @@ func TestBannerMetricsAggregatesVisibleRanksAndPairedAppHours(t *testing.T) {
 				Observed   int  `json:"observed_hours"`
 				Ranked     int  `json:"ranked_hours"`
 				BeyondFeed bool `json:"lowest_is_beyond_feed"`
+				FeedLimit  int  `json:"feed_limit"`
 			} `json:"ranks"`
 			Lines []struct {
 				AppID    string `json:"app_id"`
@@ -96,7 +97,7 @@ func TestBannerMetricsAggregatesVisibleRanksAndPairedAppHours(t *testing.T) {
 		t.Fatal(err)
 	}
 	cn := response.Data.Ranks["CN"]
-	if cn.Peak == nil || *cn.Peak != 4 || cn.Lowest != nil || cn.Observed != 3 || cn.Ranked != 2 || cn.BeyondFeed {
+	if cn.Peak == nil || *cn.Peak != 4 || cn.Lowest != nil || cn.Observed != 3 || cn.Ranked != 2 || !cn.BeyondFeed || cn.FeedLimit != 100 {
 		t.Fatalf("unexpected CN range: %+v", cn)
 	}
 	jp := response.Data.Ranks["JP"]

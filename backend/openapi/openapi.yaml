@@ -404,11 +404,11 @@ components:
             required: [peak_rank, lowest_rank, observed_hours, ranked_hours, lowest_is_beyond_feed, feed_limit]
             properties:
               peak_rank: {type: [integer, 'null']}
-              lowest_rank: {type: [integer, 'null'], minimum: 1, maximum: 200, description: Exact worst rank only when every relevant miss is resolved by complete Top 200 coverage.}
+              lowest_rank: {type: [integer, 'null'], minimum: 1, maximum: 200, description: Exact worst visible rank when the subject remains present in every hourly source snapshot.}
               observed_hours: {type: integer, minimum: 0}
               ranked_hours: {type: integer, minimum: 0}
-              lowest_is_beyond_feed: {type: boolean}
-              feed_limit: {type: integer, minimum: 0, maximum: 200, description: Actual visible depth capped at the product's Top 200 reporting boundary; a shallower source remains shallower.}
+              lowest_is_beyond_feed: {type: boolean, description: True when at least one hourly snapshot places the subject outside that source's visible depth.}
+              feed_limit: {type: integer, minimum: 0, maximum: 200, description: Boundary used by lowest_is_beyond_feed; Apple public observations use 100 while an authorized deeper source may use up to 200.}
         app_line_observations:
           type: array
           items:
