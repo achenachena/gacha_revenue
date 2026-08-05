@@ -19,6 +19,22 @@ type fakeReader struct {
 	err       error
 }
 
+type countingReader struct {
+	calls     int
+	snapshots []rankstore.Snapshot
+}
+
+func (reader *countingReader) QueryRange(context.Context, time.Time, time.Time) ([]rankstore.Snapshot, error) {
+	reader.calls++
+	return reader.snapshots, nil
+}
+
+type fakeHistoryReader struct{ snapshots []rankstore.Snapshot }
+
+func (reader fakeHistoryReader) QueryRange(context.Context, string, time.Time, time.Time) ([]rankstore.Snapshot, error) {
+	return reader.snapshots, nil
+}
+
 type fakeRevenueReader struct{ histories []revenue.GameHistory }
 
 func (reader fakeRevenueReader) List(context.Context) ([]revenue.GameHistory, error) {
@@ -104,6 +120,65 @@ func TestBannerMetricsRejectsOversizedWindow(t *testing.T) {
 	handler.ServeHTTP(recorder, httptest.NewRequest(http.MethodGet, "/v1/banner-metrics?game_id=hsr&start=2026-01-01&end=2026-08-01", nil))
 	if recorder.Code != http.StatusBadRequest {
 		t.Fatalf("expected 400, got %d", recorder.Code)
+	}
+}
+
+func TestBannerMetricsPrefersAuthorizedTop200Snapshot(t *testing.T) {
+	start := time.Date(2026, 8, 1, 0, 0, 0, 0, time.UTC)
+	local := rankstore.Snapshot{ObservedHour: start, Markets: map[string]rankstore.MarketSnapshot{
+		"CN": {FeedLimit: 100, Games: map[string]int{}},
+	}}
+	licensed := rankstore.Snapshot{ObservedHour: start, Markets: map[string]rankstore.MarketSnapshot{
+		"CN": {FeedLimit: 200, Games: map[string]int{"hsr": 175}},
+	}}
+	handler := New(fakeReader{snapshots: []rankstore.Snapshot{local}}, http.NotFoundHandler(), slog.New(slog.NewTextHandler(io.Discard, nil)), Options{
+		History: fakeHistoryReader{snapshots: []rankstore.Snapshot{licensed}},
+	}).(*Handler)
+	handler.now = func() time.Time { return start.Add(24 * time.Hour) }
+	recorder := httptest.NewRecorder()
+	handler.ServeHTTP(recorder, httptest.NewRequest(http.MethodGet, "/v1/banner-metrics?game_id=hsr&start=2026-08-01&end=2026-08-02", nil))
+	var response struct {
+		Data struct {
+			Source string `json:"source"`
+			Ranks  map[string]struct {
+				Peak      *int `json:"peak_rank"`
+				FeedLimit int  `json:"feed_limit"`
+			} `json:"ranks"`
+		} `json:"data"`
+	}
+	if err := json.NewDecoder(recorder.Body).Decode(&response); err != nil {
+		t.Fatal(err)
+	}
+	cn := response.Data.Ranks["CN"]
+	if response.Data.Source != "licensed_feed" || cn.Peak == nil || *cn.Peak != 175 || cn.FeedLimit != 200 {
+		t.Fatalf("licensed Top 200 snapshot was not authoritative: %+v", response.Data)
+	}
+}
+
+func TestBannerRankingsReadsLocalFactsOnce(t *testing.T) {
+	reader := &countingReader{}
+	handler := New(reader, http.NotFoundHandler(), slog.New(slog.NewTextHandler(io.Discard, nil)), Options{
+		CollectionStartedAt: time.Date(2026, 8, 1, 0, 0, 0, 0, time.UTC),
+	}).(*Handler)
+	handler.now = func() time.Time { return time.Date(2026, 8, 5, 0, 0, 0, 0, time.UTC) }
+	recorder := httptest.NewRecorder()
+	handler.ServeHTTP(recorder, httptest.NewRequest(http.MethodGet, "/v1/banner-rankings?game_id=wuwa", nil))
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", recorder.Code, recorder.Body.String())
+	}
+	if reader.calls != 1 {
+		t.Fatalf("expected one local rank-store query for all banners, got %d", reader.calls)
+	}
+	var response struct {
+		Data []struct {
+			VersionID string `json:"version_id"`
+		} `json:"data"`
+	}
+	if err := json.NewDecoder(recorder.Body).Decode(&response); err != nil {
+		t.Fatal(err)
+	}
+	if len(response.Data) == 0 || response.Data[0].VersionID == "" {
+		t.Fatalf("missing batch banner rows: %+v", response.Data)
 	}
 }
 

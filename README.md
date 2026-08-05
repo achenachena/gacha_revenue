@@ -43,7 +43,9 @@ App-line time is calculated hourly:
 hours_above(game, phase, app) = Σ 1(game_rank < app_rank) × one hour
 ```
 
-Apple's public feed is a current Top 100 snapshot; it does not provide historical hourly replay. The collector can calculate new observations automatically, but pre-collection windows require an authorized historical provider. Unknown values remain null and are never represented as zero.
+Every stored snapshot carries its actual visible depth. Apple's public feed currently returns a Top 100 snapshot even when a larger limit is requested, so a missing game is truthfully displayed as `Outside Top 100`. A normalized authorized feed may declare and supply Top 200 observations; those windows are then displayed as `Outside Top 200` when appropriate. The application never promotes a Top 100 result to Top 200 or invents an exact off-chart rank.
+
+The collector calculates new observations automatically, but pre-collection windows require an authorized historical provider or separately sourced published evidence. Unknown values remain null and are never represented as zero. Published historical summaries store source links and retain unknown full-window lowest ranks as null.
 
 ## Architecture
 
@@ -59,10 +61,13 @@ Responsibilities are intentionally separated:
 - `backend/internal/revenuesource`: public-source retrieval and validation.
 - `backend/internal/revenuestore`: DynamoDB persistence.
 - `backend/internal/versioncatalog`: embedded phase catalog and provider enrichment rules.
+- `backend/internal/bannerstats`: feed-depth-aware peak/lowest-rank and app-line aggregation shared by every API path.
 - `backend/internal/httpapi`: public REST response composition.
 - `app/api-client.ts`: DTO-to-view-model normalization only.
 - `app/revenue-model.ts`: labels, range selection, and null-preserving chart projection only; it does not calculate revenue.
 - `app/dashboard.tsx`: interaction and visualization.
+
+The browser requests one server-aggregated ranking payload per selected game instead of issuing one request per banner. Large version and ranking sections load only when they approach the viewport; canonical facts and aggregation rules remain in Go.
 
 External calendar and licensed rank providers use normalized adapters. Secrets are server-only environment variables and are never committed.
 
@@ -114,8 +119,8 @@ GitHub `production` environment:
 | `BACKEND_PROXY_TOKEN` | secret | yes | Shared with the Lambda environment |
 | `CALENDAR_FEED_URL` | variable | no | Normalized automatic calendar provider |
 | `CALENDAR_FEED_TOKEN` | secret | no | Calendar provider bearer token |
-| `RANK_HISTORY_FEED_URL` | variable | no | Authorized historical hourly-rank provider |
-| `RANK_HISTORY_FEED_TOKEN` | secret | no | Historical provider bearer token |
+| `RANK_HISTORY_FEED_URL` | variable | no | Authorized normalized hourly-rank provider; may supply current and historical Top 200 snapshots |
+| `RANK_HISTORY_FEED_TOKEN` | secret | no | Rank provider bearer token |
 
 The browser can access only an explicit Vercel proxy allowlist. Vercel attaches the proxy token server-side; the Lambda compares it in constant time. The public repository must not contain AWS access keys, provider tokens, Vercel tokens, or local environment files.
 

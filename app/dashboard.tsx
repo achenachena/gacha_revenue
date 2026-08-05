@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
+import { startTransition, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import {
   appLines,
   gameVisuals,
@@ -15,7 +15,7 @@ import {
 import {
   applyBannerMetrics,
   loadExchangeRate,
-  loadBannerMetricSet,
+  loadBannerRankings,
   loadBannerMetrics,
   loadMethodology,
   loadPublicRevenue,
@@ -77,6 +77,7 @@ const copy = {
     catalogCount: "开服至今共 {count} 个小版本条目",
     versionModelNote: "版本值按卡池窗口与已发布月流水的重叠小时比例归属；尚无月流水覆盖的卡池不进入图表。",
     unit: "移动端流水估算（亿元人民币）",
+    yAxisUnit: "亿元人民币",
     monthAxis: "月份",
     yearAxis: "年份",
     versionAxis: "版本",
@@ -115,7 +116,7 @@ const copy = {
     historicalVideoSummary: "公开视频历史汇总核验（非原始小时快照）",
     unverifiedBlank: "未能核验，留空",
     hours: "小时",
-    rankNote: "峰值 = 观察窗口内最小名次；最低 = 最大可见名次。Apple 公共 feed 当前返回 Top 100，掉出范围时不会伪造精确名次。",
+    rankNote: "峰值 = 观察窗口内最小名次；最低 = 最大名次。超出数据源可见范围时显示“Top N 开外”，不会伪造精确名次；Apple 公共源目前最多提供 Top 100，接入 Top 200 授权源后会自动按 Top 200 显示。",
     appLineNote: "每个小时比较一次中国区畅销总榜；当游戏名次小于应用名次时，累计 1 小时。",
     characterNote: "每条记录按独立上半 / 下半开放窗口统计。0 小时只在已有观测时表示确实未超过；暂无覆盖表示采集启用前的历史小时仍需授权 API 回填，二者严格区分。",
     correctionSource: "已核验历史记录",
@@ -177,6 +178,7 @@ const copy = {
     catalogCount: "{count} phase entries from launch to present",
     versionModelNote: "Phase values allocate published monthly revenue by exact banner-window overlap; phases without monthly coverage are excluded.",
     unit: "Estimated mobile revenue (USD millions)",
+    yAxisUnit: "USD millions",
     monthAxis: "Month",
     yearAxis: "Year",
     versionAxis: "Version",
@@ -215,7 +217,7 @@ const copy = {
     historicalVideoSummary: "Verified public-video historical summary (not raw hourly snapshots)",
     unverifiedBlank: "Unverified; left blank",
     hours: "hours",
-    rankNote: "Peak is the minimum rank and lowest is the worst visible rank. Apple's public feed currently returns the Top 100; exact ranks outside it are never invented.",
+    rankNote: "Peak is the minimum rank and lowest is the worst rank. Values outside a source's visible depth are shown as “Outside Top N”; Apple's public source currently reaches Top 100 and a configured Top 200 provider is reflected automatically.",
     appLineNote: "China overall-grossing ranks are compared hourly; one hour is added whenever the game rank is smaller than the app rank.",
     characterNote: "Each row uses the exact phase window. Zero only means genuinely never above when observations exist; no coverage means pre-collector history still needs licensed API backfill.",
     correctionSource: "Verified historical record",
@@ -304,9 +306,10 @@ function LineChart({
   unit: string;
 }) {
   const scrollRef = useRef<HTMLDivElement>(null);
-  const chartWidth = Math.max(900, values.length * (values.length > 36 ? 76 : 105));
+  const axisWidth = 76;
+  const chartWidth = Math.max(824, values.length * (values.length > 36 ? 76 : 105));
   const chartHeight = 330;
-  const margin = { top: 42, right: 28, bottom: 58, left: 76 };
+  const margin = { top: 42, right: 28, bottom: 58, left: 18 };
   const plotWidth = chartWidth - margin.left - margin.right;
   const plotHeight = chartHeight - margin.top - margin.bottom;
   const populatedValues = values.filter((value): value is number => value !== null);
@@ -352,50 +355,55 @@ function LineChart({
           <button type="button" onClick={() => scrollTo("end")}>{copy[locale].latestPeriod} →</button>
         </div>
       )}
-      <div ref={scrollRef} className="line-chart" role="img" aria-label={`${copy[locale].trendTitle}，${unit}`}>
-        <svg viewBox={`0 0 ${chartWidth} ${chartHeight}`} preserveAspectRatio="xMidYMid meet" style={{ minWidth: chartWidth }}>
-        <text className="axis-title axis-title-y" x={margin.left} y="17">{unit}</text>
-        {ticks.map((tick) => {
-          const y = margin.top + (1 - tick / yMax) * plotHeight;
-          return (
-            <g key={tick}>
-              <line className="chart-grid-line" x1={margin.left} x2={chartWidth - margin.right} y1={y} y2={y} />
-              <text className="axis-tick" x={margin.left - 14} y={y + 4} textAnchor="end">{tick.toFixed(tick % 1 === 0 ? 0 : 1)}</text>
-            </g>
-          );
-        })}
-        <line className="chart-axis" x1={margin.left} x2={margin.left} y1={margin.top} y2={margin.top + plotHeight} />
-        <line className="chart-axis" x1={margin.left} x2={chartWidth - margin.right} y1={margin.top + plotHeight} y2={margin.top + plotHeight} />
-        {segments.filter((items) => items.length > 1).map((items, index) => (
-          <polyline
-            key={`${items[0].label}-${index}`}
-            className="chart-line"
-            points={items.map((point) => `${point.x},${point.y}`).join(" ")}
-            fill="none"
-            stroke={items[0].marketCoverage === "complete" ? color : "#8b8f88"}
-            strokeDasharray={items[0].marketCoverage === "complete" ? undefined : "8 6"}
-          />
-        ))}
-        {points.map((point) => (
-          <g key={`${point.label}-${point.value}`}>
-            <line className="chart-x-tick" x1={point.x} x2={point.x} y1={margin.top + plotHeight} y2={margin.top + plotHeight + 5} />
-            <text className="axis-tick" x={point.x} y={margin.top + plotHeight + 23} textAnchor="middle">{point.label}</text>
-            {point.value === null || point.y === null ? (
-              <circle className="chart-missing-dot" cx={point.x} cy={margin.top + plotHeight} r="2.5">
-                <title>{`${point.label}: ${copy[locale].noMonthlyCoverage}`}</title>
-              </circle>
-            ) : (
-              <g data-testid="trend-point">
-                <circle className="chart-dot" data-coverage={point.marketCoverage ?? "unknown"} cx={point.x} cy={point.y} r="5" fill="#fff" stroke={point.marketCoverage === "complete" ? color : "#8b8f88"}>
-                  <title>{`${point.label}: ${formatChartMoney(point.value, locale)}`}</title>
-                </circle>
-                <text className="chart-value-label" x={point.x} y={Math.max(point.y - 12, 31)} textAnchor="middle">{point.value.toFixed(2)}</text>
-              </g>
-            )}
-          </g>
-        ))}
-        <text className="axis-title axis-title-x" x={margin.left + plotWidth / 2} y={chartHeight - 5} textAnchor="middle">{xAxisTitle}</text>
+      <div className="line-chart-frame" role="img" aria-label={`${copy[locale].trendTitle}，${unit}`}>
+        <svg className="line-chart-y-axis" viewBox={`0 0 ${axisWidth} ${chartHeight}`} aria-hidden="true">
+          <text className="axis-title axis-title-y" x="15" y={chartHeight / 2} textAnchor="middle" transform={`rotate(-90 15 ${chartHeight / 2})`}>
+            {copy[locale].yAxisUnit}
+          </text>
+          {ticks.map((tick) => {
+            const y = margin.top + (1 - tick / yMax) * plotHeight;
+            return <text key={tick} className="axis-tick" x={axisWidth - 10} y={y + 4} textAnchor="end">{tick.toFixed(tick % 1 === 0 ? 0 : 1)}</text>;
+          })}
+          <line className="chart-axis" x1={axisWidth - 1} x2={axisWidth - 1} y1={margin.top} y2={margin.top + plotHeight} />
         </svg>
+        <div ref={scrollRef} className="line-chart">
+          <svg viewBox={`0 0 ${chartWidth} ${chartHeight}`} preserveAspectRatio="xMidYMid meet" style={{ minWidth: chartWidth }} aria-hidden="true">
+            {ticks.map((tick) => {
+              const y = margin.top + (1 - tick / yMax) * plotHeight;
+              return <line key={tick} className="chart-grid-line" x1="0" x2={chartWidth - margin.right} y1={y} y2={y} />;
+            })}
+            <line className="chart-axis" x1="0" x2={chartWidth - margin.right} y1={margin.top + plotHeight} y2={margin.top + plotHeight} />
+            {segments.filter((items) => items.length > 1).map((items, index) => (
+              <polyline
+                key={`${items[0].label}-${index}`}
+                className="chart-line"
+                points={items.map((point) => `${point.x},${point.y}`).join(" ")}
+                fill="none"
+                stroke={items[0].marketCoverage === "complete" ? color : "#8b8f88"}
+                strokeDasharray={items[0].marketCoverage === "complete" ? undefined : "8 6"}
+              />
+            ))}
+            {points.map((point) => (
+              <g key={`${point.label}-${point.value}`}>
+                <line className="chart-x-tick" x1={point.x} x2={point.x} y1={margin.top + plotHeight} y2={margin.top + plotHeight + 5} />
+                <text className="axis-tick" x={point.x} y={margin.top + plotHeight + 23} textAnchor="middle">{point.label}</text>
+                {point.value === null || point.y === null ? (
+                  <circle className="chart-missing-dot" cx={point.x} cy={margin.top + plotHeight} r="2.5">
+                    <title>{`${point.label}: ${copy[locale].noMonthlyCoverage}`}</title>
+                  </circle>
+                ) : (
+                  <g data-testid="trend-point">
+                    <circle className="chart-dot" data-coverage={point.marketCoverage ?? "unknown"} cx={point.x} cy={point.y} r="5" fill="#fff" stroke={point.marketCoverage === "complete" ? color : "#8b8f88"}>
+                      <title>{`${point.label}: ${formatChartMoney(point.value, locale)}`}</title>
+                    </circle>
+                    <text className="chart-value-label" x={point.x} y={Math.max(point.y - 12, 31)} textAnchor="middle">{point.value.toFixed(2)}</text>
+                  </g>
+                )}
+              </g>
+            ))}
+            <text className="axis-title axis-title-x" x={margin.left + plotWidth / 2} y={chartHeight - 5} textAnchor="middle">{xAxisTitle}</text>
+          </svg>
+        </div>
       </div>
     </div>
   );
@@ -439,10 +447,31 @@ function EvidenceLinks({ evidence, locale, primaryLabel, crossCheckLabel }: {
   return (
     <span className="evidence-links">
       <a href={evidence.primaryUrl} target="_blank" rel="noreferrer">{primaryLabel} ↗</a>
-      <a href={evidence.crossCheckUrl} target="_blank" rel="noreferrer">{crossCheckLabel} ↗</a>
+      {evidence.crossCheckUrl && <a href={evidence.crossCheckUrl} target="_blank" rel="noreferrer">{crossCheckLabel} ↗</a>}
       <small>{evidence.note[locale]}</small>
     </span>
   );
+}
+
+function bannerMetricScore(metrics: BannerMetricsData) {
+  const observedHours = Math.max(
+    0,
+    ...Object.values(metrics.ranks).map((row) => Number(row?.observed_hours ?? 0)),
+    ...metrics.app_line_observations.map((row) => Number(row.observed_hours ?? 0)),
+  );
+  const visibleDepth = Math.max(0, ...Object.values(metrics.ranks).map((row) => Number(row?.feed_limit ?? 0)));
+  const sourcePriority = metrics.source === "licensed_feed" ? 2 : metrics.source === "apple_public_feed" ? 1 : 0;
+  return observedHours * 10_000 + visibleDepth * 10 + sourcePriority;
+}
+
+function withRicherBannerMetrics(
+  current: Record<string, BannerMetricsData>,
+  versionID: string,
+  incoming: BannerMetricsData,
+) {
+  const existing = current[versionID];
+  if (existing && bannerMetricScore(existing) > bannerMetricScore(incoming)) return current;
+  return { ...current, [versionID]: incoming };
 }
 
 export default function Dashboard({ locale }: { locale: Locale }) {
@@ -463,21 +492,53 @@ export default function Dashboard({ locale }: { locale: Locale }) {
   const [metricsByVersion, setMetricsByVersion] = useState<Record<string, BannerMetricsData>>({});
   const [exchangeRate, setExchangeRate] = useState<ExchangeRateData | null>(null);
   const [methodology, setMethodology] = useState<MethodologyData | null>(null);
+  const versionsPanelRef = useRef<HTMLElement>(null);
+  const rankingSectionRef = useRef<HTMLElement>(null);
+  const methodologyRef = useRef<HTMLElement>(null);
+  const [versionsVisible, setVersionsVisible] = useState(false);
+  const [rankingVisible, setRankingVisible] = useState(false);
+  const [methodologyVisible, setMethodologyVisible] = useState(false);
+
+  useEffect(() => {
+    const targets: Array<[HTMLElement | null, () => void]> = [
+      [versionsPanelRef.current, () => setVersionsVisible(true)],
+      [rankingSectionRef.current, () => setRankingVisible(true)],
+      [methodologyRef.current, () => setMethodologyVisible(true)],
+    ];
+    if (!("IntersectionObserver" in window)) {
+      for (const [, reveal] of targets) reveal();
+      return;
+    }
+    const callbacks = new Map<Element, () => void>(
+      targets.filter((entry): entry is [HTMLElement, () => void] => entry[0] !== null),
+    );
+    const observer = new IntersectionObserver((entries) => {
+      for (const entry of entries) {
+        if (!entry.isIntersecting) continue;
+        callbacks.get(entry.target)?.();
+        observer.unobserve(entry.target);
+      }
+    }, { rootMargin: "200px 0px" });
+    for (const element of callbacks.keys()) observer.observe(element);
+    return () => observer.disconnect();
+  }, []);
 
   useEffect(() => {
     const controller = new AbortController();
     loadPublicRevenue(controller.signal)
       .then((payload) => {
         if (!payload.games.length) return;
-        setGameData(payload.games);
-        setRevenuePeriod(payload.latestPeriod);
-        setRevenueTotals(payload.totals);
-        if (!userSelectedGame.current) setSelectedGame(highestYTDGameId(payload.games));
+        startTransition(() => {
+          setGameData(payload.games);
+          setRevenuePeriod(payload.latestPeriod);
+          setRevenueTotals(payload.totals);
+          if (!userSelectedGame.current) setSelectedGame(highestYTDGameId(payload.games));
+        });
       })
       .catch((error: unknown) => {
         if (error instanceof DOMException && error.name === "AbortError") return;
         console.error("Unable to refresh public revenue source", error);
-      });
+    });
     return () => controller.abort();
   }, []);
 
@@ -495,6 +556,7 @@ export default function Dashboard({ locale }: { locale: Locale }) {
   }, []);
 
   useEffect(() => {
+    if (!methodologyVisible) return;
     const controller = new AbortController();
     loadMethodology(controller.signal)
       .then((value) => {
@@ -503,27 +565,30 @@ export default function Dashboard({ locale }: { locale: Locale }) {
       .catch((error: unknown) => {
         if (error instanceof DOMException && error.name === "AbortError") return;
         console.error("Unable to load backend methodology", error);
-      });
+    });
     return () => controller.abort();
-  }, []);
+  }, [methodologyVisible]);
 
   useEffect(() => {
+    if (versionCatalog.length) return;
     const controller = new AbortController();
     loadVersions(controller.signal)
       .then((normalized) => {
         if (normalized.length) {
-          setVersionCatalog(normalized);
-          setSelectedVersionId((current) => normalized.some((item) => item.id === current)
-            ? current
-            : normalized.filter((item) => item.gameId === "hsr").sort((a, b) => sortVersions(b, a))[0]?.id ?? "");
+          startTransition(() => {
+            setVersionCatalog(normalized);
+            setSelectedVersionId((current) => normalized.some((item) => item.id === current)
+              ? current
+              : normalized.filter((item) => item.gameId === "hsr").sort((a, b) => sortVersions(b, a))[0]?.id ?? "");
+          });
         }
       })
       .catch((error: unknown) => {
         if (error instanceof DOMException && error.name === "AbortError") return;
         console.error("Unable to load authorized version data", error);
-      });
+    });
     return () => controller.abort();
-  }, []);
+  }, [versionCatalog.length]);
 
   const metricTarget = versionCatalog.find(
     (item) => item.id === selectedVersionId && item.gameId === versionGame && /^\d{4}-\d{2}-\d{2}$/.test(item.date) && /^\d{4}-\d{2}-\d{2}$/.test(item.endDate),
@@ -531,39 +596,33 @@ export default function Dashboard({ locale }: { locale: Locale }) {
   const metricWindow = metricTarget ? `${metricTarget.gameId}|${metricTarget.date}|${metricTarget.endDate}` : "";
 
   useEffect(() => {
-    if (!metricWindow) return;
+    if (!versionsVisible || !metricWindow) return;
     const [gameId, date, endDate] = metricWindow.split("|") as [GameId, string, string];
     const controller = new AbortController();
     loadBannerMetrics({ gameId, date, endDate }, controller.signal)
       .then((payload) => {
         const metrics = payload.data;
         if (!metrics) return;
-        setMetricsByVersion((current) => ({ ...current, [selectedVersionId]: metrics }));
+        startTransition(() => setMetricsByVersion((current) => withRicherBannerMetrics(current, selectedVersionId, metrics)));
       })
       .catch((error: unknown) => {
         if (error instanceof DOMException && error.name === "AbortError") return;
         console.error("Unable to load automatic Apple rank observations", error);
       });
     return () => controller.abort();
-  }, [selectedVersionId, metricWindow]);
+  }, [selectedVersionId, metricWindow, versionsVisible]);
 
-  const rankingTargets = useMemo(
-    () => versionCatalog.filter(
-      (version) => version.gameId === rankingGame && /^\d{4}-\d{2}-\d{2}$/.test(version.date) && /^\d{4}-\d{2}-\d{2}$/.test(version.endDate),
-    ),
-    [rankingGame, versionCatalog],
-  );
   useEffect(() => {
-    if (!rankingTargets.length) return;
+    if (!rankingVisible || !versionCatalog.some((version) => version.gameId === rankingGame)) return;
     const controller = new AbortController();
     const refresh = () =>
-      loadBannerMetricSet(rankingTargets, controller.signal).then((results) => {
+      loadBannerRankings(rankingGame, controller.signal).then((results) => {
         if (!results.size || controller.signal.aborted) return;
-        setMetricsByVersion((current) => {
-          const next = { ...current };
-          for (const [id, metrics] of results) next[id] = metrics;
+        startTransition(() => setMetricsByVersion((current) => {
+          let next = current;
+          for (const [id, metrics] of results) next = withRicherBannerMetrics(next, id, metrics);
           return next;
-        });
+        }));
       });
     void refresh();
     const timer = window.setInterval(refresh, 60 * 60 * 1000);
@@ -571,7 +630,7 @@ export default function Dashboard({ locale }: { locale: Locale }) {
       controller.abort();
       window.clearInterval(timer);
     };
-  }, [rankingTargets]);
+  }, [rankingGame, rankingVisible, versionCatalog]);
 
   const versionsData = useMemo(
     () => versionCatalog.map((version) => {
@@ -631,6 +690,13 @@ export default function Dashboard({ locale }: { locale: Locale }) {
     }
   };
   const missingMetricLabel = (version: VersionDetail) => version.coverageStatus === "verified_historical_summary" ? t.unverifiedBlank : coverageLabel(version);
+  const lowestRankLabel = (version: VersionDetail, market: "CN" | "JP" | "US" | "KR", rank: number | null) => {
+    const boundary = version.rankBoundaries[market];
+    if (boundary.lowestBeyondFeed && boundary.feedLimit > 0) {
+      return locale === "zh-CN" ? `${boundary.feedLimit}名开外` : `Outside Top ${boundary.feedLimit}`;
+    }
+    return rank === null ? "—" : `#${rank}`;
+  };
   const versionSourceLabel = (version: VersionDetail) => {
     if (version.dataStatus === "licensed_feed") return t.licensedSource;
     if (version.dataStatus === "apple_public_feed") return t.appleSource;
@@ -734,6 +800,7 @@ export default function Dashboard({ locale }: { locale: Locale }) {
   );
 
   const changeVersionGame = (gameId: GameId) => {
+    setVersionsVisible(true);
     setVersionGame(gameId);
     const first = versionsData.filter((item) => item.gameId === gameId).sort((a, b) => sortVersions(b, a))[0];
     setSelectedVersionId(first?.id ?? "");
@@ -881,7 +948,7 @@ export default function Dashboard({ locale }: { locale: Locale }) {
         </div>
       </section>
 
-      <section className="panel versions-panel" id="versions">
+      <section ref={versionsPanelRef} className="panel versions-panel" id="versions">
         <div className="panel-heading">
           <div><p className="section-kicker">02 · VERSION / BANNER</p><h2>{t.versionTitle}</h2><p>{t.versionSub}</p></div>
           <div className="verified-only-badge">✓ {t.dataBadge}</div>
@@ -932,7 +999,7 @@ export default function Dashboard({ locale }: { locale: Locale }) {
                     <thead><tr><th>{t.region}</th><th>{t.peakRank}</th><th>{t.lowRank}</th><th>{t.rankMeaning}</th></tr></thead>
                     <tbody>
                       {(Object.entries(selectedVersion.ranks) as Array<["CN" | "JP" | "US" | "KR", [number | null, number | null]]>).map(([country, rank]) => (
-                        <tr key={country}><td><b>{country}</b>{marketNames[country][locale]}</td><td><strong>{rank[0] === null ? "—" : `#${rank[0]}`}</strong><small>{rank[0] === null ? missingMetricLabel(selectedVersion) : t.peakMeaning}</small></td><td><strong>{rank[1] === null ? "—" : `#${rank[1]}`}</strong><small>{rank[1] === null ? missingMetricLabel(selectedVersion) : t.lowMeaning}</small></td><td>{selectedVersion.date || t.calendarPending}<br />{selectedVersion.endDate}</td></tr>
+                        <tr key={country}><td><b>{country}</b>{marketNames[country][locale]}</td><td><strong>{rank[0] === null ? "—" : `#${rank[0]}`}</strong><small>{rank[0] === null ? missingMetricLabel(selectedVersion) : t.peakMeaning}</small></td><td><strong>{lowestRankLabel(selectedVersion, country, rank[1])}</strong><small>{rank[1] === null && !selectedVersion.rankBoundaries[country].lowestBeyondFeed ? missingMetricLabel(selectedVersion) : t.lowMeaning}</small></td><td>{selectedVersion.date || t.calendarPending}<br />{selectedVersion.endDate}</td></tr>
                       ))}
                     </tbody>
                   </table>
@@ -985,11 +1052,11 @@ export default function Dashboard({ locale }: { locale: Locale }) {
           </>
         ) : <div className="verified-empty">{t.noVerifiedBanner}</div>}
 
-        <section className="banner-ranking-section">
+        <section ref={rankingSectionRef} className="banner-ranking-section">
           <div className="ranking-heading">
             <div><p className="section-kicker">RANKING · VERIFIED HOURS</p><h3>{t.rankingTitle}</h3><p>{t.rankingSub}</p></div>
             <div className="ranking-controls">
-              <label><span>{t.rankingGame}</span><select value={rankingGame} onChange={(event) => setRankingGame(event.target.value as GameId)} aria-label={t.rankingGame}>{gameData.map((game) => <option key={game.id} value={game.id}>{game.name[locale]}</option>)}</select></label>
+              <label><span>{t.rankingGame}</span><select value={rankingGame} onChange={(event) => { setRankingVisible(true); setRankingGame(event.target.value as GameId); }} aria-label={t.rankingGame}>{gameData.map((game) => <option key={game.id} value={game.id}>{game.name[locale]}</option>)}</select></label>
               <label><span>{t.rankingApp}</span><select value={rankingApp} onChange={(event) => setRankingApp(event.target.value as AppLineId)} aria-label={t.rankingApp}>{appLines.map((app) => <option key={app.id} value={app.id}>{app.name[locale]}</option>)}</select></label>
             </div>
           </div>
@@ -1006,7 +1073,7 @@ export default function Dashboard({ locale }: { locale: Locale }) {
         </section>
       </section>
 
-      <section className="methodology" id="methodology">
+      <section ref={methodologyRef} className="methodology" id="methodology">
         <div className="method-heading"><p className="section-kicker">03 · FORMULA</p><h2>{t.methodologyTitle}</h2><p>{methodology?.excludes[locale]}</p></div>
         <div className="formula-grid">
           {methodology?.formulas.map((formula, index) => (

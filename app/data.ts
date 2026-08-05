@@ -67,7 +67,7 @@ export type CoverageStatus = "unknown" | "observed" | "verified_historical_summa
 
 export type MetricEvidence = {
   primaryUrl: string;
-  crossCheckUrl: string;
+  crossCheckUrl?: string;
   note: Record<Locale, string>;
 };
 
@@ -105,6 +105,7 @@ export type VersionDetail = {
   sourceUrl: string;
   sourceUpdatedAt: string;
   ranks: Record<"CN" | "JP" | "US" | "KR", [number | null, number | null]>;
+  rankBoundaries: Record<"CN" | "JP" | "US" | "KR", { lowestBeyondFeed: boolean; feedLimit: number }>;
   rankEvidence: MetricEvidence | null;
   appHours: AppLineObservation[];
 };

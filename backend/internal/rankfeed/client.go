@@ -111,13 +111,17 @@ func validate(items []rankstore.Snapshot, gameID string, start, end time.Time) e
 			if !knownMarkets[market] {
 				return fmt.Errorf("rank history snapshot %d has invalid market", index)
 			}
+			visibleLimit := rankstore.VisibleLimit(values)
+			if visibleLimit < 1 || visibleLimit > 5000 {
+				return fmt.Errorf("rank history snapshot %d has invalid feed limit", index)
+			}
 			for subject, rank := range values.Games {
-				if subject != gameID || rank < 1 || rank > 5000 {
+				if subject != gameID || rank < 1 || rank > visibleLimit {
 					return fmt.Errorf("rank history snapshot %d has invalid game rank", index)
 				}
 			}
 			for subject, rank := range values.AppLines {
-				if market != "CN" || !knownLines[subject] || rank < 1 || rank > 5000 {
+				if market != "CN" || !knownLines[subject] || rank < 1 || rank > visibleLimit {
 					return fmt.Errorf("rank history snapshot %d has invalid app-line rank", index)
 				}
 			}

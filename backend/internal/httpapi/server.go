@@ -115,6 +115,7 @@ func (s *Server) versions(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid game_id"})
 		return
 	}
+	compact := r.URL.Query().Get("compact") == "1"
 	rows := make([]versionFixture, 0, len(versionFixtures))
 	for _, version := range versionFixtures {
 		if gameID == "" || version.GameID == gameID {
@@ -156,10 +157,31 @@ func (s *Server) versions(w http.ResponseWriter, r *http.Request) {
 		if estimate.Estimate != nil {
 			rows[index].Confidence = "MODEL"
 		}
+		if compact {
+			rows[index] = compactVersion(rows[index])
+		}
 	}
 	meta := responseMeta()
 	meta["calendar_provider"] = providerStatus
 	writeJSON(w, http.StatusOK, map[string]any{"data": rows, "meta": meta})
+}
+
+func compactVersion(version versionFixture) versionFixture {
+	ranks := make(map[string][2]*int)
+	for market, values := range version.Ranks {
+		if values[0] != nil || values[1] != nil {
+			ranks[market] = values
+		}
+	}
+	version.Ranks = ranks
+	observations := make([]fixtureAppLineObservation, 0, len(version.AppHours))
+	for _, observation := range version.AppHours {
+		if observation.Hours != nil || observation.Evidence != nil {
+			observations = append(observations, observation)
+		}
+	}
+	version.AppHours = observations
+	return version
 }
 
 func (s *Server) methodology(w http.ResponseWriter, _ *http.Request) {

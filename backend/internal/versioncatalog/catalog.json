@@ -1716,7 +1716,7 @@
     "phase_index": 1,
     "phase_zh": "上半",
     "phase_en": "Phase 1",
-    "characters_zh": "阮•梅、刃",
+    "characters_zh": "阮·梅、刃",
     "characters_en": "Ruan Mei, Blade",
     "starts_at": "2023-12-27",
     "ends_at": "2024-01-17",
@@ -1836,7 +1836,7 @@
     "phase_index": 1,
     "phase_zh": "上半",
     "phase_en": "Phase 1",
-    "characters_zh": "流萤、阮•梅",
+    "characters_zh": "流萤、阮·梅",
     "characters_en": "Firefly, Ruan Mei",
     "starts_at": "2024-06-19",
     "ends_at": "2024-07-10",
@@ -2031,8 +2031,8 @@
     "phase_index": 2,
     "phase_zh": "下半",
     "phase_en": "Phase 2",
-    "characters_zh": "迷迷、藿藿",
-    "characters_en": "Myday, Huohuo",
+    "characters_zh": "万敌、藿藿",
+    "characters_en": "Mydei, Huohuo",
     "starts_at": "2025-03-19",
     "ends_at": "2025-04-09",
     "data_status": "public_calendar",
@@ -2181,7 +2181,7 @@
     "phase_index": 2,
     "phase_zh": "下半",
     "phase_en": "Phase 2",
-    "characters_zh": "丹恒•腾荒、那刻夏",
+    "characters_zh": "丹恒·腾荒、那刻夏",
     "characters_en": "Dan Heng • Permansor Terrae, Anaxa",
     "starts_at": "2025-10-15",
     "ends_at": "2025-11-05",
@@ -2211,8 +2211,8 @@
     "phase_index": 2,
     "phase_zh": "下半",
     "phase_en": "Phase 2",
-    "characters_zh": "白厄、赛飞儿、迷迷",
-    "characters_en": "Phainon, Cipher, Myday",
+    "characters_zh": "白厄、赛飞儿、万敌",
+    "characters_en": "Phainon, Cipher, Mydei",
     "starts_at": "2025-11-26",
     "ends_at": "2025-12-17",
     "data_status": "public_calendar",
@@ -2361,7 +2361,7 @@
     "phase_index": 1,
     "phase_zh": "上半",
     "phase_en": "Phase 1",
-    "characters_zh": "千冶•刃、爻光",
+    "characters_zh": "千冶·刃、爻光",
     "characters_en": "Mortenax Blade, Yao Guang",
     "starts_at": "2026-06-01",
     "ends_at": "2026-06-24",
@@ -2391,7 +2391,7 @@
     "phase_index": 1,
     "phase_zh": "上半",
     "phase_en": "Phase 1",
-    "characters_zh": "姬子•启行",
+    "characters_zh": "姬子·启行",
     "characters_en": "Himeko • Nova",
     "starts_at": "2026-07-15",
     "ends_at": "2026-08-25",
@@ -2406,7 +2406,7 @@
     "phase_index": 2,
     "phase_zh": "下半",
     "phase_en": "Phase 2",
-    "characters_zh": "火花、丹恒•腾荒、长夜月",
+    "characters_zh": "火花、丹恒·腾荒、长夜月",
     "characters_en": "Sparxie, Dan Heng • Permansor Terrae, Evernight",
     "starts_at": "2026-07-15",
     "ends_at": "2026-08-05",
@@ -3025,7 +3025,31 @@
     "ends_at": "2026-05-27",
     "data_status": "public_calendar",
     "source_url": "https://bannerhistory.app/en/zzz-banners",
-    "source_updated_at": "2026-08-04"
+    "source_updated_at": "2026-08-04",
+    "ios_grossing_rank_range": {
+      "CN": [
+        39,
+        null
+      ],
+      "JP": [
+        14,
+        null
+      ],
+      "US": [
+        123,
+        null
+      ],
+      "KR": [
+        23,
+        null
+      ]
+    },
+    "rank_evidence": {
+      "primary_url": "https://jingxuan.douyin.com/m/video/7636731226551864576",
+      "cross_check_url": "https://www.bilibili.com/video/BV1dWLY6fEug/",
+      "note_zh": "峰值取同卡池已发布的一波与二波总榜观测中的最佳名次；最低值因缺少完整历史小时榜留空。",
+      "note_en": "Peak ranks use the best published overall-chart observation across the banner's first and second waves. Lowest ranks remain blank without a complete hourly archive."
+    }
   },
   {
     "id": "zzz-28-p2",
@@ -3040,7 +3064,27 @@
     "ends_at": "2026-06-16",
     "data_status": "public_calendar",
     "source_url": "https://bannerhistory.app/en/zzz-banners",
-    "source_updated_at": "2026-08-04"
+    "source_updated_at": "2026-08-04",
+    "ios_grossing_rank_range": {
+      "CN": [
+        108,
+        null
+      ],
+      "JP": [
+        43,
+        null
+      ],
+      "KR": [
+        85,
+        null
+      ]
+    },
+    "rank_evidence": {
+      "primary_url": "https://www.bilibili.com/video/BV1aARsBfEZP/",
+      "cross_check_url": "https://jingxuan.douyin.com/m/video/7644583180502158635",
+      "note_zh": "峰值取一波与二波总榜观测中的最佳名次；美国区未找到可比的总榜名次，最低值因缺少完整历史小时榜留空。",
+      "note_en": "Peak ranks use the best overall-chart observation across the first and second waves. No comparable US overall rank was found, and lowest ranks remain blank without a complete hourly archive."
+    }
   },
   {
     "id": "zzz-30-p1",
@@ -3070,7 +3114,27 @@
     "ends_at": "2026-07-28",
     "data_status": "public_calendar",
     "source_url": "https://bannerhistory.app/en/zzz-banners",
-    "source_updated_at": "2026-08-04"
+    "source_updated_at": "2026-08-04",
+    "ios_grossing_rank_range": {
+      "CN": [
+        86,
+        null
+      ],
+      "JP": [
+        28,
+        null
+      ],
+      "KR": [
+        41,
+        null
+      ]
+    },
+    "rank_evidence": {
+      "primary_url": "https://jingxuan.douyin.com/m/video/7660119981597740338",
+      "cross_check_url": "",
+      "note_zh": "峰值来自已发布的一波总榜观测；美国区与完整窗口最低值没有可核验记录，因此留空。",
+      "note_en": "Peak ranks come from a published first-wave overall-chart observation. US and full-window lowest ranks remain blank because no verifiable record was found."
+    }
   },
   {
     "id": "zzz-31-p1",
@@ -3686,7 +3750,7 @@
     "phase_index": 2,
     "phase_zh": "下半",
     "phase_en": "Phase 2",
-    "characters_zh": "卢克·赫尔森、嘉贝莉娜",
+    "characters_zh": "陆·赫斯、嘉贝莉娜",
     "characters_en": "Luuk Herssen, Galbrena",
     "starts_at": "2026-02-26",
     "ends_at": "2026-03-18",
@@ -3721,7 +3785,7 @@
     "phase_index": 1,
     "phase_zh": "上半",
     "phase_en": "Phase 1",
-    "characters_zh": "西格莉塔、仇远",
+    "characters_zh": "西格莉卡、仇远",
     "characters_en": "Sigrika, Qiuyuan",
     "starts_at": "2026-03-19",
     "ends_at": "2026-04-09",
@@ -3783,7 +3847,7 @@
     "phase_index": 1,
     "phase_zh": "上半",
     "phase_en": "Phase 1",
-    "characters_zh": "绯优、莫宁、尤诺",
+    "characters_zh": "绯雪、莫宁、尤诺",
     "characters_en": "Hiyuki, Mornye, Iuno",
     "starts_at": "2026-04-30",
     "ends_at": "2026-05-21",
@@ -3832,7 +3896,7 @@
     "phase_index": 2,
     "phase_zh": "下半",
     "phase_en": "Phase 2",
-    "characters_zh": "德妮雅、千咲、弗洛洛",
+    "characters_zh": "达妮娅、千咲、弗洛洛",
     "characters_en": "Denia, Chisa, Phrolova",
     "starts_at": "2026-05-21",
     "ends_at": "2026-06-07",
@@ -3902,13 +3966,47 @@
     "phase_index": 2,
     "phase_zh": "下半",
     "phase_en": "Phase 2",
-    "characters_zh": "露西拉、卡提希娅",
+    "characters_zh": "洛瑟菈、卡提希娅",
     "characters_en": "Lucilla, Cartethyia",
     "starts_at": "2026-06-13",
     "ends_at": "2026-07-09",
     "data_status": "public_calendar",
     "source_url": "https://bannerhistory.app/en/wuwa-banners",
-    "source_updated_at": "2026-08-04"
+    "source_updated_at": "2026-08-04",
+    "ios_grossing_rank_range": {
+      "CN": [
+        32,
+        null
+      ],
+      "JP": [
+        13,
+        null
+      ],
+      "KR": [
+        4,
+        null
+      ]
+    },
+    "rank_evidence": {
+      "primary_url": "https://www.bilibili.com/video/BV1n5hRznEJr/",
+      "cross_check_url": "https://preonline.m.acfun.cn/communityCircle/1177428",
+      "note_zh": "峰值取一波、二波与收官总榜观测中的最佳名次；美国区与完整窗口最低值没有可核验记录，因此留空。",
+      "note_en": "Peak ranks use the best published overall-chart observation across the first, second, and final reports. US and full-window lowest ranks remain blank without a verifiable record."
+    },
+    "app_line_observations": [
+      {
+        "app_id": "quark",
+        "hours_above": 0,
+        "data_status": "verified_manual",
+        "updated_at": "2026-06-14",
+        "evidence": {
+          "primary_url": "https://www.bilibili.com/video/BV1n5hRznEJr/",
+          "cross_check_url": "https://preonline.m.acfun.cn/communityCircle/1177428",
+          "note_zh": "收官观测明确为未超过夸克网盘线，因此记录为 0 小时；其他应用线没有可核验时长，保持未知。",
+          "note_en": "The final report explicitly states that the banner never crossed the Quark line, so this line is recorded as 0 hours; other app-line durations remain unknown."
+        }
+      }
+    ]
   },
   {
     "id": "ww-35-p1",
@@ -3917,7 +4015,7 @@
     "phase_index": 1,
     "phase_zh": "上半",
     "phase_en": "Phase 1",
-    "characters_zh": "秧秧·霜伶、琳奈、卢克·赫尔森",
+    "characters_zh": "秧秧·玄翎、琳奈、陆·赫斯",
     "characters_en": "Yangyang Xuanling, Lynae, Luuk Herssen",
     "starts_at": "2026-07-10",
     "ends_at": "2026-07-30",
@@ -3952,7 +4050,7 @@
     "phase_index": 2,
     "phase_zh": "下半",
     "phase_en": "Phase 2",
-    "characters_zh": "岁岁、爱弥斯",
+    "characters_zh": "穗穗、爱弥斯",
     "characters_en": "Suisui, Aemeath",
     "starts_at": "2026-07-30",
     "ends_at": "2026-08-19",
@@ -4290,7 +4388,45 @@
     "ends_at": "2026-07-29",
     "data_status": "public_calendar",
     "source_url": "https://www.pcgamer.com/games/action/neverness-to-everness-banners-next-current-gacha-explained/",
-    "source_updated_at": "2026-07-10"
+    "source_updated_at": "2026-07-10",
+    "ios_grossing_rank_range": {
+      "CN": [
+        30,
+        null
+      ],
+      "JP": [
+        9,
+        null
+      ],
+      "US": [
+        153,
+        null
+      ],
+      "KR": [
+        15,
+        null
+      ]
+    },
+    "rank_evidence": {
+      "primary_url": "https://jingxuan.douyin.com/m/video/7660120839341247795",
+      "cross_check_url": "https://search.bilibili.com/all?keyword=%E5%BC%82%E7%8E%AF%201.2%20%E7%9C%9F%E7%BA%A2%20%E5%9B%BD%E6%9C%8D%E7%AC%AC30",
+      "note_zh": "中国区与国际服一波、二波观测分别核对后取最佳总榜名次；完整窗口最低值没有可核验记录，因此留空。",
+      "note_en": "Peak overall ranks use the best verifiable first- and second-wave observations for China and international markets. Full-window lowest ranks remain blank without a complete archive."
+    },
+    "app_line_observations": [
+      {
+        "app_id": "quark",
+        "hours_above": 6,
+        "data_status": "verified_manual",
+        "updated_at": "2026-07-10",
+        "evidence": {
+          "primary_url": "https://search.bilibili.com/all?keyword=%E5%BC%82%E7%8E%AF%201.2%20%E7%9C%9F%E7%BA%A2%20%E5%A4%B8%E5%85%8B%E7%BD%91%E7%9B%98%E7%BA%BF%E5%85%AD%E5%B0%8F%E6%97%B6",
+          "cross_check_url": "https://jingxuan.douyin.com/m/video/7660120839341247795",
+          "note_zh": "收官观测明确记录超过夸克网盘线 6 小时；其他应用线没有可核验时长，保持未知。",
+          "note_en": "The final report explicitly records 6 hours above the Quark line; durations for other app lines remain unknown."
+        }
+      }
+    ]
   },
   {
     "id": "nte-12-p2",

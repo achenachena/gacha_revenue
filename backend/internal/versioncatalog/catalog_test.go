@@ -1,6 +1,7 @@
 package versioncatalog
 
 import (
+	"strings"
 	"testing"
 	"time"
 )
@@ -13,6 +14,14 @@ func TestCatalogContainsCompleteLocalizedPhaseDirectory(t *testing.T) {
 	found := false
 	calendarGames := map[string]bool{"genshin": true, "hsr": true, "zzz": true, "wuwa": true}
 	for _, version := range versions {
+		if strings.Contains(version.CharactersZh, "•") {
+			t.Fatalf("uncorrected Chinese separator in %+v", version)
+		}
+		for _, invalid := range []string{"迷迷", "Myday", "秧秧·霜伶", "岁岁", "卢克·赫尔森", "西格莉塔", "绯优", "德妮雅", "露西拉"} {
+			if strings.Contains(version.CharactersZh+version.CharactersEn, invalid) {
+				t.Fatalf("uncorrected localized character alias %q in %+v", invalid, version)
+			}
+		}
 		if calendarGames[version.GameID] && (version.StartsAt == "" || version.EndsAt == "" || version.CharactersZh == "角色待补充" || version.SourceURL == "") {
 			t.Fatalf("incomplete public calendar phase: %+v", version)
 		}
@@ -27,7 +36,7 @@ func TestCatalogContainsCompleteLocalizedPhaseDirectory(t *testing.T) {
 			continue
 		}
 		found = true
-		if version.CharactersZh != "姬子•启行" {
+		if version.CharactersZh != "姬子·启行" {
 			t.Fatalf("unexpected Chinese character names: %q", version.CharactersZh)
 		}
 	}
@@ -62,5 +71,31 @@ func TestListReturnsIndependentMapsAndSlices(t *testing.T) {
 	}
 	if _, ok := second[0].Ranks["CN"]; !ok {
 		t.Fatal("catalog ranks leaked caller mutation")
+	}
+}
+
+func TestCatalogKeepsSourcedRecentObservations(t *testing.T) {
+	versions := List()
+	byID := make(map[string]Version, len(versions))
+	for _, version := range versions {
+		byID[version.ID] = version
+	}
+
+	zzz := byID["zzz-28-p1"]
+	if zzz.Ranks["CN"][0] == nil || *zzz.Ranks["CN"][0] != 39 || zzz.RankEvidence == nil {
+		t.Fatalf("missing sourced ZZZ 2.8 observation: %+v", zzz)
+	}
+	nte := byID["nte-12-p1"]
+	if nte.Ranks["US"][0] == nil || *nte.Ranks["US"][0] != 153 {
+		t.Fatalf("missing sourced NTE 1.2 international observation: %+v", nte)
+	}
+	foundQuark := false
+	for _, line := range nte.AppHours {
+		if line.AppID == "quark" && line.Hours != nil && *line.Hours == 6 && line.Evidence != nil {
+			foundQuark = true
+		}
+	}
+	if !foundQuark {
+		t.Fatalf("missing sourced NTE Quark duration: %+v", nte.AppHours)
 	}
 }

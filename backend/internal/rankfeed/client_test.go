@@ -7,6 +7,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"gacha-revenue/backend/internal/rankstore"
 )
 
 type roundTripFunc func(*http.Request) (*http.Response, error)
@@ -31,6 +33,23 @@ func TestClientReadsNormalizedHistory(t *testing.T) {
 	}
 	if len(items) != 1 || items[0].Markets["CN"].Games["hsr"] != 2 {
 		t.Fatalf("unexpected history: %+v", items)
+	}
+}
+
+func TestValidateHonorsProviderFeedDepth(t *testing.T) {
+	start := time.Date(2026, 4, 22, 0, 0, 0, 0, time.UTC)
+	items := []rankstore.Snapshot{{
+		ObservedHour: start,
+		Markets: map[string]rankstore.MarketSnapshot{
+			"CN": {FeedLimit: 200, Games: map[string]int{"hsr": 175}},
+		},
+	}}
+	if err := validate(items, "hsr", start, start.Add(time.Hour)); err != nil {
+		t.Fatalf("valid Top 200 rank was rejected: %v", err)
+	}
+	items[0].Markets["CN"] = rankstore.MarketSnapshot{FeedLimit: 100, Games: map[string]int{"hsr": 175}}
+	if err := validate(items, "hsr", start, start.Add(time.Hour)); err == nil {
+		t.Fatal("rank outside the provider's declared feed depth must be rejected")
 	}
 }
 

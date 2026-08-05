@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Gacha Revenue Tracker API
-  version: 4.1.0
+  version: 4.2.0
   description: |
     Public-source mobile IAP estimates and hourly iOS rank observations.
     Values are third-party market estimates, not publisher-reported revenue.
@@ -156,6 +156,10 @@ paths:
         - in: query
           name: game_id
           schema: {type: string}
+        - in: query
+          name: compact
+          description: Set to 1 to omit empty rank and app-line placeholders.
+          schema: {type: integer, enum: [1]}
       responses:
         '200':
           description: Version intelligence
@@ -189,9 +193,50 @@ paths:
           required: true
           schema: {type: string, format: date}
       responses:
-        '200': {description: Aggregated licensed and Apple hourly rank observations}
+        '200':
+          description: Aggregated licensed and Apple hourly rank observations
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, meta]
+                properties:
+                  data: {$ref: '#/components/schemas/BannerMetrics'}
+                  meta: {type: object}
         '400': {description: Invalid or missing window parameters}
         '500': {description: DynamoDB query failed}
+  /banner-rankings:
+    get:
+      tags: [Versions]
+      operationId: listBannerRankings
+      summary: Aggregate all banner windows for one game in one request
+      description: Reads stored hourly facts once, then applies the same Go aggregation and phase-revenue rules used by the single-window endpoint.
+      parameters:
+        - in: query
+          name: game_id
+          required: true
+          schema: {type: string}
+      responses:
+        '200':
+          description: Per-banner observations
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, meta]
+                properties:
+                  data:
+                    type: array
+                    items:
+                      allOf:
+                        - {$ref: '#/components/schemas/BannerMetrics'}
+                        - type: object
+                          required: [version_id]
+                          properties:
+                            version_id: {type: string}
+                  meta: {type: object}
+        '400': {description: Invalid or missing game identifier}
+        '500': {description: Rank snapshot query failed}
   /methodology:
     get:
       tags: [Methodology]
@@ -348,6 +393,47 @@ components:
         cross_check_url: {type: string, format: uri}
         note_zh: {type: string}
         note_en: {type: string}
+    BannerMetrics:
+      type: object
+      required: [ranks, app_line_observations, source, coverage_status, collection_started_at, phase_revenue]
+      properties:
+        ranks:
+          type: object
+          additionalProperties:
+            type: object
+            required: [peak_rank, lowest_rank, observed_hours, ranked_hours, lowest_is_beyond_feed, feed_limit]
+            properties:
+              peak_rank: {type: [integer, 'null']}
+              lowest_rank: {type: [integer, 'null']}
+              observed_hours: {type: integer, minimum: 0}
+              ranked_hours: {type: integer, minimum: 0}
+              lowest_is_beyond_feed: {type: boolean}
+              feed_limit: {type: integer, minimum: 0, description: Actual visible depth of the source snapshot, never an assumed Top 200.}
+        app_line_observations:
+          type: array
+          items:
+            type: object
+            required: [app_id, hours_above, observed_hours, updated_at]
+            properties:
+              app_id: {type: string}
+              hours_above: {type: integer, minimum: 0}
+              observed_hours: {type: integer, minimum: 0}
+              updated_at: {type: [string, 'null'], format: date-time}
+        source: {type: string, enum: [apple_public_feed, licensed_feed]}
+        coverage_status: {type: string}
+        collection_started_at: {type: [string, 'null'], format: date-time}
+        phase_revenue:
+          oneOf:
+            - type: object
+              required: [estimate, coverage, covered_hours, window_hours, formula, threshold]
+              properties:
+                estimate: {type: [number, 'null']}
+                coverage: {type: number, minimum: 0, maximum: 1}
+                covered_hours: {type: integer, minimum: 0}
+                window_hours: {type: integer, minimum: 0}
+                formula: {type: string}
+                threshold: {type: number}
+            - {type: 'null'}
     Methodology:
       type: object
       required: [version, basis, excludes_zh, excludes_en, formulas, definitions, sources]

@@ -15,11 +15,24 @@ import (
 
 const sortKeyLayout = "2006-01-02T15:04:05Z"
 
-// MarketSnapshot contains only the tracked subjects found in Apple's public
-// Top 100 response. A missing subject was outside the visible feed that hour.
+// LegacyFeedLimit is the depth of snapshots written before feed_limit was
+// persisted. Apple's public grossing RSS currently returns at most 100 rows.
+const LegacyFeedLimit = 100
+
+// MarketSnapshot contains only tracked subjects found in the source response.
+// FeedLimit records the actual response depth so consumers never confuse a
+// Top 100 miss with a Top 200 miss.
 type MarketSnapshot struct {
-	Games    map[string]int `json:"games"`
-	AppLines map[string]int `json:"app_lines,omitempty"`
+	FeedLimit int            `json:"feed_limit,omitempty"`
+	Games     map[string]int `json:"games"`
+	AppLines  map[string]int `json:"app_lines,omitempty"`
+}
+
+func VisibleLimit(snapshot MarketSnapshot) int {
+	if snapshot.FeedLimit > 0 {
+		return snapshot.FeedLimit
+	}
+	return LegacyFeedLimit
 }
 
 type Snapshot struct {

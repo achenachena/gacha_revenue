@@ -1,4 +1,5 @@
 import {
+  appLines,
   gameVisuals,
   type AppLineId,
   type CoverageStatus,
@@ -293,7 +294,7 @@ export function loadMethodology(signal: AbortSignal) {
 }
 
 export function loadVersions(signal: AbortSignal) {
-  return fetchJSON<VersionsResponse>("versions", signal).then(normalizeVersions);
+  return fetchJSON<VersionsResponse>("versions?compact=1", signal).then(normalizeVersions);
 }
 
 export function loadBannerMetrics(target: Pick<VersionDetail, "gameId" | "date" | "endDate">, signal: AbortSignal) {
@@ -301,27 +302,20 @@ export function loadBannerMetrics(target: Pick<VersionDetail, "gameId" | "date" 
   return fetchJSON<BannerMetricsResponse>(`banner-metrics?${query}`, signal);
 }
 
-export async function loadBannerMetricSet(targets: VersionDetail[], signal: AbortSignal, concurrency = 2): Promise<Map<string, BannerMetricsData>> {
-  const results = new Map<string, BannerMetricsData>();
-  let cursor = 0;
-  let failures = 0;
-  const worker = async () => {
-    while (!signal.aborted) {
-      const target = targets[cursor++];
-      if (!target) return;
-      try {
-        const payload = await loadBannerMetrics(target, signal);
-        if (payload.data) results.set(target.id, payload.data);
-      } catch (error) {
-        if (signal.aborted) return;
-        failures++;
-        if (!(error instanceof Error)) console.error("Unexpected banner metric error", error);
-      }
+type BannerRankingsResponse = {
+  data?: Array<BannerMetricsData & { version_id: string }>;
+};
+
+export function loadBannerRankings(gameId: GameId, signal: AbortSignal) {
+  const query = new URLSearchParams({ game_id: gameId });
+  return fetchJSON<BannerRankingsResponse>(`banner-rankings?${query}`, signal).then((payload) => {
+    const results = new Map<string, BannerMetricsData>();
+    for (const row of payload.data ?? []) {
+      const { version_id: versionID, ...metrics } = row;
+      results.set(versionID, metrics);
     }
-  };
-  await Promise.all(Array.from({ length: Math.min(concurrency, targets.length) }, worker));
-  if (failures) console.error(`Unable to refresh ${failures} of ${targets.length} banner metric windows`);
-  return results;
+    return results;
+  });
 }
 
 export function applyBannerMetrics(version: VersionDetail, metrics: BannerMetricsData): VersionDetail {
@@ -331,9 +325,16 @@ export function applyBannerMetrics(version: VersionDetail, metrics: BannerMetric
     ...metrics.app_line_observations.map((item) => Number(item.observed_hours ?? 0)),
   );
   const ranks = { ...version.ranks };
+  const rankBoundaries = { ...version.rankBoundaries };
   for (const market of ["CN", "JP", "US", "KR"] as const) {
     const row = metrics.ranks[market];
-    if (row?.observed_hours) ranks[market] = [row.peak_rank, row.lowest_rank];
+    if (row?.observed_hours) {
+      ranks[market] = [row.peak_rank, row.lowest_rank];
+      rankBoundaries[market] = {
+        lowestBeyondFeed: Boolean(row.lowest_is_beyond_feed),
+        feedLimit: Number(row.feed_limit || 100),
+      };
+    }
   }
   const appHours = version.appHours.map((line) => {
     const row = metrics.app_line_observations.find((item) => item.app_id === line.appId);
@@ -344,6 +345,7 @@ export function applyBannerMetrics(version: VersionDetail, metrics: BannerMetric
   return {
     ...version,
     ranks,
+    rankBoundaries,
     appHours,
     observedHours: Math.max(observedHours, version.observedHours),
     coverageStatus: observedHours ? metrics.coverage_status : version.coverageStatus,
@@ -357,10 +359,10 @@ export function applyBannerMetrics(version: VersionDetail, metrics: BannerMetric
 }
 
 function evidence(value?: APIEvidence | null): MetricEvidence | null {
-  if (!value?.primary_url || !value.cross_check_url) return null;
+  if (!value?.primary_url) return null;
   return {
     primaryUrl: value.primary_url,
-    crossCheckUrl: value.cross_check_url,
+    crossCheckUrl: value.cross_check_url || undefined,
     note: { "zh-CN": value.note_zh, en: value.note_en },
   };
 }
@@ -397,13 +399,22 @@ function normalizeVersions(payload: VersionsResponse): VersionDetail[] {
       KR: item.ios_grossing_rank_range?.KR ?? [null, null],
     },
     rankEvidence: evidence(item.rank_evidence),
-    appHours: item.app_line_observations.map((line) => ({
-      appId: line.app_id,
-      app: { "zh-CN": line.name_zh, en: line.name_en },
-      hours: line.hours_above,
-      source: line.data_status,
-      updatedAt: line.updated_at?.slice(0, 10) ?? null,
-      evidence: evidence(line.evidence),
-    })),
+    rankBoundaries: {
+      CN: { lowestBeyondFeed: false, feedLimit: 100 },
+      JP: { lowestBeyondFeed: false, feedLimit: 100 },
+      US: { lowestBeyondFeed: false, feedLimit: 100 },
+      KR: { lowestBeyondFeed: false, feedLimit: 100 },
+    },
+    appHours: appLines.map((app) => {
+      const line = item.app_line_observations?.find((candidate) => candidate.app_id === app.id);
+      return {
+        appId: app.id,
+        app: line ? { "zh-CN": line.name_zh || app.name["zh-CN"], en: line.name_en || app.name.en } : app.name,
+        hours: line?.hours_above ?? null,
+        source: line?.data_status ?? "awaiting_feed",
+        updatedAt: line?.updated_at?.slice(0, 10) ?? null,
+        evidence: evidence(line?.evidence),
+      };
+    }),
   }));
 }

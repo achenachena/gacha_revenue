@@ -126,7 +126,7 @@ func (c *Collector) collectMarket(ctx context.Context, market, country string) (
 			ranks[entry.ID.Attributes.StoreID] = index + 1
 		}
 	}
-	result := rankstore.MarketSnapshot{Games: map[string]int{}, AppLines: map[string]int{}}
+	result := rankstore.MarketSnapshot{FeedLimit: len(payload.Feed.Entries), Games: map[string]int{}, AppLines: map[string]int{}}
 	for gameID, stores := range GameStoreIDs {
 		if rank, ok := ranks[stores[market]]; ok {
 			result.Games[gameID] = rank

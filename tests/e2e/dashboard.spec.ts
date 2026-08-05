@@ -15,6 +15,19 @@ test("exposes only the explicit validated backend proxy routes", async ({ reques
   expect(unknown.status()).toBe(404);
 });
 
+test("does not fan out banner requests during initial paint", async ({ page }) => {
+  const backendPaths: string[] = [];
+  page.on("request", (request) => {
+    const url = new URL(request.url());
+    if (url.pathname.startsWith("/api/backend/")) backendPaths.push(url.pathname);
+  });
+  await page.goto("/zh-CN");
+  await expect(page.getByText("¥57.50亿")).toBeVisible();
+  await expect.poll(() => backendPaths.includes("/api/backend/versions")).toBe(true);
+  expect(backendPaths).not.toContain("/api/backend/banner-metrics");
+  expect(backendPaths).not.toContain("/api/backend/banner-rankings");
+});
+
 test("switches revenue grain and locale", async ({ page }) => {
   await page.goto("/zh-CN");
   await expect(page.locator("main")).toHaveAttribute("data-hydrated", "true");
@@ -27,7 +40,9 @@ test("switches revenue grain and locale", async ({ page }) => {
   await expect(page.locator(".game-card").filter({ hasText: "异环" })).toContainText("¥2.99亿");
 
   await page.locator(".game-card").filter({ hasText: "崩坏：星穹铁道" }).click();
-  await expect(page.getByText("¥12.57亿").first()).toBeVisible();
+  await expect(page.getByText("¥12.58亿").first()).toBeVisible();
+  await expect(page.locator("#trend .line-chart-y-axis")).toHaveCount(1);
+  await expect(page.locator("#trend .line-chart-y-axis")).toContainText("亿元人民币");
   await expect(page.getByText("3.92", { exact: true }).first()).toBeVisible();
   await expect(page.locator(".chart-dot[data-coverage='partial']")).toHaveCount(9);
   await expect(page.locator("#compare")).toHaveCount(0);
@@ -87,6 +102,7 @@ test("keeps overview text clear and lets users expand phase history", async ({ p
 test("opens launch-to-present version intelligence", async ({ page }) => {
   await page.goto("/zh-CN");
   await expect(page.locator("main")).toHaveAttribute("data-hydrated", "true");
+  await page.locator("#versions").scrollIntoViewIfNeeded();
   const bannerSelect = page.getByLabel("选择版本 / 卡池角色");
   await page.getByLabel("选择游戏").selectOption("endfield");
   await bannerSelect.selectOption("ef-10-p1");
@@ -109,7 +125,7 @@ test("adds a provider banner to the automatic per-game ranking", async ({ page }
   await page.route("**/api/backend/public-revenue", (route) =>
     route.fulfill({ json: { data: [], meta: { fetched_at: "2026-08-03T12:00:00Z" } } }),
   );
-  await page.route("**/api/backend/versions", (route) =>
+  await page.route("**/api/backend/versions?*", (route) =>
     route.fulfill({
       json: {
         data: [{
@@ -144,30 +160,44 @@ test("adds a provider banner to the automatic per-game ranking", async ({ page }
       },
     }),
   );
-  await page.route("**/api/backend/banner-metrics?*", (route) => {
-    const providerWindow = new URL(route.request().url()).searchParams.get("start") === "2026-08-01";
+  await page.route("**/api/backend/banner-rankings?*", (route) => {
     route.fulfill({
       json: {
-        data: {
-          ranks: {},
+        data: [{
+          version_id: "wuwa-provider-p1",
+          ranks: {
+            CN: {
+              peak_rank: 175,
+              lowest_rank: null,
+              observed_hours: 48,
+              ranked_hours: 12,
+              lowest_is_beyond_feed: true,
+              feed_limit: 200,
+            },
+          },
           app_line_observations: [{
             app_id: "tencent_video",
-            hours_above: providerWindow ? 22 : 0,
-            observed_hours: providerWindow ? 48 : 0,
-            updated_at: providerWindow ? "2026-08-03T11:00:00Z" : null,
+            hours_above: 22,
+            observed_hours: 48,
+            updated_at: "2026-08-03T11:00:00Z",
           }],
-          source: "apple_public_feed",
-          coverage_status: providerWindow ? "observed" : "historical_provider_required",
+          source: "licensed_feed",
+          coverage_status: "observed",
           collection_started_at: "2026-08-01T00:00:00Z",
           phase_revenue: null,
-        },
+        }],
       },
     });
   });
 
   await page.goto("/zh-CN");
+  await page.locator(".banner-ranking-section").scrollIntoViewIfNeeded();
+  await page.getByLabel("排名游戏").selectOption("hsr");
+  await page.getByLabel("排名游戏").selectOption("wuwa");
   const firstRankingRow = page.locator(".banner-ranking-table tbody tr").first();
   await expect(firstRankingRow).toContainText("3.6 · 上半 · UP 自动卡池角色");
   await expect(firstRankingRow).toContainText("22 小时");
-  await expect(firstRankingRow).toContainText("Apple 畅销榜 RSS 自动观测");
+  await expect(firstRankingRow).toContainText("授权排名 feed");
+  await page.getByLabel("选择游戏").selectOption("wuwa");
+  await expect(page.getByText("200名开外")).toBeVisible();
 });

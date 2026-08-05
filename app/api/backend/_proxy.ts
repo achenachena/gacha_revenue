@@ -7,6 +7,7 @@ const policies = {
   methodology: { revalidate: 86_400 },
   versions: { revalidate: 60 },
   "banner-metrics": { revalidate: 300 },
+  "banner-rankings": { revalidate: 300 },
 } as const;
 const maxResponseBytes = 2 * 1024 * 1024;
 
@@ -33,10 +34,16 @@ function validatedQuery(endpoint: BackendEndpoint, searchParams: URLSearchParams
     return searchParams.size === 0 ? new URLSearchParams() : null;
   }
   if (endpoint === "versions") {
-    if ([...searchParams.keys()].some((key) => key !== "game_id")) return null;
+    if ([...searchParams.keys()].some((key) => !["game_id", "compact"].includes(key))) return null;
     if (searchParams.getAll("game_id").length > 1) return null;
+    if (searchParams.getAll("compact").length > 1 || ![null, "1"].includes(searchParams.get("compact"))) return null;
     const gameID = searchParams.get("game_id");
     return gameID === null || allowedGames.has(gameID) ? new URLSearchParams(searchParams) : null;
+  }
+  if (endpoint === "banner-rankings") {
+    if ([...searchParams.keys()].some((key) => key !== "game_id") || searchParams.getAll("game_id").length !== 1) return null;
+    const gameID = searchParams.get("game_id");
+    return gameID && allowedGames.has(gameID) ? new URLSearchParams({ game_id: gameID }) : null;
   }
   if ([...searchParams.keys()].some((key) => !["game_id", "start", "end"].includes(key))) return null;
   const gameID = searchParams.get("game_id");

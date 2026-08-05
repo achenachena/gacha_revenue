@@ -633,10 +633,24 @@ main {
   color: var(--green);
 }
 
-.line-chart {
+.line-chart-frame {
+  display: grid;
+  grid-template-columns: 76px minmax(0, 1fr);
   width: 100%;
   min-height: 330px;
   margin-top: 8px;
+}
+
+.line-chart-y-axis {
+  display: block;
+  width: 76px;
+  height: 330px;
+  background: var(--white);
+}
+
+.line-chart {
+  width: 100%;
+  min-height: 330px;
   overflow-x: auto;
   overflow-y: hidden;
   scrollbar-width: thin;
@@ -777,6 +791,11 @@ main {
   padding: 7px 10px;
   font-size: 9px;
   white-space: nowrap;
+}
+
+.versions-panel {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 1500px;
 }
 
 .version-selectors {
@@ -1165,6 +1184,8 @@ main {
 }
 
 .methodology {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 720px;
   margin-top: 14px;
   padding: 40px 44px;
   background: #1e211d;

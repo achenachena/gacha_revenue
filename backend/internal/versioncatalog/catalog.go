@@ -4,6 +4,7 @@ import (
 	_ "embed"
 	"encoding/json"
 	"fmt"
+	"strings"
 )
 
 type Version struct {
@@ -68,6 +69,22 @@ var defaultAppLines = []AppLineObservation{
 
 //go:embed catalog.json
 var catalogJSON []byte
+
+var chineseNameCorrections = strings.NewReplacer(
+	"迷迷", "万敌",
+	"•", "·",
+	"秧秧·霜伶", "秧秧·玄翎",
+	"岁岁", "穗穗",
+	"卢克·赫尔森", "陆·赫斯",
+	"西格莉塔", "西格莉卡",
+	"绯优", "绯雪",
+	"德妮雅", "达妮娅",
+	"露西拉", "洛瑟菈",
+)
+
+var englishNameCorrections = strings.NewReplacer(
+	"Myday", "Mydei",
+)
 
 var catalog = load()
 
@@ -146,6 +163,7 @@ func enrichCalendar(target *Version, update Version) {
 	if update.DataStatus != "" {
 		target.DataStatus = update.DataStatus
 	}
+	normalizeLocalizedNames(target)
 }
 
 func load() []Version {
@@ -154,6 +172,7 @@ func load() []Version {
 		panic("invalid embedded version catalog: " + err.Error())
 	}
 	for index := range versions {
+		normalizeLocalizedNames(&versions[index])
 		if versions[index].Confidence == "" {
 			versions[index].Confidence = "N/A"
 		}
@@ -199,6 +218,11 @@ func load() []Version {
 		}
 	}
 	return versions
+}
+
+func normalizeLocalizedNames(version *Version) {
+	version.CharactersZh = chineseNameCorrections.Replace(version.CharactersZh)
+	version.CharactersEn = englishNameCorrections.Replace(version.CharactersEn)
 }
 
 func clone(version Version) Version {
