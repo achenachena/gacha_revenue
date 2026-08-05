@@ -116,7 +116,8 @@ const copy = {
     historicalVideoSummary: "公开视频历史汇总核验（非原始小时快照）",
     unverifiedBlank: "未能核验，留空",
     hours: "小时",
-    rankNote: "峰值 = 观察窗口内最小名次；最低 = 最大名次。超出数据源可见范围时显示“Top N 开外”，不会伪造精确名次；Apple 公共源目前最多提供 Top 100，接入 Top 200 授权源后会自动按 Top 200 显示。",
+    rankNote: "仅保存 1–200 名的具体名次。完整 Top 200 观测中未上榜时显示“200名开外”；Apple 公共源缺少第 101–200 名，因此仅有 Top 100 观测的最低名次会保持为空。",
+    top200Incomplete: "Top 200 覆盖不足",
     appLineNote: "每个小时比较一次中国区畅销总榜；当游戏名次小于应用名次时，累计 1 小时。",
     characterNote: "每条记录按独立上半 / 下半开放窗口统计。0 小时只在已有观测时表示确实未超过；暂无覆盖表示采集启用前的历史小时仍需授权 API 回填，二者严格区分。",
     correctionSource: "已核验历史记录",
@@ -217,7 +218,8 @@ const copy = {
     historicalVideoSummary: "Verified public-video historical summary (not raw hourly snapshots)",
     unverifiedBlank: "Unverified; left blank",
     hours: "hours",
-    rankNote: "Peak is the minimum rank and lowest is the worst rank. Values outside a source's visible depth are shown as “Outside Top N”; Apple's public source currently reaches Top 100 and a configured Top 200 provider is reflected automatically.",
+    rankNote: "Exact ranks are stored only from 1–200. A miss in a complete Top 200 observation is shown as “Outside Top 200”; Apple's public source omits ranks 101–200, so a Top 100-only lowest rank remains unknown.",
+    top200Incomplete: "Incomplete Top 200 coverage",
     appLineNote: "China overall-grossing ranks are compared hourly; one hour is added whenever the game rank is smaller than the app rank.",
     characterNote: "Each row uses the exact phase window. Zero only means genuinely never above when observations exist; no coverage means pre-collector history still needs licensed API backfill.",
     correctionSource: "Verified historical record",
@@ -306,9 +308,9 @@ function LineChart({
   unit: string;
 }) {
   const scrollRef = useRef<HTMLDivElement>(null);
-  const axisWidth = 76;
+  const axisWidth = 64;
   const chartWidth = Math.max(824, values.length * (values.length > 36 ? 76 : 105));
-  const chartHeight = 330;
+  const chartHeight = 300;
   const margin = { top: 42, right: 28, bottom: 58, left: 18 };
   const plotWidth = chartWidth - margin.left - margin.right;
   const plotHeight = chartHeight - margin.top - margin.bottom;
@@ -355,8 +357,18 @@ function LineChart({
           <button type="button" onClick={() => scrollTo("end")}>{copy[locale].latestPeriod} →</button>
         </div>
       )}
-      <div className="line-chart-frame" role="img" aria-label={`${copy[locale].trendTitle}，${unit}`}>
-        <svg className="line-chart-y-axis" viewBox={`0 0 ${axisWidth} ${chartHeight}`} aria-hidden="true">
+      <div
+        className="line-chart-frame"
+        role="img"
+        aria-label={`${copy[locale].trendTitle}，${unit}`}
+        style={{ display: "grid", gridTemplateColumns: `${axisWidth}px minmax(0, 1fr)`, height: chartHeight }}
+      >
+        <svg
+          className="line-chart-y-axis"
+          viewBox={`0 0 ${axisWidth} ${chartHeight}`}
+          aria-hidden="true"
+          style={{ display: "block", width: axisWidth, height: chartHeight }}
+        >
           <text className="axis-title axis-title-y" x="15" y={chartHeight / 2} textAnchor="middle" transform={`rotate(-90 15 ${chartHeight / 2})`}>
             {copy[locale].yAxisUnit}
           </text>
@@ -366,8 +378,17 @@ function LineChart({
           })}
           <line className="chart-axis" x1={axisWidth - 1} x2={axisWidth - 1} y1={margin.top} y2={margin.top + plotHeight} />
         </svg>
-        <div ref={scrollRef} className="line-chart">
-          <svg viewBox={`0 0 ${chartWidth} ${chartHeight}`} preserveAspectRatio="xMidYMid meet" style={{ minWidth: chartWidth }} aria-hidden="true">
+        <div
+          ref={scrollRef}
+          className="line-chart"
+          style={{ width: "100%", minWidth: 0, height: chartHeight, minHeight: chartHeight, overflowX: "auto", overflowY: "hidden" }}
+        >
+          <svg
+            viewBox={`0 0 ${chartWidth} ${chartHeight}`}
+            preserveAspectRatio="none"
+            style={{ display: "block", width: "100%", minWidth: chartWidth, height: chartHeight, minHeight: chartHeight }}
+            aria-hidden="true"
+          >
             {ticks.map((tick) => {
               const y = margin.top + (1 - tick / yMax) * plotHeight;
               return <line key={tick} className="chart-grid-line" x1="0" x2={chartWidth - margin.right} y1={y} y2={y} />;
@@ -615,17 +636,22 @@ export default function Dashboard({ locale }: { locale: Locale }) {
   useEffect(() => {
     if (!rankingVisible || !versionCatalog.some((version) => version.gameId === rankingGame)) return;
     const controller = new AbortController();
-    const refresh = () =>
-      loadBannerRankings(rankingGame, controller.signal).then((results) => {
+    const refresh = async () => {
+      try {
+        const results = await loadBannerRankings(rankingGame, controller.signal);
         if (!results.size || controller.signal.aborted) return;
         startTransition(() => setMetricsByVersion((current) => {
           let next = current;
           for (const [id, metrics] of results) next = withRicherBannerMetrics(next, id, metrics);
           return next;
         }));
-      });
+      } catch (error) {
+        if (error instanceof DOMException && error.name === "AbortError") return;
+        console.error("Unable to load per-game rank observations", error);
+      }
+    };
     void refresh();
-    const timer = window.setInterval(refresh, 60 * 60 * 1000);
+    const timer = window.setInterval(() => void refresh(), 60 * 60 * 1000);
     return () => {
       controller.abort();
       window.clearInterval(timer);
@@ -692,11 +718,15 @@ export default function Dashboard({ locale }: { locale: Locale }) {
   const missingMetricLabel = (version: VersionDetail) => version.coverageStatus === "verified_historical_summary" ? t.unverifiedBlank : coverageLabel(version);
   const lowestRankLabel = (version: VersionDetail, market: "CN" | "JP" | "US" | "KR", rank: number | null) => {
     const boundary = version.rankBoundaries[market];
-    if (boundary.lowestBeyondFeed && boundary.feedLimit > 0) {
-      return locale === "zh-CN" ? `${boundary.feedLimit}名开外` : `Outside Top ${boundary.feedLimit}`;
+    if (boundary.lowestBeyondFeed) {
+      return locale === "zh-CN" ? "200名开外" : "Outside Top 200";
     }
     return rank === null ? "—" : `#${rank}`;
   };
+  const missingRankLabel = (version: VersionDetail, market: "CN" | "JP" | "US" | "KR") =>
+    version.observedHours > 0 && version.rankBoundaries[market].feedLimit < 200
+      ? t.top200Incomplete
+      : missingMetricLabel(version);
   const versionSourceLabel = (version: VersionDetail) => {
     if (version.dataStatus === "licensed_feed") return t.licensedSource;
     if (version.dataStatus === "apple_public_feed") return t.appleSource;
@@ -999,7 +1029,7 @@ export default function Dashboard({ locale }: { locale: Locale }) {
                     <thead><tr><th>{t.region}</th><th>{t.peakRank}</th><th>{t.lowRank}</th><th>{t.rankMeaning}</th></tr></thead>
                     <tbody>
                       {(Object.entries(selectedVersion.ranks) as Array<["CN" | "JP" | "US" | "KR", [number | null, number | null]]>).map(([country, rank]) => (
-                        <tr key={country}><td><b>{country}</b>{marketNames[country][locale]}</td><td><strong>{rank[0] === null ? "—" : `#${rank[0]}`}</strong><small>{rank[0] === null ? missingMetricLabel(selectedVersion) : t.peakMeaning}</small></td><td><strong>{lowestRankLabel(selectedVersion, country, rank[1])}</strong><small>{rank[1] === null && !selectedVersion.rankBoundaries[country].lowestBeyondFeed ? missingMetricLabel(selectedVersion) : t.lowMeaning}</small></td><td>{selectedVersion.date || t.calendarPending}<br />{selectedVersion.endDate}</td></tr>
+                        <tr key={country}><td><b>{country}</b>{marketNames[country][locale]}</td><td><strong>{rank[0] === null ? "—" : `#${rank[0]}`}</strong><small>{rank[0] === null ? missingRankLabel(selectedVersion, country) : t.peakMeaning}</small></td><td><strong>{lowestRankLabel(selectedVersion, country, rank[1])}</strong><small>{rank[1] === null && !selectedVersion.rankBoundaries[country].lowestBeyondFeed ? missingRankLabel(selectedVersion, country) : t.lowMeaning}</small></td><td>{selectedVersion.date || t.calendarPending}<br />{selectedVersion.endDate}</td></tr>
                       ))}
                     </tbody>
                   </table>

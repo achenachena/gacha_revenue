@@ -19,6 +19,11 @@ const sortKeyLayout = "2006-01-02T15:04:05Z"
 // persisted. Apple's public grossing RSS currently returns at most 100 rows.
 const LegacyFeedLimit = 100
 
+// ReportingRankLimit is the deepest exact rank the product stores and exposes.
+// A source may return more rows, but ranks below this boundary are represented
+// as outside Top 200 instead of being persisted as misleading exact values.
+const ReportingRankLimit = 200
+
 // MarketSnapshot contains only tracked subjects found in the source response.
 // FeedLimit records the actual response depth so consumers never confuse a
 // Top 100 miss with a Top 200 miss.
@@ -33,6 +38,30 @@ func VisibleLimit(snapshot MarketSnapshot) int {
 		return snapshot.FeedLimit
 	}
 	return LegacyFeedLimit
+}
+
+// NormalizeReportingRange caps source depth and tracked subjects to the
+// product's documented Top 200 contract. The actual depth is preserved when a
+// source is shallower, so a Top 100 miss can never become a Top 200 miss.
+func NormalizeReportingRange(snapshot Snapshot) Snapshot {
+	for market, values := range snapshot.Markets {
+		if values.FeedLimit > ReportingRankLimit {
+			values.FeedLimit = ReportingRankLimit
+		}
+		values.Games = ranksWithinLimit(values.Games)
+		values.AppLines = ranksWithinLimit(values.AppLines)
+		snapshot.Markets[market] = values
+	}
+	return snapshot
+}
+
+func ranksWithinLimit(values map[string]int) map[string]int {
+	for subject, rank := range values {
+		if rank < 1 || rank > ReportingRankLimit {
+			delete(values, subject)
+		}
+	}
+	return values
 }
 
 type Snapshot struct {
@@ -66,6 +95,7 @@ func (s *Store) PutSnapshot(ctx context.Context, snapshot Snapshot) error {
 		return fmt.Errorf("observed hour is required")
 	}
 	snapshot.ObservedHour = snapshot.ObservedHour.UTC().Truncate(time.Hour)
+	snapshot = NormalizeReportingRange(snapshot)
 	payload, err := json.Marshal(snapshot)
 	if err != nil {
 		return fmt.Errorf("encode rank snapshot: %w", err)

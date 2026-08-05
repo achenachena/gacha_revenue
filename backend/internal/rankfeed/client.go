@@ -89,6 +89,9 @@ func (c *Client) QueryRange(ctx context.Context, gameID string, start, end time.
 	if err := json.Unmarshal(body, &decoded); err != nil {
 		return nil, fmt.Errorf("decode rank history feed: %w", err)
 	}
+	for index := range decoded.Data {
+		decoded.Data[index] = rankstore.NormalizeReportingRange(decoded.Data[index])
+	}
 	if err := validate(decoded.Data, gameID, start, end); err != nil {
 		return nil, err
 	}
@@ -112,7 +115,7 @@ func validate(items []rankstore.Snapshot, gameID string, start, end time.Time) e
 				return fmt.Errorf("rank history snapshot %d has invalid market", index)
 			}
 			visibleLimit := rankstore.VisibleLimit(values)
-			if visibleLimit < 1 || visibleLimit > 5000 {
+			if visibleLimit < 1 || visibleLimit > rankstore.ReportingRankLimit {
 				return fmt.Errorf("rank history snapshot %d has invalid feed limit", index)
 			}
 			for subject, rank := range values.Games {

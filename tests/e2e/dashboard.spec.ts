@@ -43,6 +43,16 @@ test("switches revenue grain and locale", async ({ page }) => {
   await expect(page.getByText("¥12.58亿").first()).toBeVisible();
   await expect(page.locator("#trend .line-chart-y-axis")).toHaveCount(1);
   await expect(page.locator("#trend .line-chart-y-axis")).toContainText("亿元人民币");
+  const [frameBox, axisBox, plotBox] = await Promise.all([
+    page.locator("#trend .line-chart-frame").boundingBox(),
+    page.locator("#trend .line-chart-y-axis").boundingBox(),
+    page.locator("#trend .line-chart svg").boundingBox(),
+  ]);
+  expect(frameBox?.height).toBeGreaterThanOrEqual(295);
+  expect(frameBox?.height).toBeLessThanOrEqual(305);
+  expect(axisBox?.width).toBeLessThanOrEqual(70);
+  expect(axisBox?.height).toBeLessThanOrEqual(305);
+  expect(plotBox?.height).toBeLessThanOrEqual(305);
   await expect(page.getByText("3.92", { exact: true }).first()).toBeVisible();
   await expect(page.locator(".chart-dot[data-coverage='partial']")).toHaveCount(9);
   await expect(page.locator("#compare")).toHaveCount(0);
@@ -112,6 +122,7 @@ test("opens launch-to-present version intelligence", async ({ page }) => {
   expect(allOptionText.join(" ")).not.toMatch(/那刻夏|Anaxa|Laevatain/);
   await expect(page.getByRole("columnheader", { name: "峰值名次" })).toBeVisible();
   await expect(page.getByRole("columnheader", { name: "最低名次" })).toBeVisible();
+  await expect(page.getByText("100名开外")).toHaveCount(0);
   await page.getByLabel("排名游戏").selectOption("wuwa");
   await page.getByLabel("比较应用线").selectOption("tencent_video");
   const rankingRows = page.locator(".banner-ranking-table tbody tr");
@@ -199,5 +210,5 @@ test("adds a provider banner to the automatic per-game ranking", async ({ page }
   await expect(firstRankingRow).toContainText("22 小时");
   await expect(firstRankingRow).toContainText("授权排名 feed");
   await page.getByLabel("选择游戏").selectOption("wuwa");
-  await expect(page.getByText("200名开外")).toBeVisible();
+  await expect(page.getByText("200名开外", { exact: true })).toBeVisible();
 });

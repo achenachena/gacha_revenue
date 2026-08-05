@@ -96,7 +96,7 @@ func TestBannerMetricsAggregatesVisibleRanksAndPairedAppHours(t *testing.T) {
 		t.Fatal(err)
 	}
 	cn := response.Data.Ranks["CN"]
-	if cn.Peak == nil || *cn.Peak != 4 || cn.Lowest == nil || *cn.Lowest != 5 || cn.Observed != 3 || cn.Ranked != 2 || !cn.BeyondFeed {
+	if cn.Peak == nil || *cn.Peak != 4 || cn.Lowest != nil || cn.Observed != 3 || cn.Ranked != 2 || cn.BeyondFeed {
 		t.Fatalf("unexpected CN range: %+v", cn)
 	}
 	jp := response.Data.Ranks["JP"]

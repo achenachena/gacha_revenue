@@ -91,7 +91,7 @@ func (c *Collector) Collect(ctx context.Context, observedHour time.Time) (rankst
 }
 
 func (c *Collector) collectMarket(ctx context.Context, market, country string) (rankstore.MarketSnapshot, error) {
-	url := fmt.Sprintf("https://itunes.apple.com/%s/rss/topgrossingapplications/limit=100/json", country)
+	url := fmt.Sprintf("https://itunes.apple.com/%s/rss/topgrossingapplications/limit=%d/json", country, rankstore.ReportingRankLimit)
 	request, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
 		return rankstore.MarketSnapshot{}, err
@@ -116,7 +116,7 @@ func (c *Collector) collectMarket(ctx context.Context, market, country string) (
 	if err := json.Unmarshal(body, &payload); err != nil {
 		return rankstore.MarketSnapshot{}, fmt.Errorf("decode Apple %s feed: %w", market, err)
 	}
-	if len(payload.Feed.Entries) == 0 || len(payload.Feed.Entries) > 100 {
+	if len(payload.Feed.Entries) == 0 || len(payload.Feed.Entries) > rankstore.ReportingRankLimit {
 		return rankstore.MarketSnapshot{}, fmt.Errorf("Apple %s feed returned an invalid entry count", market)
 	}
 

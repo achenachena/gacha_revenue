@@ -23,7 +23,7 @@ func TestAggregatePreservesFeedDepthAndAppLineSemantics(t *testing.T) {
 
 	result := Aggregate("hsr", start, start.Add(3*time.Hour), snapshots)
 	cn := result.Ranks["CN"]
-	if cn.PeakRank == nil || *cn.PeakRank != 4 || cn.LowestRank == nil || *cn.LowestRank != 5 {
+	if cn.PeakRank == nil || *cn.PeakRank != 4 || cn.LowestRank != nil {
 		t.Fatalf("unexpected rank range: %+v", cn)
 	}
 	if !cn.LowestBeyondFeed || cn.FeedLimit != 200 {
@@ -43,7 +43,23 @@ func TestAggregateOldSnapshotsDefaultToTop100(t *testing.T) {
 		Markets:      map[string]rankstore.MarketSnapshot{"CN": {Games: map[string]int{}, AppLines: map[string]int{}}},
 	}})
 	cn := result.Ranks["CN"]
-	if !cn.LowestBeyondFeed || cn.FeedLimit != rankstore.LegacyFeedLimit {
+	if cn.LowestBeyondFeed || cn.LowestRank != nil || cn.FeedLimit != rankstore.LegacyFeedLimit {
 		t.Fatalf("unexpected legacy boundary: %+v", cn)
+	}
+}
+
+func TestAggregateKeepsExactLowestRankWhenTop200CoverageIsComplete(t *testing.T) {
+	start := time.Date(2026, 8, 1, 0, 0, 0, 0, time.UTC)
+	result := Aggregate("hsr", start, start.Add(2*time.Hour), []rankstore.Snapshot{
+		{ObservedHour: start, Markets: map[string]rankstore.MarketSnapshot{
+			"CN": {FeedLimit: 200, Games: map[string]int{"hsr": 175}},
+		}},
+		{ObservedHour: start.Add(time.Hour), Markets: map[string]rankstore.MarketSnapshot{
+			"CN": {FeedLimit: 200, Games: map[string]int{"hsr": 199}},
+		}},
+	})
+	cn := result.Ranks["CN"]
+	if cn.LowestBeyondFeed || cn.LowestRank == nil || *cn.LowestRank != 199 {
+		t.Fatalf("expected exact Top 200 lowest rank, got %+v", cn)
 	}
 }

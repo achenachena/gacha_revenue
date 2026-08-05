@@ -53,6 +53,25 @@ func TestValidateHonorsProviderFeedDepth(t *testing.T) {
 	}
 }
 
+func TestClientNormalizesRanksOutsideTop200(t *testing.T) {
+	client, err := New(roundTripFunc(func(*http.Request) (*http.Response, error) {
+		body := `{"data":[{"observed_hour":"2026-04-22T01:00:00Z","markets":{"CN":{"feed_limit":500,"games":{"hsr":250},"app_lines":{"tencent_video":225}}}}]}`
+		return &http.Response{StatusCode: http.StatusOK, Body: io.NopCloser(strings.NewReader(body))}, nil
+	}), "https://rank.example/history", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	start := time.Date(2026, 4, 22, 0, 0, 0, 0, time.UTC)
+	items, err := client.QueryRange(context.Background(), "hsr", start, start.Add(24*time.Hour))
+	if err != nil {
+		t.Fatal(err)
+	}
+	cn := items[0].Markets["CN"]
+	if cn.FeedLimit != rankstore.ReportingRankLimit || len(cn.Games) != 0 || len(cn.AppLines) != 0 {
+		t.Fatalf("rank data was not normalized to Top 200: %+v", cn)
+	}
+}
+
 func TestClientRejectsNonHourlySnapshot(t *testing.T) {
 	if err := validate(nil, "hsr", time.Now(), time.Now().Add(time.Hour)); err != nil {
 		t.Fatalf("empty feed should be valid: %v", err)

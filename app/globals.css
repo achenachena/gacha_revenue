@@ -635,22 +635,26 @@ main {
 
 .line-chart-frame {
   display: grid;
-  grid-template-columns: 76px minmax(0, 1fr);
+  grid-template-columns: 64px minmax(0, 1fr);
   width: 100%;
-  min-height: 330px;
+  height: 300px;
+  min-height: 300px;
   margin-top: 8px;
+  overflow: hidden;
 }
 
 .line-chart-y-axis {
   display: block;
-  width: 76px;
-  height: 330px;
+  width: 64px;
+  height: 300px;
   background: var(--white);
 }
 
 .line-chart {
   width: 100%;
-  min-height: 330px;
+  min-width: 0;
+  height: 300px;
+  min-height: 300px;
   overflow-x: auto;
   overflow-y: hidden;
   scrollbar-width: thin;
@@ -659,8 +663,8 @@ main {
 .line-chart svg {
   display: block;
   width: 100%;
-  height: auto;
-  min-height: 310px;
+  height: 300px;
+  min-height: 300px;
 }
 
 .chart-grid-line {
@@ -1365,8 +1369,6 @@ footer a { margin-left: auto; font-family: var(--font-geist-mono), monospace; co
   .version-range-fields button { grid-column: auto; }
   .version-range-control select { width: 100%; }
   .chart-scroll-actions span { display: none; }
-  .line-chart { min-height: 255px; margin-left: -12px; margin-right: -5px; width: calc(100% + 17px); }
-  .line-chart svg { min-height: 250px; }
   .chart-value-label { font-size: 8px; }
   .axis-tick { font-size: 8px; }
   .trend-stats { gap: 7px; }

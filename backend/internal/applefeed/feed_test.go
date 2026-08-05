@@ -1,6 +1,7 @@
 package applefeed
 
 import (
+	"fmt"
 	"io"
 	"net/http"
 	"strings"
@@ -11,6 +12,9 @@ import (
 type fakeHTTPClient struct{}
 
 func (fakeHTTPClient) Do(request *http.Request) (*http.Response, error) {
+	if !strings.Contains(request.URL.Path, "/limit=200/") {
+		return nil, fmt.Errorf("collector did not request Top 200: %s", request.URL.Path)
+	}
 	entries := `{"id":{"attributes":{"im:id":"1599719154"}}}`
 	if strings.Contains(request.URL.Path, "/cn/") {
 		entries = `{"id":{"attributes":{"im:id":"1523037824"}}},{"id":{"attributes":{"im:id":"458318329"}}}`
