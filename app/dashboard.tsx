@@ -10,6 +10,7 @@ import {
   type Locale,
   type MarketCoverage,
   type AppLineId,
+  type DataStatus,
   type MetricEvidence,
   type VersionDetail,
 } from "./data";
@@ -119,6 +120,7 @@ const copy = {
     appLineNote: "每个小时比较一次中国区畅销总榜；当游戏名次小于应用名次时，累计 1 小时。",
     characterNote: "每条记录按独立上半 / 下半开放窗口统计。0 小时只在已有观测时表示确实未超过；暂无覆盖表示采集启用前的历史小时仍需授权 API 回填，二者严格区分。",
     correctionSource: "已核验历史记录",
+    publicSummarySource: "公开复盘",
     primaryEvidence: "全数据观察",
     crossCheckEvidence: "黑衣侦探 / 复核来源",
     licensedSource: "授权排名 feed",
@@ -219,6 +221,7 @@ const copy = {
     appLineNote: "China overall-grossing ranks are compared hourly; one hour is added whenever the game rank is smaller than the app rank.",
     characterNote: "Each row uses the exact phase window. Zero only means genuinely never above when observations exist; no coverage means pre-collector history still needs licensed API backfill.",
     correctionSource: "Verified historical record",
+    publicSummarySource: "Public recap",
     primaryEvidence: "Full Data Observation",
     crossCheckEvidence: "Black Detective / cross-check",
     licensedSource: "Licensed rank feed",
@@ -737,8 +740,16 @@ export default function Dashboard({
   const versionSourceLabel = (version: VersionDetail) => {
     if (version.dataStatus === "licensed_feed") return t.licensedSource;
     if (version.dataStatus === "apple_public_feed") return t.appleSource;
+    if (version.dataStatus === "public_video_summary") return t.publicSummarySource;
     if (version.dataStatus === "verified_manual") return t.correctionSource;
     return coverageLabel(version);
+  };
+  const observationSourceLabel = (source: DataStatus, version: VersionDetail) => {
+    if (source === "licensed_feed") return t.licensedSource;
+    if (source === "apple_public_feed") return t.appleSource;
+    if (source === "public_video_summary") return t.publicSummarySource;
+    if (source === "verified_manual") return t.correctionSource;
+    return missingMetricLabel(version);
   };
 
   const versionRangeOptions = useMemo(
@@ -1090,7 +1101,7 @@ export default function Dashboard({
                             <td><div className="hours-cell"><i><b style={{ width: known ? `${((item.hours ?? 0) / maxAppHours) * 100}%` : "0%" }} /></i><strong>{known ? `${item.hours} ${t.hours}` : "—"}</strong></div></td>
                             <td>
                               <span className="source-cell">
-                                {item.source === "licensed_feed" ? t.licensedSource : item.source === "apple_public_feed" ? t.appleSource : item.source === "verified_manual" ? t.correctionSource : missingMetricLabel(selectedVersion)}
+                                {observationSourceLabel(item.source, selectedVersion)}
                                 {item.updatedAt && <small>{item.updatedAt}</small>}
                                 {item.evidence && (
                                   <EvidenceLinks evidence={item.evidence} locale={locale} primaryLabel={t.primaryEvidence} crossCheckLabel={t.crossCheckEvidence} />
@@ -1123,7 +1134,7 @@ export default function Dashboard({
               <table className="banner-ranking-table">
                 <thead><tr><th>{t.rankingPosition}</th><th>{t.versionAndBanner}</th><th>{t.dateWindow}</th><th>{t.hoursAbove}</th><th>{t.source}</th></tr></thead>
                 <tbody>{bannerRanking.map(({ version, observation }, index) => (
-                  <tr key={version.id}><td><strong>{`#${index + 1}`}</strong></td><td><b>{`${version.version} · ${version.phase[locale]} · UP ${version.characters[locale]}`}</b></td><td>{version.date}<i>→</i>{version.endDate}</td><td><strong>{`${observation.hours} ${t.hours}`}</strong></td><td><span className="source-cell">{observation.source === "licensed_feed" ? t.licensedSource : observation.source === "apple_public_feed" ? t.appleSource : t.correctionSource}{observation.updatedAt && <small>{observation.updatedAt}</small>}{observation.evidence && <EvidenceLinks evidence={observation.evidence} locale={locale} primaryLabel={t.primaryEvidence} crossCheckLabel={t.crossCheckEvidence} />}</span></td></tr>
+                  <tr key={version.id}><td><strong>{`#${index + 1}`}</strong></td><td><b>{`${version.version} · ${version.phase[locale]} · UP ${version.characters[locale]}`}</b></td><td>{version.date}<i>→</i>{version.endDate}</td><td><strong>{`${observation.hours} ${t.hours}`}</strong></td><td><span className="source-cell">{observationSourceLabel(observation.source, version)}{observation.updatedAt && <small>{observation.updatedAt}</small>}{observation.evidence && <EvidenceLinks evidence={observation.evidence} locale={locale} primaryLabel={t.primaryEvidence} crossCheckLabel={t.crossCheckEvidence} />}</span></td></tr>
                 ))}</tbody>
               </table>
             </div>

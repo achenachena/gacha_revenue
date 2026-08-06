@@ -355,7 +355,7 @@ components:
         collection_started_at: {type: [string, 'null'], format: date-time}
         data_status:
           type: string
-          enum: [licensed_feed, apple_public_feed, public_calendar, verified_manual, awaiting_feed]
+          enum: [licensed_feed, apple_public_feed, public_calendar, public_video_summary, verified_manual, awaiting_feed]
         source_url: {type: string}
         source_updated_at: {type: string}
         ios_grossing_rank_range:
@@ -379,7 +379,7 @@ components:
               name_zh: {type: string}
               name_en: {type: string}
               hours_above: {type: [number, 'null']}
-              data_status: {type: string, enum: [licensed_feed, apple_public_feed, verified_manual, awaiting_feed]}
+              data_status: {type: string, enum: [licensed_feed, apple_public_feed, public_video_summary, verified_manual, awaiting_feed]}
               updated_at: {type: [string, 'null'], description: ISO date or date-time supplied by the evidence source}
               evidence:
                 oneOf:

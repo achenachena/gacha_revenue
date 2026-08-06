@@ -62,7 +62,13 @@ export type AppLineId =
   | "baidu_netdisk"
   | "quark";
 
-export type DataStatus = "verified_manual" | "licensed_feed" | "apple_public_feed" | "public_calendar" | "awaiting_feed";
+export type DataStatus =
+  | "verified_manual"
+  | "public_video_summary"
+  | "licensed_feed"
+  | "apple_public_feed"
+  | "public_calendar"
+  | "awaiting_feed";
 export type CoverageStatus = "unknown" | "observed" | "verified_historical_summary" | "historical_provider_required" | "pending_collection" | "collection_gap";
 
 export type MetricEvidence = {

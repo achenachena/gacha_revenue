@@ -4,7 +4,9 @@ import (
 	_ "embed"
 	"encoding/json"
 	"fmt"
+	"net/url"
 	"strings"
+	"time"
 )
 
 type Version struct {
@@ -57,6 +59,16 @@ type MetricEvidence struct {
 	NoteEn        string `json:"note_en"`
 }
 
+// historicalObservation keeps sourced ranking facts separate from the banner
+// calendar and revenue estimates. The ID references an owner-controlled catalog
+// row; only fields backed by the attached evidence are overlaid.
+type historicalObservation struct {
+	ID           string               `json:"id"`
+	Ranks        map[string][2]*int   `json:"ios_grossing_rank_range"`
+	RankEvidence *MetricEvidence      `json:"rank_evidence"`
+	AppHours     []AppLineObservation `json:"app_line_observations"`
+}
+
 var defaultAppLines = []AppLineObservation{
 	{AppID: "douyin", NameZh: "抖音", NameEn: "Douyin", DataStatus: "awaiting_feed"},
 	{AppID: "tencent_video", NameZh: "腾讯视频", NameEn: "Tencent Video", DataStatus: "awaiting_feed"},
@@ -69,6 +81,9 @@ var defaultAppLines = []AppLineObservation{
 
 //go:embed catalog.json
 var catalogJSON []byte
+
+//go:embed historical_observations.json
+var historicalObservationsJSON []byte
 
 var chineseNameCorrections = strings.NewReplacer(
 	"迷迷", "万敌",
@@ -171,6 +186,7 @@ func load() []Version {
 	if err := json.Unmarshal(catalogJSON, &versions); err != nil {
 		panic("invalid embedded version catalog: " + err.Error())
 	}
+	applyHistoricalObservations(versions)
 	for index := range versions {
 		normalizeLocalizedNames(&versions[index])
 		if versions[index].Confidence == "" {
@@ -220,21 +236,172 @@ func load() []Version {
 	return versions
 }
 
+func applyHistoricalObservations(versions []Version) {
+	var observations []historicalObservation
+	if err := json.Unmarshal(historicalObservationsJSON, &observations); err != nil {
+		panic("invalid embedded historical observations: " + err.Error())
+	}
+	byID := make(map[string]*Version, len(versions))
+	for index := range versions {
+		byID[versions[index].ID] = &versions[index]
+	}
+	seen := make(map[string]bool, len(observations))
+	for _, observation := range observations {
+		if observation.ID == "" || seen[observation.ID] {
+			panic("duplicate or empty historical observation id: " + observation.ID)
+		}
+		seen[observation.ID] = true
+		target := byID[observation.ID]
+		if target == nil {
+			panic("historical observation references unknown catalog id: " + observation.ID)
+		}
+		if target.Ranks == nil {
+			target.Ranks = make(map[string][2]*int)
+		}
+		if len(observation.Ranks) > 0 && observation.RankEvidence == nil {
+			panic("historical rank observation requires evidence: " + observation.ID)
+		}
+		if observation.RankEvidence != nil {
+			validateHistoricalEvidence(observation.ID, observation.RankEvidence)
+		}
+		for market, ranks := range observation.Ranks {
+			if market != "CN" && market != "JP" && market != "US" && market != "KR" {
+				panic("historical observation contains unsupported market: " + market)
+			}
+			for _, rank := range ranks {
+				if rank != nil && (*rank < 1 || *rank > 200) {
+					panic(fmt.Sprintf("historical observation rank outside 1-200 for %s", observation.ID))
+				}
+			}
+			target.Ranks[market] = ranks
+		}
+		if observation.RankEvidence != nil {
+			target.RankEvidence = observation.RankEvidence
+		}
+		if len(observation.AppHours) > 0 {
+			for _, appObservation := range observation.AppHours {
+				if target.WindowHours > 0 && appObservation.Hours != nil && *appObservation.Hours > float64(target.WindowHours) {
+					panic(fmt.Sprintf("historical app-line hours exceed phase window for %s", observation.ID))
+				}
+			}
+			target.AppHours = mergeAppLineObservations(observation.ID, target.AppHours, observation.AppHours)
+		}
+	}
+}
+
+func mergeAppLineObservations(observationID string, base, updates []AppLineObservation) []AppLineObservation {
+	result := append([]AppLineObservation(nil), base...)
+	byID := make(map[string]int, len(result))
+	allowedAppIDs := make(map[string]bool, len(defaultAppLines))
+	for _, appLine := range defaultAppLines {
+		allowedAppIDs[appLine.AppID] = true
+	}
+	for index, observation := range result {
+		byID[observation.AppID] = index
+	}
+	for _, update := range updates {
+		if update.AppID == "" || update.Hours == nil || *update.Hours < 0 || update.Evidence == nil {
+			panic("historical app-line observation requires an app id, non-negative hours, and evidence")
+		}
+		if !allowedAppIDs[update.AppID] {
+			panic("historical app-line observation uses an unsupported app id: " + update.AppID)
+		}
+		if update.DataStatus != "public_video_summary" && update.DataStatus != "verified_manual" {
+			panic("historical app-line observation requires a historical data status: " + observationID)
+		}
+		if update.UpdatedAt == nil {
+			panic("historical app-line observation requires an evidence date: " + observationID)
+		}
+		if _, err := time.Parse("2006-01-02", *update.UpdatedAt); err != nil {
+			panic("historical app-line observation has an invalid evidence date: " + observationID)
+		}
+		validateHistoricalEvidence(observationID, update.Evidence)
+		if index, ok := byID[update.AppID]; ok {
+			result[index] = update
+			continue
+		}
+		byID[update.AppID] = len(result)
+		result = append(result, update)
+	}
+	return result
+}
+
+func validateHistoricalEvidence(observationID string, evidence *MetricEvidence) {
+	if evidence == nil || !isHTTPSURL(evidence.PrimaryURL) {
+		panic("historical observation requires an HTTPS primary evidence URL: " + observationID)
+	}
+	if evidence.CrossCheckURL != "" && !isHTTPSURL(evidence.CrossCheckURL) {
+		panic("historical observation has an invalid cross-check URL: " + observationID)
+	}
+	if strings.TrimSpace(evidence.NoteZh) == "" || strings.TrimSpace(evidence.NoteEn) == "" {
+		panic("historical observation requires bilingual evidence notes: " + observationID)
+	}
+}
+
+func isHTTPSURL(raw string) bool {
+	parsed, err := url.Parse(raw)
+	return err == nil && parsed.Scheme == "https" && parsed.Host != ""
+}
+
 func normalizeLocalizedNames(version *Version) {
 	version.CharactersZh = chineseNameCorrections.Replace(version.CharactersZh)
 	version.CharactersEn = englishNameCorrections.Replace(version.CharactersEn)
 }
 
 func clone(version Version) Version {
+	version.Estimate = cloneFloatPointer(version.Estimate)
+	version.P25 = cloneFloatPointer(version.P25)
+	version.P75 = cloneFloatPointer(version.P75)
+	version.CollectionStartedAt = cloneStringPointer(version.CollectionStartedAt)
 	version.Ranks = cloneRanks(version.Ranks)
-	version.AppHours = append([]AppLineObservation(nil), version.AppHours...)
+	version.RankEvidence = cloneEvidence(version.RankEvidence)
+	appHours := version.AppHours
+	version.AppHours = make([]AppLineObservation, len(appHours))
+	for index, observation := range appHours {
+		observation.Hours = cloneFloatPointer(observation.Hours)
+		observation.UpdatedAt = cloneStringPointer(observation.UpdatedAt)
+		observation.Evidence = cloneEvidence(observation.Evidence)
+		version.AppHours[index] = observation
+	}
 	return version
 }
 
 func cloneRanks(source map[string][2]*int) map[string][2]*int {
 	result := make(map[string][2]*int, len(source))
 	for market, ranks := range source {
-		result[market] = ranks
+		result[market] = [2]*int{cloneIntPointer(ranks[0]), cloneIntPointer(ranks[1])}
 	}
 	return result
+}
+
+func cloneEvidence(source *MetricEvidence) *MetricEvidence {
+	if source == nil {
+		return nil
+	}
+	result := *source
+	return &result
+}
+
+func cloneIntPointer(source *int) *int {
+	if source == nil {
+		return nil
+	}
+	result := *source
+	return &result
+}
+
+func cloneFloatPointer(source *float64) *float64 {
+	if source == nil {
+		return nil
+	}
+	result := *source
+	return &result
+}
+
+func cloneStringPointer(source *string) *string {
+	if source == nil {
+		return nil
+	}
+	result := *source
+	return &result
 }

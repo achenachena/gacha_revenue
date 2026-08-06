@@ -47,6 +47,8 @@ Every stored snapshot carries its actual visible depth, while exact stored ranks
 
 The collector calculates new observations automatically, but pre-collection windows require an authorized historical provider or separately sourced published evidence. Unknown values remain null and are never represented as zero. Published historical summaries store source links and retain unknown full-window lowest ranks as null.
 
+Historical public-recap facts are maintained in `backend/internal/versioncatalog/historical_observations.json`, separately from the phase calendar and revenue model. Each overlay must reference an existing phase, use an HTTPS evidence URL with bilingual notes, and pass backend validation before it can be served. A rank is stored only when the public title or description identifies the phase, market, and numeric overall-grossing rank. App-line hours require an explicit application (or an unambiguous source-specific alias) and a numeric duration; vague tier labels are not converted into app names. These records improve historical coverage but are point summaries, not substitutes for a complete hourly archive, so unknown lowest ranks and unreported app lines remain null.
+
 ## Architecture
 
 ```text

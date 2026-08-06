@@ -1,0 +1,1616 @@
+[
+  {
+    "id": "catalog-genshin-47-p2",
+    "app_line_observations": [
+      {
+        "app_id": "tencent_video",
+        "hours_above": 6,
+        "data_status": "public_video_summary",
+        "updated_at": "2024-06-26",
+        "evidence": {
+          "primary_url": "https://www.bilibili.com/video/BV19i421e7XP/",
+          "note_zh": "公开视频标题明确记录希格雯、芙宁娜卡池超腾讯视频 6 小时。",
+          "note_en": "The public video title explicitly reports six hours above Tencent Video for the Sigewinne and Furina banner."
+        }
+      }
+    ]
+  },
+  {
+    "id": "catalog-genshin-54-p2",
+    "ios_grossing_rank_range": { "CN": [14, null], "JP": [9, null], "KR": [21, null] },
+    "rank_evidence": {
+      "primary_url": "https://www.bilibili.com/video/BV1Na9xYxEPy/",
+      "cross_check_url": "https://www.bilibili.com/video/BV1DARcYwE11/",
+      "note_zh": "记录公开卡池复盘标题中各市场出现的最佳畅销总榜名次；缺少完整逐小时存档，最低名次留空。",
+      "note_en": "Best published overall grossing-chart observations in public banner recaps; lowest ranks remain blank without a complete hourly archive."
+    }
+  },
+  {
+    "id": "catalog-genshin-55-p1",
+    "ios_grossing_rank_range": { "CN": [9, null], "JP": [8, null], "US": [38, null], "KR": [31, null] },
+    "rank_evidence": {
+      "primary_url": "https://www.bilibili.com/video/BV143oiYhEtG/",
+      "cross_check_url": "https://www.bilibili.com/video/BV1Y7ZuYvE7B/",
+      "note_zh": "两次公开卡池复盘共同覆盖中、日、美、韩市场；取标题中出现的最佳总榜名次。",
+      "note_en": "Two public banner recaps cover CN, JP, US, and KR; values use the best overall ranks stated in their titles."
+    }
+  },
+  {
+    "id": "catalog-genshin-55-p2",
+    "ios_grossing_rank_range": { "CN": [27, null], "JP": [17, null] },
+    "rank_evidence": {
+      "primary_url": "https://www.bilibili.com/video/BV1RLoAYUEeo/",
+      "cross_check_url": "https://www.bilibili.com/video/BV1Zk58zKEtX/",
+      "note_zh": "公开首日与次日复盘可核验中日总榜峰值；其余市场和最低名次留空。",
+      "note_en": "Public first- and second-day recaps verify CN and JP peak observations; other markets and lowest ranks remain blank."
+    }
+  },
+  {
+    "id": "catalog-genshin-56-p1",
+    "ios_grossing_rank_range": { "CN": [7, null], "JP": [9, null], "KR": [22, null] },
+    "rank_evidence": {
+      "primary_url": "https://www.bilibili.com/video/BV1kGVezJE4s/",
+      "cross_check_url": "https://www.bilibili.com/video/BV1eHV8zoEG5/",
+      "note_zh": "取公开首波及次日复盘标题中出现的最佳总榜名次。",
+      "note_en": "Best overall ranks stated in public first-wave and second-day recap titles."
+    }
+  },
+  {
+    "id": "catalog-genshin-56-p2",
+    "ios_grossing_rank_range": { "CN": [15, null], "JP": [10, null] },
+    "rank_evidence": {
+      "primary_url": "https://www.bilibili.com/video/BV1rZjezbEdQ/",
+      "cross_check_url": "https://www.bilibili.com/video/BV1MJjkztEGm/",
+      "note_zh": "公开首日与次日卡池复盘核验的最佳总榜名次。",
+      "note_en": "Best overall ranks verified by public first- and second-day banner recaps."
+    }
+  },
+  {
+    "id": "catalog-genshin-57-p1",
+    "ios_grossing_rank_range": { "CN": [1, null], "JP": [2, null], "US": [16, null], "KR": [11, null] },
+    "rank_evidence": {
+      "primary_url": "https://www.bilibili.com/video/BV1zHNEzUEvs/",
+      "cross_check_url": "https://www.bilibili.com/video/BV1rDNWzPEH1/",
+      "note_zh": "首波、第二波及最终复盘交叉核验，取四国公开标题中的最佳总榜名次。",
+      "note_en": "First-wave, second-wave, and final recaps were cross-checked; values are the best overall ranks stated for the four markets."
+    }
+  },
+  {
+    "id": "catalog-genshin-57-p2",
+    "ios_grossing_rank_range": { "CN": [8, null], "JP": [12, null] },
+    "rank_evidence": {
+      "primary_url": "https://www.bilibili.com/video/BV1sTGtzvE3i/",
+      "cross_check_url": "https://www.bilibili.com/video/BV1saGMz2EFi/",
+      "note_zh": "公开首日与次日复盘标题可核验中日总榜名次。",
+      "note_en": "Public first- and second-day recap titles verify the CN and JP overall ranks."
+    }
+  },
+  {
+    "id": "catalog-genshin-58-p1",
+    "ios_grossing_rank_range": { "CN": [9, null], "JP": [21, null], "US": [47, null], "KR": [42, null] },
+    "rank_evidence": {
+      "primary_url": "https://www.bilibili.com/video/BV1wzhAzGEbf/",
+      "cross_check_url": "https://www.bilibili.com/video/BV1FMhEzUE2M/",
+      "note_zh": "公开首波与次日复盘核验四国总榜观测。",
+      "note_en": "Public first-wave and second-day recaps verify the four-market overall-chart observations."
+    }
+  },
+  {
+    "id": "catalog-genshin-58-p2",
+    "ios_grossing_rank_range": { "CN": [18, null], "JP": [30, null] },
+    "rank_evidence": {
+      "primary_url": "https://www.bilibili.com/video/BV19beTzLEKA/",
+      "note_zh": "公开卡池复盘标题明确记录国服第 18、日服第 30。",
+      "note_en": "The public banner recap title explicitly reports CN #18 and JP #30."
+    }
+  },
+  {
+    "id": "catalog-genshin-60-p1",
+    "ios_grossing_rank_range": { "CN": [5, null], "JP": [8, null], "US": [31, null], "KR": [28, null] },
+    "rank_evidence": {
+      "primary_url": "https://www.bilibili.com/video/BV1c9HQz9EcG/",
+      "cross_check_url": "https://www.bilibili.com/video/BV1icH8zSESz/",
+      "note_zh": "周年庆第二波与首日复盘共同核验四国总榜观测。",
+      "note_en": "Anniversary second-wave and first-day recaps jointly verify the four-market overall-chart observations."
+    }
+  },
+  {
+    "id": "catalog-genshin-60-p2",
+    "ios_grossing_rank_range": { "CN": [12, null], "JP": [7, null] },
+    "rank_evidence": {
+      "primary_url": "https://www.bilibili.com/video/BV1RNHEz7EtW/",
+      "cross_check_url": "https://www.bilibili.com/video/BV1wNH4znEQ6/",
+      "note_zh": "公开首日与次日复盘标题可核验中日总榜名次。",
+      "note_en": "Public first- and second-day recap titles verify the CN and JP overall ranks."
+    }
+  },
+  {
+    "id": "catalog-genshin-61-p1",
+    "ios_grossing_rank_range": { "CN": [5, null], "JP": [9, null], "US": [41, null], "KR": [25, null] },
+    "rank_evidence": {
+      "primary_url": "https://www.bilibili.com/video/BV1easbzHEJJ/",
+      "cross_check_url": "https://www.bilibili.com/video/BV1LPsqzkEPP/",
+      "note_zh": "公开首波与首日复盘核验四国总榜观测。",
+      "note_en": "Public first-wave and first-day recaps verify the four-market overall-chart observations."
+    }
+  },
+  {
+    "id": "catalog-genshin-61-p2",
+    "ios_grossing_rank_range": { "CN": [28, null], "JP": [23, null] },
+    "rank_evidence": {
+      "primary_url": "https://www.bilibili.com/video/BV16QkmB3EJd/",
+      "note_zh": "公开卡池复盘标题明确记录国服第 28、日服第 23。",
+      "note_en": "The public banner recap title explicitly reports CN #28 and JP #23."
+    }
+  },
+  {
+    "id": "catalog-genshin-62-p1",
+    "ios_grossing_rank_range": { "CN": [6, null], "JP": [5, null], "US": [44, null], "KR": [34, null] },
+    "rank_evidence": {
+      "primary_url": "https://www.bilibili.com/video/BV1Pk2bBgEWL/",
+      "cross_check_url": "https://www.bilibili.com/video/BV1A7SYB9ET2/",
+      "note_zh": "首波与首日公开复盘结合，记录标题中各市场出现的最佳总榜名次。",
+      "note_en": "First-wave and first-day public recaps are combined, using the best overall rank stated for each market."
+    }
+  },
+  {
+    "id": "catalog-genshin-62-p2",
+    "ios_grossing_rank_range": { "CN": [16, null] },
+    "rank_evidence": {
+      "primary_url": "https://www.bilibili.com/video/BV1wQBVBzEfn/",
+      "note_zh": "公开卡池复盘标题明确记录国服第 16。",
+      "note_en": "The public banner recap title explicitly reports CN #16."
+    }
+  },
+  {
+    "id": "gi-63-p1",
+    "ios_grossing_rank_range": { "CN": [3, null], "JP": [1, null], "US": [11, null], "KR": [10, null] },
+    "rank_evidence": {
+      "primary_url": "https://www.bilibili.com/video/BV1mmrsBQEFQ/",
+      "cross_check_url": "https://www.bilibili.com/video/BV1bBrRBgEte/",
+      "note_zh": "首波、第二波和首日复盘交叉核验四国总榜峰值。",
+      "note_en": "First-wave, second-wave, and first-day recaps cross-check the four-market peak observations."
+    }
+  },
+  {
+    "id": "gi-63-p2",
+    "ios_grossing_rank_range": { "CN": [5, null] },
+    "rank_evidence": {
+      "primary_url": "https://www.bilibili.com/video/BV1L1f9BtEpE/",
+      "note_zh": "公开卡池复盘标题明确记录国服总榜第 5。",
+      "note_en": "The public banner recap title explicitly reports CN overall #5."
+    }
+  },
+  {
+    "id": "gi-64-p1",
+    "ios_grossing_rank_range": { "CN": [6, null], "JP": [6, null], "US": [24, null], "KR": [25, null] },
+    "rank_evidence": {
+      "primary_url": "https://www.bilibili.com/video/BV1NnfbBBEJY/",
+      "cross_check_url": "https://www.bilibili.com/video/BV18rfeBbE4E/",
+      "note_zh": "首波、第二波与最终复盘结合，记录标题中各市场出现的最佳总榜名次。",
+      "note_en": "First-wave, second-wave, and final recaps are combined, using the best overall rank stated for each market."
+    }
+  },
+  {
+    "id": "gi-64-p2",
+    "ios_grossing_rank_range": { "CN": [6, null] },
+    "rank_evidence": {
+      "primary_url": "https://www.bilibili.com/video/BV15JwZzkE7a/",
+      "note_zh": "公开复刻卡池复盘标题明确记录国服第 6。",
+      "note_en": "The public rerun-banner recap title explicitly reports CN #6."
+    }
+  },
+  {
+    "id": "gi-65-p1",
+    "ios_grossing_rank_range": { "CN": [5, null], "JP": [12, null], "US": [59, null], "KR": [48, null] },
+    "rank_evidence": {
+      "primary_url": "https://www.bilibili.com/video/BV1rGDWBFEe1/",
+      "cross_check_url": "https://www.bilibili.com/video/BV1SnDLBQEL5/",
+      "note_zh": "两次公开卡池复盘结合，记录标题中各市场出现的最佳总榜名次。",
+      "note_en": "Two public banner recaps are combined, using the best overall rank stated for each market."
+    }
+  },
+  {
+    "id": "gi-65-p2",
+    "ios_grossing_rank_range": { "CN": [11, null] },
+    "rank_evidence": {
+      "primary_url": "https://www.bilibili.com/video/BV12b9mBjEGK/",
+      "note_zh": "公开复刻卡池复盘标题明确记录国服第 11。",
+      "note_en": "The public rerun-banner recap title explicitly reports CN #11."
+    }
+  },
+  {
+    "id": "gi-66-p1",
+    "ios_grossing_rank_range": { "CN": [4, null], "JP": [9, null], "US": [41, null], "KR": [26, null] },
+    "rank_evidence": {
+      "primary_url": "https://www.bilibili.com/video/BV1fCLm6GEf2/",
+      "cross_check_url": "https://www.bilibili.com/video/BV1DdL16xEZg/",
+      "note_zh": "首波与第二波复盘结合，记录标题中各市场出现的最佳总榜名次。",
+      "note_en": "First- and second-wave recaps are combined, using the best overall rank stated for each market."
+    }
+  },
+  {
+    "id": "gi-66-p2",
+    "ios_grossing_rank_range": { "CN": [7, null] },
+    "rank_evidence": {
+      "primary_url": "https://www.bilibili.com/video/BV1vcED6JEmo/",
+      "cross_check_url": "https://www.bilibili.com/video/BV19JEm6zEmt/",
+      "note_zh": "半波与完整复盘结合；国服最佳总榜名次为第 7，其余市场因缺少完整波次不写入峰值。",
+      "note_en": "Half-wave and complete recaps are combined; CN reached #7, while other markets are omitted because complete-wave observations were unavailable."
+    }
+  },
+  {
+    "id": "gi-67-p1",
+    "ios_grossing_rank_range": { "CN": [3, null], "JP": [7, null], "US": [43, null], "KR": [30, null] },
+    "rank_evidence": {
+      "primary_url": "https://www.bilibili.com/video/BV1wmTe69E8A/",
+      "cross_check_url": "https://www.bilibili.com/video/BV1hZTz6HECB/",
+      "note_zh": "首波、第二波和首日复盘结合，记录标题中各市场出现的最佳总榜名次。",
+      "note_en": "First-wave, second-wave, and first-day recaps are combined, using the best overall rank stated for each market."
+    }
+  },
+  {
+    "id": "gi-67-p2",
+    "ios_grossing_rank_range": { "CN": [16, null], "JP": [30, null], "KR": [85, null] },
+    "rank_evidence": {
+      "primary_url": "https://www.bilibili.com/video/BV1DKg66oEJP/",
+      "cross_check_url": "https://www.bilibili.com/video/BV1CeKY6SE4u/",
+      "note_zh": "半波与首日复盘结合；记录公开标题中出现的最佳观测，最低名次留空。",
+      "note_en": "Half-wave and first-day recaps are combined; values are the best observations stated publicly, with lowest ranks left blank."
+    }
+  },
+
+  {
+    "id": "catalog-hsr-31-p2",
+    "ios_grossing_rank_range": { "CN": [12, null], "JP": [1, null], "KR": [7, null] },
+    "rank_evidence": {
+      "primary_url": "https://www.bilibili.com/video/BV1LBXwYgEXk/",
+      "cross_check_url": "https://www.bilibili.com/video/BV118QoYgEAp/",
+      "note_zh": "公开首日卡池复盘核验中、日、韩总榜最佳观测。",
+      "note_en": "Public first-day banner recaps verify the best CN, JP, and KR overall-chart observations."
+    }
+  },
+  {
+    "id": "catalog-hsr-32-p1",
+    "ios_grossing_rank_range": { "CN": [1, null], "JP": [1, null], "US": [11, null], "KR": [1, null] },
+    "rank_evidence": {
+      "primary_url": "https://www.bilibili.com/video/BV198dAYLEF8/",
+      "note_zh": "公开卡池复盘标题明确记录中、日、韩登顶及美服第 11。",
+      "note_en": "The public banner recap title explicitly reports #1 in CN, JP, and KR and US #11."
+    }
+  },
+  {
+    "id": "catalog-hsr-32-p2",
+    "ios_grossing_rank_range": { "CN": [15, null], "JP": [3, null], "KR": [12, null] },
+    "rank_evidence": {
+      "primary_url": "https://www.bilibili.com/video/BV1VRGbzpEJB/",
+      "cross_check_url": "https://www.bilibili.com/video/BV1UQGezfE8H/",
+      "note_zh": "两次公开复盘交叉核验中、日、韩总榜名次；没有超抖音的记录。",
+      "note_en": "Two public recaps cross-check the CN, JP, and KR overall ranks; there is no record of this banner exceeding Douyin."
+    }
+  },
+  {
+    "id": "catalog-hsr-33-p1",
+    "ios_grossing_rank_range": { "CN": [5, null], "JP": [1, null], "KR": [6, null] },
+    "rank_evidence": {
+      "primary_url": "https://www.bilibili.com/video/BV1FXJqz3E4B/",
+      "cross_check_url": "https://www.bilibili.com/video/BV12kJjz4EkJ/",
+      "note_zh": "首波、第二波和首日复盘结合，记录中日韩最佳总榜名次。",
+      "note_en": "First-wave, second-wave, and first-day recaps are combined for the best CN, JP, and KR overall ranks."
+    }
+  },
+  {
+    "id": "catalog-hsr-33-p2",
+    "ios_grossing_rank_range": { "CN": [22, null], "JP": [5, null], "KR": [14, null] },
+    "rank_evidence": {
+      "primary_url": "https://www.bilibili.com/video/BV14vMJzzEvQ/",
+      "note_zh": "公开首波复盘标题明确记录中日韩总榜名次。",
+      "note_en": "The public first-wave recap title explicitly reports the CN, JP, and KR overall ranks."
+    }
+  },
+  {
+    "id": "catalog-hsr-34-p1",
+    "ios_grossing_rank_range": { "CN": [1, null], "JP": [1, null], "US": [14, null], "KR": [2, null] },
+    "rank_evidence": {
+      "primary_url": "https://www.bilibili.com/video/BV1Bt3xzJErj/",
+      "cross_check_url": "https://www.bilibili.com/video/BV1k93YzyE6c/",
+      "note_zh": "公开首波与最终复盘交叉核验四国总榜峰值。",
+      "note_en": "Public first-wave and final recaps cross-check the four-market peak observations."
+    },
+    "app_line_observations": [
+      {
+        "app_id": "douyin",
+        "hours_above": 15,
+        "data_status": "public_video_summary",
+        "updated_at": "2026-07-16",
+        "evidence": {
+          "primary_url": "https://www.bilibili.com/video/BV14WNi6cE2S/",
+          "note_zh": "后续公开复盘标题明确回顾白厄卡池登顶并超抖音 15 小时。",
+          "note_en": "A later public recap title explicitly recalls that the Phainon banner topped the chart and stayed above Douyin for 15 hours."
+        }
+      }
+    ]
+  },
+  {
+    "id": "catalog-hsr-34-p2",
+    "ios_grossing_rank_range": { "CN": [26, null], "JP": [8, null], "KR": [14, null] },
+    "rank_evidence": {
+      "primary_url": "https://www.bilibili.com/video/BV1J58AzvEcP/",
+      "note_zh": "公开首波复盘标题明确记录中日韩总榜名次。",
+      "note_en": "The public first-wave recap title explicitly reports the CN, JP, and KR overall ranks."
+    }
+  },
+  {
+    "id": "catalog-hsr-35-p1",
+    "ios_grossing_rank_range": { "CN": [16, null], "JP": [4, null], "US": [50, null], "KR": [9, null] },
+    "rank_evidence": {
+      "primary_url": "https://www.bilibili.com/video/BV1Brbaz1ELn/",
+      "cross_check_url": "https://www.bilibili.com/video/BV1b3bzzJEZR/",
+      "note_zh": "首波与首日复盘结合，记录标题中各市场出现的最佳总榜名次。",
+      "note_en": "First-wave and first-day recaps are combined, using the best overall rank stated for each market."
+    }
+  },
+  {
+    "id": "catalog-hsr-35-p2",
+    "ios_grossing_rank_range": { "CN": [16, null], "JP": [1, null], "KR": [9, null] },
+    "rank_evidence": {
+      "primary_url": "https://www.bilibili.com/video/BV1eWaPzNE2D/",
+      "cross_check_url": "https://www.bilibili.com/video/BV1JkauztEXv/",
+      "note_zh": "首波与首日复盘结合，记录中日韩最佳总榜名次。",
+      "note_en": "First-wave and first-day recaps are combined for the best CN, JP, and KR overall ranks."
+    }
+  },
+  {
+    "id": "catalog-hsr-36-p1",
+    "ios_grossing_rank_range": { "CN": [5, null], "JP": [1, null], "KR": [2, null] },
+    "rank_evidence": {
+      "primary_url": "https://www.bilibili.com/video/BV1agnWzxEr5/",
+      "cross_check_url": "https://www.bilibili.com/video/BV18RnYz7Ekj/",
+      "note_zh": "首日与最终公开复盘结合，记录中日韩最佳总榜名次。",
+      "note_en": "First-day and final public recaps are combined for the best CN, JP, and KR overall ranks."
+    }
+  },
+  {
+    "id": "catalog-hsr-36-p2",
+    "ios_grossing_rank_range": { "CN": [35, null], "JP": [13, null], "KR": [31, null] },
+    "rank_evidence": {
+      "primary_url": "https://www.bilibili.com/video/BV1rT4qz4Eyi/",
+      "note_zh": "同日公开联合复盘标题明确记录中日韩总榜名次。",
+      "note_en": "A same-day public joint recap title explicitly reports the CN, JP, and KR overall ranks."
+    }
+  },
+  {
+    "id": "catalog-hsr-37-p1",
+    "ios_grossing_rank_range": { "CN": [1, null], "JP": [1, null], "US": [15, null], "KR": [1, null] },
+    "rank_evidence": {
+      "primary_url": "https://www.bilibili.com/video/BV1UE1xBNECY/",
+      "note_zh": "公开卡池复盘标题明确记录中日韩登顶及美服第 15。",
+      "note_en": "The public banner recap title explicitly reports #1 in CN, JP, and KR and US #15."
+    }
+  },
+  {
+    "id": "catalog-hsr-37-p2",
+    "ios_grossing_rank_range": { "CN": [24, null] },
+    "rank_evidence": {
+      "primary_url": "https://www.bilibili.com/video/BV13nUqB5Ecs/",
+      "note_zh": "公开联合复盘标题明确记录该复刻池国服峰值第 24。",
+      "note_en": "The public joint recap title explicitly reports CN peak #24 for this rerun banner."
+    }
+  },
+  {
+    "id": "catalog-hsr-38-p1",
+    "ios_grossing_rank_range": { "CN": [11, null], "JP": [5, null], "US": [60, null], "KR": [17, null] },
+    "rank_evidence": {
+      "primary_url": "https://www.bilibili.com/video/BV1KXq3BTEbG/",
+      "cross_check_url": "https://www.bilibili.com/video/BV1paqJBXEaG/",
+      "note_zh": "首波、第二波与首日复盘结合，记录标题中各市场出现的最佳总榜名次。",
+      "note_en": "First-wave, second-wave, and first-day recaps are combined, using the best overall rank stated for each market."
+    }
+  },
+  {
+    "id": "hsr-38-p3",
+    "ios_grossing_rank_range": { "CN": [115, null], "JP": [47, null] },
+    "rank_evidence": {
+      "primary_url": "https://www.bilibili.com/video/BV19vzdB5EPS/",
+      "cross_check_url": "https://www.bilibili.com/video/BV1RD67BkESj/",
+      "note_zh": "两次公开复盘标题记录国服第 115、日服第 47；这是授权来源深榜观测，前端仍按产品口径将 100 名外显示为“100 名开外”。",
+      "note_en": "Two public recaps report CN #115 and JP #47; the deep CN observation is retained as evidence while the UI follows the product rule of displaying ranks beyond 100 as “outside Top 100.”"
+    }
+  },
+  {
+    "id": "hsr-40-p1",
+    "ios_grossing_rank_range": { "CN": [14, null], "JP": [1, null], "US": [48, null], "KR": [10, null] },
+    "rank_evidence": {
+      "primary_url": "https://www.bilibili.com/video/BV1nMcJzkE6D/",
+      "cross_check_url": "https://www.bilibili.com/video/BV1bnPFzCE8M/",
+      "note_zh": "版本内并行卡池复盘结合，记录游戏整体在各市场出现的最佳总榜观测。",
+      "note_en": "Recaps for parallel banners in this version are combined to record the game's best overall-chart observations in each market."
+    }
+  },
+  {
+    "id": "hsr-40-p2",
+    "ios_grossing_rank_range": { "CN": [14, null], "JP": [1, null], "US": [48, null], "KR": [10, null] },
+    "rank_evidence": {
+      "primary_url": "https://www.bilibili.com/video/BV1nMcJzkE6D/",
+      "cross_check_url": "https://www.bilibili.com/video/BV1bnPFzCE8M/",
+      "note_zh": "该期与上半并行开放；榜单是游戏级观测，因此复用同一版本窗口的最佳总榜值。",
+      "note_en": "This phase ran in parallel with Phase 1; rankings are game-level observations, so both use the same best values from the shared version window."
+    }
+  },
+  {
+    "id": "hsr-41-p1",
+    "ios_grossing_rank_range": { "CN": [26, null], "JP": [10, null], "US": [64, null], "KR": [23, null] },
+    "rank_evidence": {
+      "primary_url": "https://www.bilibili.com/video/BV1wxQSBgEGu/",
+      "cross_check_url": "https://www.bilibili.com/video/BV1kHQmBNEJa/",
+      "note_zh": "第一波和第二波公开复盘结合，记录各市场出现的最佳总榜名次。",
+      "note_en": "First- and second-wave public recaps are combined, using the best overall rank stated for each market."
+    }
+  },
+  {
+    "id": "hsr-41-p2",
+    "ios_grossing_rank_range": { "CN": [26, null], "JP": [10, null], "US": [64, null], "KR": [23, null] },
+    "rank_evidence": {
+      "primary_url": "https://www.bilibili.com/video/BV1wxQSBgEGu/",
+      "cross_check_url": "https://www.bilibili.com/video/BV1kHQmBNEJa/",
+      "note_zh": "该期与上半并行开放；榜单是游戏级观测，因此复用同一窗口的最佳总榜值。",
+      "note_en": "This phase ran in parallel with Phase 1; rankings are game-level observations, so both use the same best values from the shared window."
+    }
+  },
+  {
+    "id": "hsr-42-p1",
+    "ios_grossing_rank_range": { "CN": [2, null], "JP": [1, null], "US": [17, null], "KR": [2, null] },
+    "rank_evidence": {
+      "primary_url": "https://www.bilibili.com/video/BV1bsopB9Env/",
+      "cross_check_url": "https://www.bilibili.com/video/BV1thosBtE2F/",
+      "note_zh": "第一波与第二波公开复盘交叉核验四国总榜峰值。",
+      "note_en": "First- and second-wave public recaps cross-check the four-market peak observations."
+    }
+  },
+  {
+    "id": "hsr-42-p2",
+    "ios_grossing_rank_range": { "CN": [9, null], "JP": [1, null], "KR": [8, null] },
+    "rank_evidence": {
+      "primary_url": "https://www.bilibili.com/video/BV1Xb5m6fEM5/",
+      "cross_check_url": "https://www.bilibili.com/video/BV1Gs5169Eu6/",
+      "note_zh": "第一波与第二波公开复盘结合，记录中日韩最佳总榜名次。",
+      "note_en": "First- and second-wave public recaps are combined for the best CN, JP, and KR overall ranks."
+    }
+  },
+  {
+    "id": "hsr-43-p1",
+    "ios_grossing_rank_range": { "CN": [11, null], "JP": [2, null], "US": [27, null], "KR": [10, null] },
+    "rank_evidence": {
+      "primary_url": "https://www.bilibili.com/video/BV1vVVZ6dE8i/",
+      "cross_check_url": "https://www.bilibili.com/video/BV1qNVd6WE4W/",
+      "note_zh": "第一波与第二波公开复盘结合，记录四国最佳总榜名次。",
+      "note_en": "First- and second-wave public recaps are combined for the best four-market overall ranks."
+    }
+  },
+  {
+    "id": "hsr-43-p2",
+    "ios_grossing_rank_range": { "CN": [32, null], "JP": [10, null], "KR": [30, null] },
+    "rank_evidence": {
+      "primary_url": "https://www.bilibili.com/video/BV1yEjo6LE68/",
+      "cross_check_url": "https://www.bilibili.com/video/BV1aBjR6XEqt/",
+      "note_zh": "第一波与第二波公开复盘结合，记录中日韩最佳总榜名次。",
+      "note_en": "First- and second-wave public recaps are combined for the best CN, JP, and KR overall ranks."
+    }
+  },
+  {
+    "id": "hsr-44-p1",
+    "ios_grossing_rank_range": { "CN": [5, null], "JP": [2, null], "US": [34, null], "KR": [3, null] },
+    "rank_evidence": {
+      "primary_url": "https://www.bilibili.com/video/BV14WNi6cE2S/",
+      "cross_check_url": "https://www.bilibili.com/video/BV1QXNe6YEDe/",
+      "note_zh": "第一波与第二波公开复盘结合，记录四国最佳总榜名次。",
+      "note_en": "First- and second-wave public recaps are combined for the best four-market overall ranks."
+    }
+  },
+  {
+    "id": "hsr-44-p2",
+    "ios_grossing_rank_range": { "CN": [16, null], "JP": [3, null], "KR": [11, null] },
+    "rank_evidence": {
+      "primary_url": "https://www.bilibili.com/video/BV1fEge6WEK6/",
+      "cross_check_url": "https://www.bilibili.com/video/BV12W3T6FE8b/",
+      "note_zh": "第一波、第二波与最终公开复盘结合，记录中日韩最佳总榜名次。",
+      "note_en": "First-wave, second-wave, and final public recaps are combined for the best CN, JP, and KR overall ranks."
+    }
+  },
+
+  {
+    "id": "catalog-zzz-17-p2",
+    "ios_grossing_rank_range": { "CN": [38, null], "JP": [9, null], "KR": [18, null] },
+    "rank_evidence": {
+      "primary_url": "https://www.bilibili.com/video/BV1vFErzuEsg/",
+      "note_zh": "公开首日复盘标题明确记录中日韩总榜名次。",
+      "note_en": "The public first-day recap title explicitly reports the CN, JP, and KR overall ranks."
+    }
+  },
+  {
+    "id": "catalog-zzz-20-p1",
+    "ios_grossing_rank_range": { "CN": [4, null], "JP": [1, null] },
+    "rank_evidence": {
+      "primary_url": "https://www.bilibili.com/video/BV1HbT5zLEn2/",
+      "note_zh": "周年庆首日公开复盘标题明确记录国服第 4、日服登顶。",
+      "note_en": "The public anniversary first-day recap title explicitly reports CN #4 and JP #1."
+    }
+  },
+  {
+    "id": "catalog-zzz-20-p2",
+    "ios_grossing_rank_range": { "CN": [23, null], "JP": [7, null], "KR": [13, null] },
+    "rank_evidence": {
+      "primary_url": "https://www.bilibili.com/video/BV1ytKHzNELZ/",
+      "cross_check_url": "https://www.bilibili.com/video/BV1XPKQzAEGS/",
+      "note_zh": "首波与首日复盘结合，记录中日韩标题中出现的最佳总榜名次。",
+      "note_en": "First-wave and first-day recaps are combined, using the best CN, JP, and KR overall ranks stated in their titles."
+    }
+  },
+  {
+    "id": "catalog-zzz-21-p1",
+    "ios_grossing_rank_range": { "CN": [10, null], "JP": [2, null] },
+    "rank_evidence": {
+      "primary_url": "https://www.bilibili.com/video/BV1YbgwzqEgs/",
+      "note_zh": "公开首日复盘标题明确记录国服第 10、日服第 2。",
+      "note_en": "The public first-day recap title explicitly reports CN #10 and JP #2."
+    }
+  },
+  {
+    "id": "catalog-zzz-21-p2",
+    "ios_grossing_rank_range": { "CN": [19, null], "JP": [6, null], "KR": [9, null] },
+    "rank_evidence": {
+      "primary_url": "https://www.bilibili.com/video/BV1DrtKzdEzZ/",
+      "cross_check_url": "https://www.bilibili.com/video/BV1jrtczHEvM/",
+      "note_zh": "首波与首日复盘结合，记录中日韩标题中出现的最佳总榜名次。",
+      "note_en": "First-wave and first-day recaps are combined, using the best CN, JP, and KR overall ranks stated in their titles."
+    }
+  },
+  {
+    "id": "catalog-zzz-22-p2",
+    "ios_grossing_rank_range": { "CN": [57, null], "JP": [17, null], "KR": [32, null] },
+    "rank_evidence": {
+      "primary_url": "https://www.bilibili.com/video/BV1agnWzxEr5/",
+      "cross_check_url": "https://www.bilibili.com/video/BV1TuJRzeEh9/",
+      "note_zh": "首波与后续公开复盘结合，记录中日韩标题中出现的最佳总榜名次。",
+      "note_en": "First-wave and later public recaps are combined, using the best CN, JP, and KR overall ranks stated in their titles."
+    }
+  },
+  {
+    "id": "catalog-zzz-23-p1",
+    "ios_grossing_rank_range": { "CN": [24, null], "JP": [16, null], "KR": [12, null] },
+    "rank_evidence": {
+      "primary_url": "https://www.bilibili.com/video/BV1rT4qz4Eyi/",
+      "note_zh": "公开联合复盘标题明确记录中日韩总榜名次。",
+      "note_en": "The public joint recap title explicitly reports the CN, JP, and KR overall ranks."
+    }
+  },
+  {
+    "id": "catalog-zzz-23-p2",
+    "ios_grossing_rank_range": { "CN": [73, null], "JP": [19, null], "KR": [34, null] },
+    "rank_evidence": {
+      "primary_url": "https://www.bilibili.com/video/BV1bo1WBhEKQ/",
+      "note_zh": "公开联合复盘标题明确记录中日韩总榜名次。",
+      "note_en": "The public joint recap title explicitly reports the CN, JP, and KR overall ranks."
+    }
+  },
+  {
+    "id": "catalog-zzz-24-p1",
+    "ios_grossing_rank_range": { "CN": [35, null], "JP": [17, null], "KR": [26, null] },
+    "rank_evidence": {
+      "primary_url": "https://www.bilibili.com/video/BV13nUqB5Ecs/",
+      "cross_check_url": "https://www.bilibili.com/video/BV1YNUhBcEgQ/",
+      "note_zh": "首波与最终公开复盘结合，记录中日韩标题中出现的最佳总榜名次。",
+      "note_en": "First-wave and final public recaps are combined, using the best CN, JP, and KR overall ranks stated in their titles."
+    }
+  },
+  {
+    "id": "catalog-zzz-24-p2",
+    "ios_grossing_rank_range": { "CN": [79, null], "JP": [21, null], "KR": [56, null] },
+    "rank_evidence": {
+      "primary_url": "https://www.bilibili.com/video/BV1paqJBXEaG/",
+      "cross_check_url": "https://www.bilibili.com/video/BV1zGq5BwEwr/",
+      "note_zh": "首波与后续公开复盘结合，记录中日韩标题中出现的最佳总榜名次。",
+      "note_en": "First-wave and later public recaps are combined, using the best CN, JP, and KR overall ranks stated in their titles."
+    }
+  },
+  {
+    "id": "zzz-31-p1",
+    "ios_grossing_rank_range": { "CN": [3, null], "JP": [3, null], "US": [31, null], "KR": [3, null] },
+    "rank_evidence": {
+      "primary_url": "https://www.bilibili.com/video/BV1Nh3a6aEuZ/",
+      "cross_check_url": "https://www.bilibili.com/video/BV1VR3n6jEH8/",
+      "note_zh": "二周年第一波、第二波与最终公开复盘结合，记录四国最佳总榜名次。",
+      "note_en": "Anniversary first-wave, second-wave, and final public recaps are combined for the best four-market overall ranks."
+    }
+  },
+
+  {
+    "id": "catalog-wuwa-12-p1",
+    "ios_grossing_rank_range": { "CN": [29, null] },
+    "rank_evidence": {
+      "primary_url": "https://www.bilibili.com/video/BV1ox4y1x7jE/",
+      "cross_check_url": "https://www.bilibili.com/video/BV1pH4y1c7Gd/",
+      "note_zh": "第一波与首日公开复盘可核验国服总榜第 29；最低名次留空。",
+      "note_en": "First-wave and first-day public recaps verify CN overall #29; the lowest rank remains blank."
+    }
+  },
+  {
+    "id": "catalog-wuwa-12-p2",
+    "ios_grossing_rank_range": { "CN": [56, null], "KR": [38, null] },
+    "rank_evidence": {
+      "primary_url": "https://www.bilibili.com/video/BV1jZpeerEHS/",
+      "cross_check_url": "https://www.bilibili.com/video/BV1D7pteyEat/",
+      "note_zh": "第一波与首日公开复盘结合，记录国服第 56、韩服第 38。",
+      "note_en": "First-wave and first-day public recaps are combined, reporting CN #56 and KR #38."
+    }
+  },
+  {
+    "id": "catalog-wuwa-13-p1",
+    "ios_grossing_rank_range": { "CN": [24, null], "JP": [13, null], "KR": [2, null] },
+    "rank_evidence": {
+      "primary_url": "https://www.bilibili.com/video/BV1HBxUeaEqw/",
+      "cross_check_url": "https://www.bilibili.com/video/BV1TqxCeZErC/",
+      "note_zh": "第一波与首日公开复盘结合，记录中日韩标题中出现的最佳总榜名次。",
+      "note_en": "First-wave and first-day public recaps are combined, using the best CN, JP, and KR overall ranks stated in their titles."
+    }
+  },
+  {
+    "id": "catalog-wuwa-13-p2",
+    "ios_grossing_rank_range": { "CN": [85, null], "JP": [58, null], "KR": [45, null] },
+    "rank_evidence": {
+      "primary_url": "https://www.bilibili.com/video/BV19NyrYdE26/",
+      "note_zh": "公开第一波复盘标题明确记录中日韩总榜名次。",
+      "note_en": "The public first-wave recap title explicitly reports the CN, JP, and KR overall ranks."
+    }
+  },
+  {
+    "id": "catalog-wuwa-14-p1",
+    "ios_grossing_rank_range": { "CN": [9, null], "JP": [10, null], "KR": [5, null] },
+    "rank_evidence": {
+      "primary_url": "https://www.bilibili.com/video/BV1vNUVYoEVC/",
+      "cross_check_url": "https://www.bilibili.com/video/BV1fCmXYgEKd/",
+      "note_zh": "第一波、第二波与首日公开复盘结合，记录中日韩最佳总榜名次。",
+      "note_en": "First-wave, second-wave, and first-day public recaps are combined for the best CN, JP, and KR overall ranks."
+    }
+  },
+  {
+    "id": "catalog-wuwa-14-p2",
+    "ios_grossing_rank_range": { "CN": [85, null], "JP": [41, null], "KR": [32, null] },
+    "rank_evidence": {
+      "primary_url": "https://www.bilibili.com/video/BV1KmqYY6EQ2/",
+      "cross_check_url": "https://www.bilibili.com/video/BV1qWqhYEEtd/",
+      "note_zh": "第一波与首日公开复盘结合，记录中日韩标题中出现的最佳总榜名次；美服未上榜不伪造具体值。",
+      "note_en": "First-wave and first-day public recaps are combined for the best CN, JP, and KR ranks; the unranked US result is not converted into a fabricated value."
+    }
+  },
+  {
+    "id": "catalog-wuwa-20-p1",
+    "ios_grossing_rank_range": { "CN": [16, null], "US": [129, null], "KR": [5, null] },
+    "rank_evidence": {
+      "primary_url": "https://www.bilibili.com/video/BV1Ks6zYhEWT/",
+      "cross_check_url": "https://www.bilibili.com/video/BV1R7BXBNEcr/",
+      "note_zh": "公开首波及完整一波复盘结合，记录标题中出现的最佳总榜观测；美服深榜值仅作来源事实保存。",
+      "note_en": "Public first-wave and complete-wave recaps are combined for the best stated observations; the deep US value is retained only as a sourced fact."
+    }
+  },
+  {
+    "id": "catalog-wuwa-20-p2",
+    "ios_grossing_rank_range": { "CN": [23, null], "JP": [6, null], "KR": [4, null] },
+    "rank_evidence": {
+      "primary_url": "https://www.bilibili.com/video/BV1bhf7YQEjq/",
+      "cross_check_url": "https://www.bilibili.com/video/BV1WdfqYTER3/",
+      "note_zh": "第一波与首日公开复盘结合，记录中日韩标题中出现的最佳总榜名次。",
+      "note_en": "First-wave and first-day public recaps are combined, using the best CN, JP, and KR overall ranks stated in their titles."
+    }
+  },
+  {
+    "id": "catalog-wuwa-21-p1",
+    "ios_grossing_rank_range": { "CN": [23, null], "JP": [13, null], "US": [116, null], "KR": [13, null] },
+    "rank_evidence": {
+      "primary_url": "https://www.bilibili.com/video/BV1h5KpeWEnd/",
+      "cross_check_url": "https://www.bilibili.com/video/BV1whKFe5ERH/",
+      "note_zh": "流水速报与最终复盘结合，记录各市场公开标题中出现的最佳观测；美服深榜值仅作来源事实保存。",
+      "note_en": "The ranking brief and final recap are combined, using the best stated observations; the deep US value is retained only as a sourced fact."
+    }
+  },
+  {
+    "id": "catalog-wuwa-21-p2",
+    "ios_grossing_rank_range": { "CN": [26, null], "JP": [11, null], "KR": [6, null] },
+    "rank_evidence": {
+      "primary_url": "https://www.bilibili.com/video/BV1RKRTYWEah/",
+      "cross_check_url": "https://www.bilibili.com/video/BV1A1RPYcEXb/",
+      "note_zh": "两个独立公开作者的首日复盘交叉核验中日韩总榜观测。",
+      "note_en": "First-day recaps from two independent public creators cross-check the CN, JP, and KR overall-chart observations."
+    }
+  },
+  {
+    "id": "catalog-wuwa-22-p1",
+    "ios_grossing_rank_range": { "CN": [21, null], "JP": [7, null], "US": [88, null], "KR": [10, null] },
+    "rank_evidence": {
+      "primary_url": "https://www.bilibili.com/video/BV1K4ZjYkEuY/",
+      "cross_check_url": "https://www.bilibili.com/video/BV1ZqZGYJEc4/",
+      "note_zh": "首波与首日复盘结合，并由第二公开作者的速报交叉核验。",
+      "note_en": "First-wave and first-day recaps are combined and cross-checked against a ranking brief from a second public creator."
+    }
+  },
+  {
+    "id": "catalog-wuwa-22-p2",
+    "ios_grossing_rank_range": { "CN": [27, null], "JP": [11, null], "KR": [12, null] },
+    "rank_evidence": {
+      "primary_url": "https://www.bilibili.com/video/BV1dw5zzsE4C/",
+      "cross_check_url": "https://www.bilibili.com/video/BV1Um5Yz8Ego/",
+      "note_zh": "两个独立公开作者的复盘与速报交叉核验中日韩总榜观测。",
+      "note_en": "A recap and ranking brief from two independent public creators cross-check the CN, JP, and KR overall-chart observations."
+    }
+  },
+  {
+    "id": "catalog-wuwa-23-p1",
+    "ios_grossing_rank_range": { "CN": [8, null], "JP": [4, null], "US": [48, null], "KR": [4, null] },
+    "rank_evidence": {
+      "primary_url": "https://www.bilibili.com/video/BV1YAG1zwEYm/",
+      "cross_check_url": "https://www.bilibili.com/video/BV1i7G2z6Esc/",
+      "note_zh": "第一波与第二波复盘结合，并由第二公开作者的四国速报交叉核验。",
+      "note_en": "First- and second-wave recaps are combined and cross-checked against a four-market brief from a second public creator."
+    }
+  },
+  {
+    "id": "catalog-wuwa-23-p2",
+    "ios_grossing_rank_range": { "CN": [18, null], "JP": [9, null], "KR": [8, null] },
+    "rank_evidence": {
+      "primary_url": "https://www.bilibili.com/video/BV1BUJHzZE7F/",
+      "cross_check_url": "https://www.bilibili.com/video/BV1GdJJzLErp/",
+      "note_zh": "第一波与第二波复盘结合，并由第二公开作者的速报交叉核验。",
+      "note_en": "First- and second-wave recaps are combined and cross-checked against a ranking brief from a second public creator."
+    }
+  },
+  {
+    "id": "catalog-wuwa-25-p1",
+    "ios_grossing_rank_range": { "CN": [16, null], "JP": [11, null], "US": [96, null], "KR": [13, null] },
+    "rank_evidence": {
+      "primary_url": "https://www.bilibili.com/video/BV1PEbUziEiT/",
+      "cross_check_url": "https://www.bilibili.com/video/BV1ErbCzLEJJ/",
+      "note_zh": "第一波、第二波与首日复盘结合，记录各市场标题中出现的最佳总榜名次。",
+      "note_en": "First-wave, second-wave, and first-day recaps are combined, using the best overall rank stated for each market."
+    },
+    "app_line_observations": [
+      {
+        "app_id": "baidu_netdisk",
+        "hours_above": 21,
+        "data_status": "public_video_summary",
+        "updated_at": "2025-07-25",
+        "evidence": {
+          "primary_url": "https://www.bilibili.com/video/BV1HRb9zjE7H/",
+          "note_zh": "“全数据观察”第 2 天总结标题明确记录国服超网盘线 21 小时；该作者同时单独使用“夸克”称呼另一条网盘线，因此此处归入百度网盘。",
+          "note_en": "The Full Data Observation day-two title explicitly reports 21 hours above the netdisk line; the creator separately names Quark for the other netdisk line, so this is mapped to Baidu Netdisk."
+        }
+      }
+    ]
+  },
+  {
+    "id": "catalog-wuwa-25-p2",
+    "ios_grossing_rank_range": { "CN": [67, null], "JP": [34, null], "KR": [23, null] },
+    "rank_evidence": {
+      "primary_url": "https://www.bilibili.com/video/BV1MobzzUEVL/",
+      "note_zh": "公开第一波复盘标题明确记录中日韩总榜名次。",
+      "note_en": "The public first-wave recap title explicitly reports the CN, JP, and KR overall ranks."
+    }
+  },
+  {
+    "id": "catalog-wuwa-26-p1",
+    "ios_grossing_rank_range": { "CN": [18, null], "JP": [16, null], "US": [88, null], "KR": [10, null] },
+    "rank_evidence": {
+      "primary_url": "https://www.bilibili.com/video/BV1nEh1zdEF5/",
+      "cross_check_url": "https://www.bilibili.com/video/BV1Fnh1zxEMr/",
+      "note_zh": "两个独立公开作者的四国首波速报交叉核验。",
+      "note_en": "Four-market first-wave briefs from two independent public creators cross-check these observations."
+    },
+    "app_line_observations": [
+      {
+        "app_id": "baidu_netdisk",
+        "hours_above": 33,
+        "data_status": "public_video_summary",
+        "updated_at": "2025-08-31",
+        "evidence": {
+          "primary_url": "https://www.bilibili.com/video/BV1tDhBzDELL/",
+          "note_zh": "“全数据观察”第 3 天总结标题明确记录国服移动端超网盘线 33 小时；按该作者术语归入百度网盘。",
+          "note_en": "The Full Data Observation day-three title explicitly reports 33 hours above the netdisk line; under that creator's terminology this maps to Baidu Netdisk."
+        }
+      }
+    ]
+  },
+  {
+    "id": "catalog-wuwa-26-p2",
+    "ios_grossing_rank_range": { "CN": [13, null], "JP": [10, null], "KR": [5, null] },
+    "rank_evidence": {
+      "primary_url": "https://www.bilibili.com/video/BV15hptzLE9P/",
+      "cross_check_url": "https://www.bilibili.com/video/BV13qptz3Evi/",
+      "note_zh": "第二波复盘与第二公开作者的首波速报结合，记录中日韩最佳总榜名次；没有把云游戏排名误作美服排名。",
+      "note_en": "A second-wave recap and a first-wave brief from a second creator are combined for the best CN, JP, and KR overall ranks; the cloud-game rank is not misclassified as a US rank."
+    },
+    "app_line_observations": [
+      {
+        "app_id": "netease_music",
+        "hours_above": 15,
+        "data_status": "public_video_summary",
+        "updated_at": "2025-09-18",
+        "evidence": {
+          "primary_url": "https://www.bilibili.com/video/BV1eJWNzEEab/",
+          "note_zh": "“全数据观察”第 2 天总结标题明确记录国服超云音乐 15 小时。",
+          "note_en": "The Full Data Observation day-two title explicitly reports 15 hours above NetEase Cloud Music."
+        }
+      },
+      {
+        "app_id": "baidu_netdisk",
+        "hours_above": 42,
+        "data_status": "public_video_summary",
+        "updated_at": "2025-09-19",
+        "evidence": {
+          "primary_url": "https://www.bilibili.com/video/BV1iUWGzrEJJ/",
+          "note_zh": "“全数据观察”第 3 天总结标题明确记录国服超网盘 42 小时；按该作者术语归入百度网盘。",
+          "note_en": "The Full Data Observation day-three title explicitly reports 42 hours above the netdisk line; under that creator's terminology this maps to Baidu Netdisk."
+        }
+      }
+    ]
+  },
+  {
+    "id": "catalog-wuwa-27-p1",
+    "ios_grossing_rank_range": { "CN": [26, null], "JP": [12, null], "KR": [12, null] },
+    "rank_evidence": {
+      "primary_url": "https://www.bilibili.com/video/BV1jL45zXEq5/",
+      "cross_check_url": "https://www.bilibili.com/video/BV1GhxyzcE4q/",
+      "note_zh": "首日复盘与第二公开作者的首波速报结合，记录中日韩最佳总榜名次。",
+      "note_en": "A first-day recap and a first-wave brief from a second public creator are combined for the best CN, JP, and KR overall ranks."
+    }
+  },
+  {
+    "id": "catalog-wuwa-27-p2",
+    "ios_grossing_rank_range": { "CN": [25, null], "JP": [21, null], "KR": [11, null] },
+    "rank_evidence": {
+      "primary_url": "https://www.bilibili.com/video/BV1eu1NBDE97/",
+      "cross_check_url": "https://www.bilibili.com/video/BV1tsyYBnEmw/",
+      "note_zh": "首日复盘与第二公开作者的首波速报结合，记录中日韩最佳总榜名次。",
+      "note_en": "A first-day recap and a first-wave brief from a second public creator are combined for the best CN, JP, and KR overall ranks."
+    },
+    "app_line_observations": [
+      {
+        "app_id": "quark",
+        "hours_above": 27,
+        "data_status": "public_video_summary",
+        "updated_at": "2025-11-01",
+        "evidence": {
+          "primary_url": "https://www.bilibili.com/video/BV17Q1uBBEez/",
+          "note_zh": "“全数据观察”第 2 天总结标题明确记录国服超夸克 27 小时。",
+          "note_en": "The Full Data Observation day-two title explicitly reports 27 hours above Quark."
+        }
+      }
+    ]
+  },
+  {
+    "id": "catalog-wuwa-28-p1",
+    "ios_grossing_rank_range": { "CN": [17, null], "JP": [3, null], "US": [115, null], "KR": [4, null] },
+    "rank_evidence": {
+      "primary_url": "https://www.bilibili.com/video/BV1bzyuBXEXs/",
+      "cross_check_url": "https://www.bilibili.com/video/BV1LvywBVEez/",
+      "note_zh": "首日复盘与第二公开作者的四国首波速报结合；美服深榜值仅作来源事实保存。",
+      "note_en": "A first-day recap and a four-market first-wave brief from a second creator are combined; the deep US value is retained only as a sourced fact."
+    },
+    "app_line_observations": [
+      {
+        "app_id": "baidu_netdisk",
+        "hours_above": 18,
+        "data_status": "public_video_summary",
+        "updated_at": "2025-11-22",
+        "evidence": {
+          "primary_url": "https://www.bilibili.com/video/BV1o5UEBvEcS/",
+          "note_zh": "“全数据观察”第 2 天总结标题明确记录国服超网盘 18 小时；按该作者术语归入百度网盘。",
+          "note_en": "The Full Data Observation day-two title explicitly reports 18 hours above the netdisk line; under that creator's terminology this maps to Baidu Netdisk."
+        }
+      },
+      {
+        "app_id": "quark",
+        "hours_above": 51,
+        "data_status": "public_video_summary",
+        "updated_at": "2025-11-23",
+        "evidence": {
+          "primary_url": "https://www.bilibili.com/video/BV13fUxBUE1w/",
+          "note_zh": "“全数据观察”第 3 天总结标题明确记录国服超夸克 51 小时。",
+          "note_en": "The Full Data Observation day-three title explicitly reports 51 hours above Quark."
+        }
+      }
+    ]
+  },
+  {
+    "id": "catalog-wuwa-28-p2",
+    "ios_grossing_rank_range": { "CN": [27, null], "JP": [13, null], "KR": [14, null] },
+    "rank_evidence": {
+      "primary_url": "https://www.bilibili.com/video/BV12imGBAEkF/",
+      "cross_check_url": "https://www.bilibili.com/video/BV141mTBQEpX/",
+      "note_zh": "两个独立公开作者的首波与首日复盘交叉核验中日韩总榜观测。",
+      "note_en": "First-wave and first-day recaps from two independent public creators cross-check the CN, JP, and KR observations."
+    }
+  },
+  {
+    "id": "catalog-wuwa-30-p1",
+    "ios_grossing_rank_range": { "CN": [13, null], "JP": [11, null], "US": [100, null], "KR": [8, null] },
+    "rank_evidence": {
+      "primary_url": "https://www.bilibili.com/video/BV1UiBoBBErX/",
+      "cross_check_url": "https://www.bilibili.com/video/BV1R7BXBNEcr/",
+      "note_zh": "最终首日复盘与第二公开作者的完整一波速报结合，记录四国最佳总榜名次。",
+      "note_en": "A final first-day recap and a complete-wave brief from a second creator are combined for the best four-market overall ranks."
+    },
+    "app_line_observations": [
+      {
+        "app_id": "baidu_netdisk",
+        "hours_above": 27,
+        "data_status": "public_video_summary",
+        "updated_at": "2025-12-27",
+        "evidence": {
+          "primary_url": "https://www.bilibili.com/video/BV1c5BiBPEkG/",
+          "note_zh": "“全数据观察”第 2 天总结标题明确记录移动端超网盘 27 小时；按该作者术语归入百度网盘。",
+          "note_en": "The Full Data Observation day-two title explicitly reports 27 hours above the netdisk line; under that creator's terminology this maps to Baidu Netdisk."
+        }
+      }
+    ]
+  },
+  {
+    "id": "ww-35-p2",
+    "ios_grossing_rank_range": { "CN": [15, null], "JP": [13, null], "KR": [3, null] },
+    "rank_evidence": {
+      "primary_url": "https://www.bilibili.com/video/BV1sS3h68Eev/",
+      "cross_check_url": "https://www.bilibili.com/video/BV1uY346REFe/",
+      "note_zh": "第一波、第二波与首日复盘结合，记录中日韩最佳总榜名次。",
+      "note_en": "First-wave, second-wave, and first-day recaps are combined for the best CN, JP, and KR overall ranks."
+    }
+  },
+
+  {
+    "id": "ef-13-p1",
+    "ios_grossing_rank_range": { "CN": [134, null] },
+    "rank_evidence": {
+      "primary_url": "https://www.bilibili.com/video/BV1RH7C6ZEWN/",
+      "note_zh": "公开半波复盘标题记录国服第 134；这是深榜来源事实，前端仍按产品口径显示为“100 名开外”。",
+      "note_en": "A public half-wave recap reports CN #134; the deep-chart fact is retained while the UI follows the product rule of displaying it as “outside Top 100.”"
+    }
+  },
+  {
+    "id": "ef-13-p2",
+    "ios_grossing_rank_range": { "CN": [30, null], "JP": [31, null], "KR": [57, null] },
+    "rank_evidence": {
+      "primary_url": "https://www.bilibili.com/video/BV1UH756KEUR/",
+      "cross_check_url": "https://www.bilibili.com/video/BV1sz7E6gEGa/",
+      "note_zh": "第一波与首日最终复盘结合，记录中日韩标题中出现的最佳总榜名次。",
+      "note_en": "First-wave and final first-day recaps are combined, using the best CN, JP, and KR overall ranks stated in their titles."
+    }
+  },
+
+  {
+    "id": "nte-10-p2",
+    "ios_grossing_rank_range": { "CN": [13, null] },
+    "rank_evidence": {
+      "primary_url": "https://www.bilibili.com/video/BV1jCdcBMEua/",
+      "cross_check_url": "https://www.bilibili.com/video/BV1eJduBdEiB/",
+      "note_zh": "第一波、第二波与次日复盘结合，国服最佳总榜观测为第 13。",
+      "note_en": "First-wave, second-wave, and second-day recaps are combined, with CN reaching overall #13."
+    },
+    "app_line_observations": [
+      {
+        "app_id": "baidu_netdisk",
+        "hours_above": 15,
+        "data_status": "public_video_summary",
+        "updated_at": "2026-05-14",
+        "evidence": {
+          "primary_url": "https://www.bilibili.com/video/BV1eJduBdEiB/",
+          "note_zh": "公开次日复盘标题明确记录超网盘线 15 小时；同一数据作者会单独写“夸克网盘”，因此此处归入百度网盘。",
+          "note_en": "The public second-day recap title explicitly reports 15 hours above the netdisk line; the same creator names Quark separately, so this is mapped to Baidu Netdisk."
+        }
+      }
+    ]
+  },
+  {
+    "id": "nte-11-p1",
+    "ios_grossing_rank_range": { "CN": [11, null], "JP": [4, null], "US": [120, null], "KR": [11, null] },
+    "rank_evidence": {
+      "primary_url": "https://www.bilibili.com/video/BV16zVH6AExs/",
+      "cross_check_url": "https://www.bilibili.com/video/BV1gu796mEii/",
+      "note_zh": "国服第二波及国际服复盘结合，记录四国公开标题中出现的最佳总榜观测；美服深榜值仅作来源事实保存。",
+      "note_en": "CN second-wave and international recaps are combined for the best stated four-market observations; the deep US value is retained only as a sourced fact."
+    }
+  },
+  {
+    "id": "nte-11-p2",
+    "ios_grossing_rank_range": { "CN": [98, null], "JP": [24, null], "KR": [65, null] },
+    "rank_evidence": {
+      "primary_url": "https://www.bilibili.com/video/BV1R5jY6fEKP/",
+      "cross_check_url": "https://www.bilibili.com/video/BV1yEjo6LE68/",
+      "note_zh": "国服首日最终与国际服第二波复盘结合，记录中日韩最佳总榜观测。",
+      "note_en": "CN final first-day and international second-wave recaps are combined for the best CN, JP, and KR overall observations."
+    }
+  },
+  {
+    "id": "nte-12-p2",
+    "ios_grossing_rank_range": { "CN": [65, null] },
+    "rank_evidence": {
+      "primary_url": "https://www.bilibili.com/video/BV1ZXgD6NEMC/",
+      "cross_check_url": "https://www.bilibili.com/video/BV1sFgX6JEpE/",
+      "note_zh": "首日第一波与第二波公开复盘结合，国服最佳总榜观测为第 65。",
+      "note_en": "First- and second-wave public recaps are combined, with CN reaching overall #65."
+    }
+  },
+
+  {
+    "id": "catalog-zzz-10-p1",
+    "ios_grossing_rank_range": { "JP": [1, null] },
+    "rank_evidence": {
+      "primary_url": "https://www.bilibili.com/video/BV1eXfiYJEfE/",
+      "note_zh": "黑衣侦探绝区零卡池公开合集中的艾莲收官复盘明确记录仅日服登顶；其他市场未给出可核验数字，保持空缺。",
+      "note_en": "The public ZZZ banner collection's Ellen final recap explicitly reports a Japan #1; markets without a stated number remain blank."
+    }
+  },
+  {
+    "id": "catalog-zzz-10-p2",
+    "ios_grossing_rank_range": { "CN": [6, null], "JP": [1, null], "KR": [2, null] },
+    "rank_evidence": {
+      "primary_url": "https://www.bilibili.com/video/BV11i421h74N/",
+      "cross_check_url": "https://www.bilibili.com/video/BV1UW42197QT/",
+      "note_zh": "朱鸢第一波与首日复盘交叉核验：国服第 6、日服登顶、韩服第 2；最低名次因无完整小时存档而留空。",
+      "note_en": "Zhu Yuan first-wave and first-day recaps cross-check CN #6, JP #1, and KR #2; lowest ranks remain blank without a full hourly archive."
+    }
+  },
+  {
+    "id": "catalog-zzz-11-p1",
+    "ios_grossing_rank_range": { "CN": [6, null] },
+    "rank_evidence": {
+      "primary_url": "https://www.bilibili.com/video/BV1NUQHY3Evp/",
+      "note_zh": "公开绝区零卡池合集中的青衣第一波复盘标题明确记录国服总榜第 6；未明确给出数字的市场留空。",
+      "note_en": "The public ZZZ banner collection's Qingyi first-wave title explicitly reports CN overall #6; unstated markets remain blank."
+    }
+  },
+  {
+    "id": "catalog-zzz-11-p2",
+    "ios_grossing_rank_range": { "CN": [8, null], "JP": [1, null], "KR": [4, null] },
+    "rank_evidence": {
+      "primary_url": "https://www.bilibili.com/video/BV1kXpPeYEBE/",
+      "cross_check_url": "https://www.bilibili.com/video/BV1NUQHY3Evp/",
+      "note_zh": "简·杜第一波与首日复盘结合，记录国服第 8、日服登顶、韩服第 4。",
+      "note_en": "Jane Doe first-wave and first-day recaps combine to verify CN #8, JP #1, and KR #4."
+    }
+  },
+  {
+    "id": "catalog-zzz-12-p1",
+    "ios_grossing_rank_range": { "CN": [18, null], "JP": [5, null] },
+    "rank_evidence": {
+      "primary_url": "https://www.bilibili.com/video/BV1yQsre1E3n/",
+      "note_zh": "凯撒第一波复盘标题明确记录国服第 18、日服第 5；韩服当时标为待定，故不写入数字。",
+      "note_en": "Caesar's first-wave recap explicitly reports CN #18 and JP #5; Korea was still pending and is therefore left blank."
+    }
+  },
+  {
+    "id": "catalog-zzz-12-p2",
+    "ios_grossing_rank_range": { "CN": [26, null], "JP": [7, null], "KR": [10, null] },
+    "rank_evidence": {
+      "primary_url": "https://www.bilibili.com/video/BV1NUQHY3Evp/",
+      "note_zh": "公开卡池合集中的柏妮思第一波复盘标题明确记录国服第 26、日服第 7、韩服第 10。",
+      "note_en": "The public banner collection's Burnice first-wave recap explicitly reports CN #26, JP #7, and KR #10."
+    }
+  },
+  {
+    "id": "catalog-zzz-13-p1",
+    "ios_grossing_rank_range": { "CN": [9, null], "JP": [4, null], "US": [74, null], "KR": [6, null] },
+    "rank_evidence": {
+      "primary_url": "https://www.bilibili.com/video/BV1NUQHY3Evp/",
+      "note_zh": "公开卡池合集中的月城柳第一波标题明确记录中、日、美、韩四服总榜第 9、4、74、6。",
+      "note_en": "The public banner collection's Yanagi first-wave title explicitly reports CN #9, JP #4, US #74, and KR #6."
+    }
+  },
+  {
+    "id": "catalog-zzz-13-p2",
+    "ios_grossing_rank_range": { "CN": [64, null], "JP": [18, null], "KR": [34, null] },
+    "rank_evidence": {
+      "primary_url": "https://www.bilibili.com/video/BV1LjB9YjErw/",
+      "note_zh": "莱特第一波复盘标题明确记录国服第 64、日服第 18、韩服第 34。",
+      "note_en": "Lighter's first-wave recap explicitly reports CN #64, JP #18, and KR #34."
+    }
+  },
+  {
+    "id": "catalog-zzz-15-p1",
+    "ios_grossing_rank_range": { "CN": [13, null], "JP": [1, null], "US": [63, null], "KR": [3, null] },
+    "rank_evidence": {
+      "primary_url": "https://www.bilibili.com/video/BV1eXfiYJEfE/",
+      "cross_check_url": "https://www.bilibili.com/video/BV1NUQHY3Evp/",
+      "note_zh": "耀嘉音与艾莲的第一波、首日复盘结合，记录国服第 13、日服登顶、美服第 63、韩服最佳第 3。",
+      "note_en": "Astra Yao and Ellen first-wave and first-day recaps combine to verify CN #13, JP #1, US #63, and a best KR #3."
+    }
+  },
+  {
+    "id": "catalog-zzz-16-p1",
+    "ios_grossing_rank_range": { "CN": [25, null], "JP": [9, null], "US": [92, null], "KR": [8, null] },
+    "rank_evidence": {
+      "primary_url": "https://www.bilibili.com/video/BV1NUQHY3Evp/",
+      "note_zh": "零号·安比与柏妮思复盘标题明确记录国服第 25、日服第 9、韩服第 8、美服第 92。",
+      "note_en": "Soldier 0 Anby and Burnice's recap explicitly reports CN #25, JP #9, KR #8, and US #92."
+    }
+  },
+  {
+    "id": "catalog-zzz-16-p2",
+    "ios_grossing_rank_range": { "CN": [21, null], "JP": [7, null], "KR": [9, null] },
+    "rank_evidence": {
+      "primary_url": "https://www.bilibili.com/video/BV17rf3YDEB5/",
+      "note_zh": "扳机与朱鸢首日复盘标题明确记录国服第 21、日服第 7、韩服第 9。",
+      "note_en": "Trigger and Zhu Yuan's first-day recap explicitly reports CN #21, JP #7, and KR #9."
+    },
+    "app_line_observations": [
+      {
+        "app_id": "baidu_netdisk",
+        "hours_above": 9,
+        "data_status": "public_video_summary",
+        "updated_at": "2025-04-03",
+        "evidence": {
+          "primary_url": "https://www.bilibili.com/video/BV17rf3YDEB5/",
+          "note_zh": "公开视频标题明确记录扳机与朱鸢首日超网盘线 9 小时；同一作者会将夸克单独写作“夸克网盘”，故归入百度网盘。",
+          "note_en": "The public title explicitly reports nine hours above the netdisk line; this creator names Quark separately, so the observation maps to Baidu Netdisk."
+        }
+      }
+    ]
+  },
+  {
+    "id": "ef-10-p3",
+    "app_line_observations": [
+      {
+        "app_id": "baidu_netdisk",
+        "hours_above": 9,
+        "data_status": "public_video_summary",
+        "updated_at": "2026-02-25",
+        "evidence": {
+          "primary_url": "https://www.bilibili.com/video/BV1RQz1BQEqp/",
+          "note_zh": "公开终末地卡池合集中的伊冯首日复盘标题明确记录超网盘线 9 小时；同一作者会单列夸克，故归入百度网盘。",
+          "note_en": "The public Endfield banner collection's Yvonne first-day recap explicitly reports nine hours above the netdisk line; the creator labels Quark separately, so this maps to Baidu Netdisk."
+        }
+      }
+    ]
+  },
+  {
+    "id": "ef-12-p1",
+    "ios_grossing_rank_range": { "CN": [9, null], "JP": [8, null], "KR": [16, null] },
+    "rank_evidence": {
+      "primary_url": "https://search.bilibili.com/all?keyword=%E7%BB%88%E6%9C%AB%E5%9C%B0%201.2%20%E5%BA%84%E6%96%B9%E5%AE%9C%20%E5%9B%BD%E6%9C%8D%E7%AC%AC%E4%B9%9D",
+      "note_zh": "Bilibili 公开搜索结果中的庄方宜卡池复盘标题明确记录国服第 9、日服第 8、韩服第 16。",
+      "note_en": "The public Bilibili search result for the Zhuang Fangyi recap explicitly reports CN #9, JP #8, and KR #16."
+    }
+  },
+  {
+    "id": "catalog-genshin-41-p1",
+    "app_line_observations": [
+      {
+        "app_id": "douyin",
+        "hours_above": 63,
+        "data_status": "public_video_summary",
+        "updated_at": "2023-09-30",
+        "evidence": {
+          "primary_url": "https://search.bilibili.com/all?keyword=%E9%82%A3%E7%BB%B4%E8%8E%B1%E7%89%B9%E9%A6%96%E6%97%A5%E6%B5%81%E6%B0%B4",
+          "note_zh": "Bilibili 公开搜索结果中的那维莱特收官复盘标题明确记录最终超某音 63 小时；“某音”按公开视频通用避讳写法归入抖音。",
+          "note_en": "The public Bilibili search result's Neuvillette final recap explicitly reports 63 hours above Douyin, written with the common euphemism 'a certain Yin'."
+        }
+      }
+    ]
+  },
+  {
+    "id": "catalog-genshin-42-p1",
+    "ios_grossing_rank_range": { "CN": [1, null], "JP": [1, null], "KR": [1, null] },
+    "rank_evidence": {
+      "primary_url": "https://www.bilibili.com/video/BV1Zu4y1P7Uz/",
+      "note_zh": "芙宁娜、白术卡池首日公开复盘标题明确记录中国、日本、韩国 iOS 畅销总榜均登顶；最低名次没有可核验的完整历史快照。",
+      "note_en": "The public first-day Furina/Baizhu recap explicitly reports #1 on the overall iOS grossing chart in China, Japan, and South Korea; no complete archive is available for the lowest ranks."
+    },
+    "app_line_observations": [
+      {
+        "app_id": "douyin",
+        "hours_above": 81,
+        "data_status": "public_video_summary",
+        "updated_at": "2023-11-11",
+        "evidence": {
+          "primary_url": "https://www.youtube.com/watch?v=u3bn0q8CXZY",
+          "cross_check_url": "https://www.bilibili.com/video/BV1Zu4y1P7Uz/",
+          "note_zh": "同一作者的最终复盘标题明确记录 4.2 上半累计超某音 81 小时；“某音”按公开视频通用避讳写法归入抖音。",
+          "note_en": "The same creator's final recap explicitly reports 81 cumulative hours above Douyin for the first half of 4.2, using the common euphemism 'a certain Yin'."
+        }
+      }
+    ]
+  },
+  {
+    "id": "catalog-genshin-44-p1",
+    "app_line_observations": [
+      {
+        "app_id": "douyin",
+        "hours_above": 42,
+        "data_status": "public_video_summary",
+        "updated_at": "2024-02-02",
+        "evidence": {
+          "primary_url": "https://www.bilibili.com/video/BV1kU421Z7NL/",
+          "note_zh": "闲云、纳西妲卡池最终复盘标题明确记录累计超某音 42 小时；“某音”归入抖音。",
+          "note_en": "The final Xianyun/Nahida recap explicitly reports 42 cumulative hours above Douyin, written with the common euphemism 'a certain Yin'."
+        }
+      }
+    ]
+  },
+  {
+    "id": "catalog-genshin-44-p2",
+    "app_line_observations": [
+      {
+        "app_id": "qq_music",
+        "hours_above": 10,
+        "data_status": "public_video_summary",
+        "updated_at": "2024-02-22",
+        "evidence": {
+          "primary_url": "https://search.bilibili.com/all?keyword=%E5%8E%9F%E7%A5%9E%204.4%20%E5%85%AB%E9%87%8D%E7%A5%9E%E5%AD%90%20%E9%AD%88%20%E6%9C%80%E7%BB%88%E8%B6%85%E4%BC%81%E9%B9%85%E9%9F%B310%E5%B0%8F%E6%97%B6",
+          "note_zh": "八重神子、魈卡池最终复盘标题明确记录累计超“企鹅音”10 小时；该公开避讳写法可唯一对应 QQ 音乐。",
+          "note_en": "The final Yae Miko/Xiao recap explicitly reports ten cumulative hours above 'Penguin Music', an unambiguous public euphemism for QQ Music."
+        }
+      }
+    ]
+  },
+  {
+    "id": "catalog-hsr-13-p2",
+    "app_line_observations": [
+      {
+        "app_id": "douyin",
+        "hours_above": 33,
+        "data_status": "public_video_summary",
+        "updated_at": "2023-09-22",
+        "evidence": {
+          "primary_url": "https://www.bilibili.com/video/BV18m4y157Ff/",
+          "note_zh": "符玄、玲可卡池最终复盘标题明确记录累计超某音 33 小时；“某音”归入抖音。",
+          "note_en": "The final Fu Xuan/Lynx recap explicitly reports 33 cumulative hours above Douyin, written with the common euphemism 'a certain Yin'."
+        }
+      }
+    ]
+  },
+  {
+    "id": "catalog-hsr-15-p2",
+    "app_line_observations": [
+      {
+        "app_id": "douyin",
+        "hours_above": 0,
+        "data_status": "public_video_summary",
+        "updated_at": "2023-12-07",
+        "evidence": {
+          "primary_url": "https://www.bilibili.com/video/av451756571",
+          "cross_check_url": "https://www.youtube.com/watch?v=dUYIaetXCGQ",
+          "note_zh": "银枝、银狼卡池公开复盘标题明确记录超某音 0 小时；“某音”归入抖音。",
+          "note_en": "The public Argenti/Silver Wolf recap explicitly reports zero hours above Douyin, written with the common euphemism 'a certain Yin'."
+        }
+      }
+    ]
+  },
+  {
+    "id": "catalog-hsr-16-p1",
+    "app_line_observations": [
+      {
+        "app_id": "douyin",
+        "hours_above": 33,
+        "data_status": "public_video_summary",
+        "updated_at": "2023-12-29",
+        "evidence": {
+          "primary_url": "https://www.bilibili.com/video/BV1EN4y1x7NK/",
+          "note_zh": "阮·梅、刃卡池最终复盘标题明确记录累计超某音 33 小时；“某音”归入抖音。",
+          "note_en": "The final Ruan Mei/Blade recap explicitly reports 33 cumulative hours above Douyin, written with the common euphemism 'a certain Yin'."
+        }
+      }
+    ]
+  },
+  {
+    "id": "catalog-hsr-20-p1",
+    "app_line_observations": [
+      {
+        "app_id": "douyin",
+        "hours_above": 33,
+        "data_status": "public_video_summary",
+        "updated_at": "2024-02-08",
+        "evidence": {
+          "primary_url": "https://www.bilibili.com/video/BV1QH4y1Y7LV/",
+          "note_zh": "黑天鹅、饮月卡池最终复盘标题明确记录累计超某音 33 小时；“某音”归入抖音。",
+          "note_en": "The final Black Swan/Dan Heng Imbibitor Lunae recap explicitly reports 33 cumulative hours above Douyin, written with the common euphemism 'a certain Yin'."
+        }
+      }
+    ]
+  },
+  {
+    "id": "catalog-hsr-21-p1",
+    "ios_grossing_rank_range": { "CN": [1, null], "JP": [1, null], "KR": [1, null] },
+    "rank_evidence": {
+      "primary_url": "https://www.bilibili.com/video/BV1mA4m1A7Ye/",
+      "cross_check_url": "https://www.bilibili.com/video/BV1nA4m1A7xh/",
+      "note_zh": "黄泉、罗刹卡池公开复盘明确记录中国、日本、韩国等 15 个国家或地区登顶；最低名次没有完整历史快照。",
+      "note_en": "The public Acheron/Luocha recap explicitly reports #1 in China, Japan, South Korea, and twelve other markets; no complete archive is available for the lowest ranks."
+    },
+    "app_line_observations": [
+      {
+        "app_id": "douyin",
+        "hours_above": 81,
+        "data_status": "public_video_summary",
+        "updated_at": "2024-03-31",
+        "evidence": {
+          "primary_url": "https://www.bilibili.com/video/BV1nA4m1A7xh/",
+          "note_zh": "黄泉、罗刹卡池最终复盘标题明确记录累计超某音 81 小时；“某音”归入抖音。",
+          "note_en": "The final Acheron/Luocha recap explicitly reports 81 cumulative hours above Douyin, written with the common euphemism 'a certain Yin'."
+        }
+      }
+    ]
+  },
+  {
+    "id": "catalog-hsr-23-p1",
+    "ios_grossing_rank_range": { "CN": [1, null], "JP": [1, null], "KR": [1, null] },
+    "rank_evidence": {
+      "primary_url": "https://www.bilibili.com/video/BV1JJ4m1T7YR/",
+      "note_zh": "流萤、阮·梅卡池公开复盘合集明确记录中国、日本、韩国 iOS 畅销总榜均登顶；最低名次没有完整历史快照。",
+      "note_en": "The public Firefly/Ruan Mei recap collection explicitly reports #1 on the overall iOS grossing chart in China, Japan, and South Korea; no complete archive is available for the lowest ranks."
+    }
+  },
+  {
+    "id": "catalog-hsr-24-p1",
+    "ios_grossing_rank_range": { "CN": [7, null], "JP": [1, null], "KR": [6, null] },
+    "rank_evidence": {
+      "primary_url": "https://www.bilibili.com/video/BV1WU411U7Yn/",
+      "cross_check_url": "https://www.bilibili.com/video/BV1vE421w7TU/",
+      "note_zh": "云璃、藿藿卡池公开复盘分别明确记录国服第 7、日服登顶、韩服第 6；最低名次没有完整历史快照。",
+      "note_en": "Public Yunli/Huohuo recaps explicitly report CN #7, JP #1, and KR #6; no complete archive is available for the lowest ranks."
+    }
+  },
+  {
+    "id": "catalog-hsr-24-p2",
+    "ios_grossing_rank_range": { "CN": [9, null], "JP": [1, null], "KR": [6, null] },
+    "rank_evidence": {
+      "primary_url": "https://www.bilibili.com/video/BV1UjWaeREJf/",
+      "cross_check_url": "https://www.bilibili.com/video/BV1NpWuepEeY/",
+      "note_zh": "椒丘、花火卡池公开复盘合集记录国服第 9、日服登顶，后续记录韩服第 6；最低名次没有完整历史快照。",
+      "note_en": "The public Jiaoqiu/Sparkle recap collection reports CN #9 and JP #1, with a later recap reporting KR #6; no complete archive is available for the lowest ranks."
+    }
+  },
+  {
+    "id": "catalog-hsr-25-p1",
+    "ios_grossing_rank_range": { "CN": [3, null], "JP": [1, null], "US": [14, null], "KR": [1, null] },
+    "rank_evidence": {
+      "primary_url": "https://www.bilibili.com/video/BV1P1psefEVa/",
+      "note_zh": "飞霄四卡池公开复盘合集记录国服第 3、日服和韩服登顶、美服第 14；最低名次没有完整历史快照。",
+      "note_en": "The public Feixiao multi-banner recap collection reports CN #3, JP #1, KR #1, and US #14; no complete archive is available for the lowest ranks."
+    }
+  },
+  {
+    "id": "catalog-hsr-25-p2",
+    "ios_grossing_rank_range": { "CN": [11, null], "JP": [1, null], "KR": [8, null] },
+    "rank_evidence": {
+      "primary_url": "https://www.bilibili.com/video/BV19543ejEeo/",
+      "cross_check_url": "https://www.bilibili.com/video/BV1oo4LePEoG/",
+      "note_zh": "灵砂、托帕卡池公开复盘合集记录国服第 11、日服登顶、韩服第 8；最低名次没有完整历史快照。",
+      "note_en": "The public Lingsha/Topaz recap collection reports CN #11, JP #1, and KR #8; no complete archive is available for the lowest ranks."
+    }
+  },
+  {
+    "id": "catalog-hsr-26-p1",
+    "ios_grossing_rank_range": { "CN": [9, null], "JP": [5, null], "KR": [10, null] },
+    "rank_evidence": {
+      "primary_url": "https://www.bilibili.com/video/BV1VLyoYKECs/",
+      "note_zh": "乱破、饮月卡池公开复盘合集明确记录国服第 9、日服第 5、韩服第 10；最低名次没有完整历史快照。",
+      "note_en": "The public Rappa/Dan Heng Imbibitor Lunae recap collection explicitly reports CN #9, JP #5, and KR #10; no complete archive is available for the lowest ranks."
+    }
+  },
+  {
+    "id": "catalog-hsr-26-p2",
+    "ios_grossing_rank_range": { "CN": [25, null], "JP": [3, null], "KR": [13, null] },
+    "rank_evidence": {
+      "primary_url": "https://www.bilibili.com/video/BV1wGUGYPEjU/",
+      "note_zh": "黄泉、砂金复刻卡池公开复盘明确记录国服第 25、日服第 3、韩服第 13；最低名次没有完整历史快照。",
+      "note_en": "The public Acheron/Aventurine rerun recap explicitly reports CN #25, JP #3, and KR #13; no complete archive is available for the lowest ranks."
+    },
+    "app_line_observations": [
+      {
+        "app_id": "baidu_netdisk",
+        "hours_above": 6,
+        "data_status": "public_video_summary",
+        "updated_at": "2024-11-14",
+        "evidence": {
+          "primary_url": "https://www.bilibili.com/video/BV1wGUGYPEjU/",
+          "note_zh": "黄泉、砂金复刻卡池最终复盘标题明确记录累计超网盘线 6 小时；该作者另行标注夸克，故“网盘线”归入百度网盘。",
+          "note_en": "The final Acheron/Aventurine rerun recap explicitly reports six cumulative hours above the netdisk line; the creator labels Quark separately, so this maps to Baidu Netdisk."
+        }
+      }
+    ]
+  },
+  {
+    "id": "catalog-hsr-27-p1",
+    "ios_grossing_rank_range": { "CN": [7, null], "JP": [1, null], "US": [22, null], "KR": [4, null] },
+    "rank_evidence": {
+      "primary_url": "https://www.bilibili.com/video/BV1PgimYuEYA/",
+      "cross_check_url": "https://www.bilibili.com/video/BV1bDiQY4EcK/",
+      "note_zh": "星期日、景元卡池公开复盘记录国服第 7、日服登顶、美服第 22、韩服第 4；最低名次没有完整历史快照。",
+      "note_en": "Public Sunday/Jing Yuan recaps report CN #7, JP #1, US #22, and KR #4; no complete archive is available for the lowest ranks."
+    }
+  },
+  {
+    "id": "catalog-hsr-27-p2",
+    "ios_grossing_rank_range": { "CN": [5, null], "JP": [3, null], "KR": [8, null] },
+    "rank_evidence": {
+      "primary_url": "https://www.bilibili.com/video/BV1FLCwY9ELy/",
+      "cross_check_url": "https://www.bilibili.com/video/BV13eCiYBELL/",
+      "note_zh": "忘归人、流萤卡池公开复盘记录国服第 5、日服第 3、韩服第 8；最低名次没有完整历史快照。",
+      "note_en": "The public Fugue/Firefly recap reports CN #5, JP #3, and KR #8; no complete archive is available for the lowest ranks."
+    }
+  },
+  {
+    "id": "catalog-hsr-30-p1",
+    "ios_grossing_rank_range": { "CN": [5, null], "JP": [1, null], "US": [18, null], "KR": [2, null] },
+    "rank_evidence": {
+      "primary_url": "https://www.bilibili.com/video/BV1x2cie3EQf/",
+      "cross_check_url": "https://www.bilibili.com/video/BV1e4wMe5E8J/",
+      "note_zh": "大黑塔四卡池公开复盘记录国服第 5、日服登顶、美服第 18、韩服第 2；最低名次没有完整历史快照。",
+      "note_en": "Public The Herta multi-banner recaps report CN #5, JP #1, US #18, and KR #2; no complete archive is available for the lowest ranks."
+    }
+  },
+  {
+    "id": "catalog-hsr-30-p2",
+    "ios_grossing_rank_range": { "CN": [13, null], "JP": [2, null], "KR": [5, null] },
+    "rank_evidence": {
+      "primary_url": "https://www.bilibili.com/video/BV19gPyeUESt/",
+      "note_zh": "阿格莱雅四卡池公开复盘合集明确记录国服第 13、日服第 2、韩服第 5；最低名次没有完整历史快照。",
+      "note_en": "The public Aglaea multi-banner recap collection explicitly reports CN #13, JP #2, and KR #5; no complete archive is available for the lowest ranks."
+    }
+  },
+  {
+    "id": "catalog-genshin-43-p1",
+    "app_line_observations": [{
+      "app_id": "douyin", "hours_above": 6, "data_status": "public_video_summary", "updated_at": "2023-12-21",
+      "evidence": {
+        "primary_url": "https://www.bilibili.com/video/BV1nN4y187AM/",
+        "note_zh": "娜维娅、神里绫华卡池公开复盘标题明确记录首日累计超某音 6 小时；“某音”归入抖音。",
+        "note_en": "The public Navia/Ayaka recap explicitly reports six first-day hours above Douyin, written with the common euphemism 'a certain Yin'."
+      }
+    }]
+  },
+  {
+    "id": "catalog-genshin-43-p2",
+    "app_line_observations": [{
+      "app_id": "douyin", "hours_above": 0, "data_status": "public_video_summary", "updated_at": "2024-01-11",
+      "evidence": {
+        "primary_url": "https://www.bilibili.com/video/BV1Fc411b7zn/",
+        "cross_check_url": "https://www.bilibili.com/video/BV1hW4y1A7RM/",
+        "note_zh": "雷电将军、宵宫卡池首日与次日公开复盘均明确记录超某音 0 小时；“某音”归入抖音。",
+        "note_en": "Public Raiden Shogun/Yoimiya first- and second-day recaps both explicitly report zero hours above Douyin."
+      }
+    }]
+  },
+  {
+    "id": "catalog-genshin-45-p1",
+    "app_line_observations": [{
+      "app_id": "qq_music", "hours_above": 38, "data_status": "public_video_summary", "updated_at": "2024-03-14",
+      "evidence": {
+        "primary_url": "https://www.bilibili.com/video/BV1A1421Q7Zu/",
+        "note_zh": "千织、荒泷一斗卡池次日公开复盘标题明确记录累计超企鹅音 38 小时；“企鹅音”归入 QQ 音乐。",
+        "note_en": "The public Chiori/Arataki Itto recap explicitly reports 38 cumulative hours above QQ Music, written as 'Penguin Music'."
+      }
+    }]
+  },
+  {
+    "id": "catalog-genshin-45-p2",
+    "app_line_observations": [{
+      "app_id": "qq_music", "hours_above": 29, "data_status": "public_video_summary", "updated_at": "2024-04-03",
+      "evidence": {
+        "primary_url": "https://www.bilibili.com/video/BV1UM4m1X7oK/",
+        "note_zh": "那维莱特、枫原万叶卡池次日公开复盘标题明确记录累计超企鹅音 29 小时；“企鹅音”归入 QQ 音乐。",
+        "note_en": "The public Neuvillette/Kazuha recap explicitly reports 29 cumulative hours above QQ Music, written as 'Penguin Music'."
+      }
+    }]
+  },
+  {
+    "id": "catalog-genshin-46-p2",
+    "app_line_observations": [{
+      "app_id": "qq_music", "hours_above": 0, "data_status": "public_video_summary", "updated_at": "2024-05-16",
+      "evidence": {
+        "primary_url": "https://www.bilibili.com/video/BV1mr421L7iZ/",
+        "note_zh": "流浪者、白术卡池次日公开复盘标题明确记录超企鹅音 0 小时；“企鹅音”归入 QQ 音乐。",
+        "note_en": "The public Wanderer/Baizhu recap explicitly reports zero hours above QQ Music, written as 'Penguin Music'."
+      }
+    }]
+  },
+  {
+    "id": "catalog-genshin-48-p2",
+    "ios_grossing_rank_range": { "CN": [21, null] },
+    "rank_evidence": {
+      "primary_url": "https://www.bilibili.com/video/BV1kr421K7jn/",
+      "note_zh": "艾梅莉埃、夜兰卡池第一波公开复盘明确记录国服 iOS 畅销总榜第 21；最低名次没有完整历史快照。",
+      "note_en": "The public first-wave Emilie/Yelan recap explicitly reports CN #21 on the overall iOS grossing chart; no complete archive is available for the lowest rank."
+    }
+  },
+  {
+    "id": "catalog-genshin-50-p1",
+    "ios_grossing_rank_range": { "CN": [9, null], "JP": [5, null], "KR": [22, null] },
+    "rank_evidence": {
+      "primary_url": "https://www.bilibili.com/video/BV17ssTeTEMK/",
+      "note_zh": "玛拉妮、枫原万叶卡池第一波公开复盘明确记录国服第 9、日服第 5、韩服第 22；最低名次没有完整历史快照。",
+      "note_en": "The public first-wave Mualani/Kazuha recap explicitly reports CN #9, JP #5, and KR #22; no complete archive is available for the lowest ranks."
+    }
+  },
+  {
+    "id": "catalog-genshin-50-p2",
+    "ios_grossing_rank_range": { "CN": [12, null], "JP": [3, null], "KR": [15, null] },
+    "rank_evidence": {
+      "primary_url": "https://www.bilibili.com/video/BV1xCtveBEAS/",
+      "cross_check_url": "https://www.bilibili.com/video/BV1fet3e4EMa/",
+      "note_zh": "基尼奇、雷电将军卡池公开复盘记录国服第 12，后续日服升至第 3、韩服升至第 15；最低名次没有完整历史快照。",
+      "note_en": "Public Kinich/Raiden Shogun recaps report CN #12, with JP later reaching #3 and KR #15; no complete archive is available for the lowest ranks."
+    }
+  },
+  {
+    "id": "catalog-genshin-51-p1",
+    "ios_grossing_rank_range": { "CN": [5, null], "JP": [1, null], "KR": [10, null] },
+    "rank_evidence": {
+      "primary_url": "https://www.bilibili.com/video/BV1PL2PYGEHj/",
+      "cross_check_url": "https://www.bilibili.com/video/BV1es2uY6EkR/",
+      "note_zh": "希诺宁、千织卡池公开复盘记录国服第 5、日服登顶、韩服第 10；最低名次没有完整历史快照。",
+      "note_en": "Public Xilonen/Chiori recaps report CN #5, JP #1, and KR #10; no complete archive is available for the lowest ranks."
+    }
+  },
+  {
+    "id": "catalog-genshin-51-p2",
+    "ios_grossing_rank_range": { "CN": [19, null], "JP": [9, null], "KR": [31, null] },
+    "rank_evidence": {
+      "primary_url": "https://www.bilibili.com/video/BV1irSbYGEza/",
+      "cross_check_url": "https://www.bilibili.com/video/BV1pdSaYbE7t/",
+      "note_zh": "纳西妲、胡桃卡池公开复盘记录国服升至第 19、日服第 9、韩服第 31；最低名次没有完整历史快照。",
+      "note_en": "Public Nahida/Hu Tao recaps report CN #19, JP #9, and KR #31; no complete archive is available for the lowest ranks."
+    },
+    "app_line_observations": [{
+      "app_id": "baidu_netdisk", "hours_above": 12, "data_status": "public_video_summary", "updated_at": "2024-10-31",
+      "evidence": {
+        "primary_url": "https://www.bilibili.com/video/BV1RnSjYTEb4/",
+        "note_zh": "纳西妲、胡桃卡池最终复盘标题明确记录累计超网盘线 12 小时；该作者另行标注夸克，故归入百度网盘。",
+        "note_en": "The final Nahida/Hu Tao recap explicitly reports 12 cumulative hours above the netdisk line; the creator labels Quark separately, so this maps to Baidu Netdisk."
+      }
+    }]
+  },
+  {
+    "id": "catalog-genshin-52-p1",
+    "ios_grossing_rank_range": { "CN": [7, null], "JP": [11, null], "US": [36, null], "KR": [26, null] },
+    "rank_evidence": {
+      "primary_url": "https://www.bilibili.com/video/BV11sSMYaEQC/",
+      "note_zh": "恰斯卡、林尼卡池第一波公开复盘明确记录国服第 7、日服第 11、美服第 36、韩服第 26；最低名次没有完整历史快照。",
+      "note_en": "The public first-wave Chasca/Lyney recap explicitly reports CN #7, JP #11, US #36, and KR #26; no complete archive is available for the lowest ranks."
+    }
+  },
+  {
+    "id": "catalog-genshin-52-p2",
+    "ios_grossing_rank_range": { "CN": [8, null], "JP": [4, null], "KR": [35, null] },
+    "rank_evidence": {
+      "primary_url": "https://www.bilibili.com/video/BV1egqCY1EDC/",
+      "cross_check_url": "https://www.bilibili.com/video/BV1tsqCYKEwz/",
+      "note_zh": "那维莱特、钟离卡池公开复盘记录国服升至第 8、日服升至第 4、韩服第 35；最低名次没有完整历史快照。",
+      "note_en": "Public Neuvillette/Zhongli recaps report CN #8, JP #4, and KR #35; no complete archive is available for the lowest ranks."
+    }
+  },
+  {
+    "id": "catalog-genshin-53-p1",
+    "ios_grossing_rank_range": { "CN": [4, null], "JP": [5, null], "US": [11, null], "KR": [7, null] },
+    "rank_evidence": {
+      "primary_url": "https://www.bilibili.com/video/BV12h6RYrErb/",
+      "note_zh": "玛薇卡、茜特菈莉卡池第一波公开复盘明确记录国服第 4、日服第 5、美服第 11、韩服第 7；最低名次没有完整历史快照。",
+      "note_en": "The public first-wave Mavuika/Citlali recap explicitly reports CN #4, JP #5, US #11, and KR #7; no complete archive is available for the lowest ranks."
+    }
+  },
+  {
+    "id": "catalog-genshin-53-p2",
+    "ios_grossing_rank_range": { "CN": [9, null], "JP": [1, null], "KR": [31, null] },
+    "rank_evidence": {
+      "primary_url": "https://www.bilibili.com/video/BV1j2waeUE2Y/",
+      "cross_check_url": "https://www.bilibili.com/video/BV12gfxYMELk/",
+      "note_zh": "阿蕾奇诺、克洛琳德及璃月混池公开复盘记录国服升至第 9、日服登顶、韩服第 31；最低名次没有完整历史快照。",
+      "note_en": "Public Arlecchino/Clorinde/Liyue chronicled-wish recaps report CN #9, JP #1, and KR #31; no complete archive is available for the lowest ranks."
+    }
+  },
+  {
+    "id": "catalog-genshin-54-p1",
+    "ios_grossing_rank_range": { "CN": [27, null], "JP": [20, null], "US": [61, null], "KR": [54, null] },
+    "rank_evidence": {
+      "primary_url": "https://www.bilibili.com/video/BV1jtK5ekEW5/",
+      "note_zh": "梦见月瑞希、希格雯卡池公开复盘明确记录国服第 27、日服第 20、美服第 61、韩服第 54；最低名次没有完整历史快照。",
+      "note_en": "The public Yumemizuki Mizuki/Sigewinne recap explicitly reports CN #27, JP #20, US #61, and KR #54; no complete archive is available for the lowest ranks."
+    }
+  }
+]
