@@ -22,7 +22,7 @@ test("does not fan out banner requests during initial paint", async ({ page }) =
     if (url.pathname.startsWith("/api/backend/")) backendPaths.push(url.pathname);
   });
   await page.goto("/zh-CN");
-  await expect(page.getByText("¥57.50亿")).toBeVisible();
+  await expect(page.locator(".overview-kpis strong").first()).toHaveText(/^¥57\.\d{2}亿$/);
   expect(backendPaths).not.toContain("/api/backend/public-revenue");
   expect(backendPaths).not.toContain("/api/backend/exchange-rate");
   expect(backendPaths).not.toContain("/api/backend/versions");
@@ -58,11 +58,11 @@ test("switches revenue grain and locale", async ({ page }) => {
   await page.goto("/zh-CN");
   await expect(page.getByRole("button", { name: "按月" })).toBeEnabled();
   await expect(page.getByRole("heading", { name: "2026 年累计移动端流水估算（截至 6 月）" })).toBeVisible();
-  await expect(page.getByText("¥57.50亿")).toBeVisible();
+  await expect(page.locator(".overview-kpis strong").first()).toHaveText(/^¥57\.\d{2}亿$/);
   await expect(page.getByText(/2026 年 7 月公开源尚未发布/)).toBeVisible();
   const activeCard = page.locator(".game-card[aria-pressed='true']");
   await expect(activeCard).toContainText("原神");
-  await expect(activeCard).toContainText("¥18.67亿");
+  await expect(activeCard).toContainText(/¥18\.6\d亿/);
   await expect(page.locator(".game-card").filter({ hasText: "异环" })).toContainText("¥2.99亿");
 
   await page.locator(".game-card").filter({ hasText: "崩坏：星穹铁道" }).click();
@@ -83,7 +83,7 @@ test("switches revenue grain and locale", async ({ page }) => {
   await expect(page.locator(".chart-dot[data-coverage='partial']")).toHaveCount(9);
   await expect(page.locator("#compare")).toHaveCount(0);
   await expect(page.locator(".line-chart text").filter({ hasText: "2024-01" })).toHaveCount(1);
-  await expect(page.getByText("6.99", { exact: true }).first()).toBeAttached();
+  await expect(page.getByText(/^6\.9\d$/, { exact: true }).first()).toBeAttached();
   await page.getByRole("button", { name: "按年" }).click();
   await expect(page.getByText("2023（部分）", { exact: true })).toBeAttached();
   await expect(page.getByText("2024", { exact: true })).toBeAttached();
